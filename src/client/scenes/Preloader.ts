@@ -78,6 +78,36 @@ export class Preloader extends Scene {
         );
       });
     }
+
+    const spriteAnimationFiles: Record<string, string[]> = {
+      'sword/idle': [
+        '0.png',
+        '1.png',
+        '2.png',
+        '3.png',
+        '4.png',
+        '5.png',
+        '6.png',
+        '7.png',
+      ],
+      'sword/fall': ['0.png'],
+      'sword/spinning': ['0.png', '1.png', '2.png', '3.png'],
+      'sword/embedded': ['0.png', '1.png', '2.png', '3.png'],
+      'particle/run_dust': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      'particle/jump_dust': ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png'],
+      'particle/land_dust': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      'dialogue/exclamation': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      'dialogue/dead': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+    };
+
+    for (const [animation, files] of Object.entries(spriteAnimationFiles)) {
+      files.forEach((fileName, frame) => {
+        this.load.image(
+          `${animation}/${frame}`,
+          `img/${animation}/${fileName}`
+        );
+      });
+    }
   }
 
   create() {

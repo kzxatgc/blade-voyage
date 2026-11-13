@@ -105,3 +105,46 @@ This document records credits for assets used in this project.
   - `public/assets/img/entities/player/sword/run/3.png`
   - `public/assets/img/entities/player/sword/run/4.png`
   - `public/assets/img/entities/player/sword/run/5.png`
+  - `public/assets/img/sword/idle/0.png`
+  - `public/assets/img/sword/idle/1.png`
+  - `public/assets/img/sword/idle/2.png`
+  - `public/assets/img/sword/idle/3.png`
+  - `public/assets/img/sword/idle/4.png`
+  - `public/assets/img/sword/idle/5.png`
+  - `public/assets/img/sword/idle/6.png`
+  - `public/assets/img/sword/idle/7.png`
+  - `public/assets/img/sword/fall/0.png`
+  - `public/assets/img/sword/spinning/0.png`
+  - `public/assets/img/sword/spinning/1.png`
+  - `public/assets/img/sword/spinning/2.png`
+  - `public/assets/img/sword/spinning/3.png`
+  - `public/assets/img/sword/embedded/0.png`
+  - `public/assets/img/sword/embedded/1.png`
+  - `public/assets/img/sword/embedded/2.png`
+  - `public/assets/img/sword/embedded/3.png`
+  - `public/assets/img/particle/run_dust/0.png`
+  - `public/assets/img/particle/run_dust/1.png`
+  - `public/assets/img/particle/run_dust/2.png`
+  - `public/assets/img/particle/run_dust/3.png`
+  - `public/assets/img/particle/run_dust/4.png`
+  - `public/assets/img/particle/jump_dust/0.png`
+  - `public/assets/img/particle/jump_dust/1.png`
+  - `public/assets/img/particle/jump_dust/2.png`
+  - `public/assets/img/particle/jump_dust/3.png`
+  - `public/assets/img/particle/jump_dust/4.png`
+  - `public/assets/img/particle/jump_dust/5.png`
+  - `public/assets/img/particle/land_dust/0.png`
+  - `public/assets/img/particle/land_dust/1.png`
+  - `public/assets/img/particle/land_dust/2.png`
+  - `public/assets/img/particle/land_dust/3.png`
+  - `public/assets/img/particle/land_dust/4.png`
+  - `public/assets/img/dialogue/exclamation/0.png`
+  - `public/assets/img/dialogue/exclamation/1.png`
+  - `public/assets/img/dialogue/exclamation/2.png`
+  - `public/assets/img/dialogue/exclamation/3.png`
+  - `public/assets/img/dialogue/exclamation/4.png`
+  - `public/assets/img/dialogue/dead/0.png`
+  - `public/assets/img/dialogue/dead/1.png`
+  - `public/assets/img/dialogue/dead/2.png`
+  - `public/assets/img/dialogue/dead/3.png`
+  - `public/assets/img/dialogue/dead/4.png`
