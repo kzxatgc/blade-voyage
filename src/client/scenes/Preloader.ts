@@ -40,6 +40,44 @@ export class Preloader extends Scene {
       const fileName = `${String(variant).padStart(2, '0')}.png`;
       this.load.image(`grass/${variant}`, `img/map/grass/${fileName}`);
     }
+
+    const playerAnimationFiles: Record<string, string[]> = {
+      fall: ['0.png'],
+      hit: ['0.png', '1.png', '2.png', '3.png'],
+      idle: ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      jump: ['0.png', '1.png', '2.png'],
+      land: ['0.png', '1.png'],
+      run: ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png'],
+      throw_sword: ['0.png', '1.png', '2.png'],
+      'sword/air_attack_1': ['0.png', '1.png', '2.png'],
+      'sword/air_attack_2': ['0.png', '1.png', '2.png'],
+      'sword/attack_1': ['0.png', '1.png', '2.png'],
+      'sword/attack_2': ['0.png', '1.png', '2.png'],
+      'sword/attack_3': ['0.png', '1.png', '2.png'],
+      'sword/attack_effect/air_attack_1': [
+        'Air Attack 1 01.png',
+        'Air Attack 1 02.png',
+      ],
+      'sword/attack_effect/air_attack_2': ['0.png', '1.png'],
+      'sword/attack_effect/attack_1': ['0.png', '1.png', '2.png'],
+      'sword/attack_effect/attack_2': ['0.png', '1.png', '2.png'],
+      'sword/attack_effect/attack_3': ['0.png', '1.png', '2.png'],
+      'sword/fall': ['0.png'],
+      'sword/hit': ['0.png', '1.png', '2.png', '3.png'],
+      'sword/idle': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      'sword/jump': ['0.png', '1.png', '2.png'],
+      'sword/land': ['0.png', '1.png'],
+      'sword/run': ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png'],
+    };
+
+    for (const [animation, files] of Object.entries(playerAnimationFiles)) {
+      files.forEach((fileName, frame) => {
+        this.load.image(
+          `player/${animation}/${frame}`,
+          `img/entities/player/${animation}/${fileName}`
+        );
+      });
+    }
   }
 
   create() {
