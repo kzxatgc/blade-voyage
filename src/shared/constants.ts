@@ -10,6 +10,7 @@ export const MAX_FALL_SPEED = 5;
 export const CAMERA_SMOOTHING = 40;
 export const TICK_RATE = 60;
 export const TARGET_FPS = 144;
+export const PHYSICAL_TILES = new Set(['grass']);
 
 export type RgbColor = [number, number, number];
 
