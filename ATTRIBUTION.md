@@ -259,3 +259,31 @@ This document records credits for assets used in this project.
   - `public/assets/img/entities/enemy/fierce_tooth/run/3.png`
   - `public/assets/img/entities/enemy/fierce_tooth/run/4.png`
   - `public/assets/img/entities/enemy/fierce_tooth/run/5.png`
+  - `public/assets/img/map/palm_tree/back/left/0.png`
+  - `public/assets/img/map/palm_tree/back/left/1.png`
+  - `public/assets/img/map/palm_tree/back/left/2.png`
+  - `public/assets/img/map/palm_tree/back/left/3.png`
+  - `public/assets/img/map/palm_tree/back/regular/0.png`
+  - `public/assets/img/map/palm_tree/back/regular/1.png`
+  - `public/assets/img/map/palm_tree/back/regular/2.png`
+  - `public/assets/img/map/palm_tree/back/regular/3.png`
+  - `public/assets/img/map/palm_tree/back/right/0.png`
+  - `public/assets/img/map/palm_tree/back/right/1.png`
+  - `public/assets/img/map/palm_tree/back/right/2.png`
+  - `public/assets/img/map/palm_tree/back/right/3.png`
+  - `public/assets/img/map/palm_tree/front/left/0.png`
+  - `public/assets/img/map/palm_tree/front/left/1.png`
+  - `public/assets/img/map/palm_tree/front/left/2.png`
+  - `public/assets/img/map/palm_tree/front/left/3.png`
+  - `public/assets/img/map/palm_tree/front/regular/0.png`
+  - `public/assets/img/map/palm_tree/front/regular/1.png`
+  - `public/assets/img/map/palm_tree/front/regular/2.png`
+  - `public/assets/img/map/palm_tree/front/regular/3.png`
+  - `public/assets/img/map/palm_tree/front/right/0.png`
+  - `public/assets/img/map/palm_tree/front/right/1.png`
+  - `public/assets/img/map/palm_tree/front/right/2.png`
+  - `public/assets/img/map/palm_tree/front/right/3.png`
+  - `public/assets/img/map/spawner/0.png`
+  - `public/assets/img/map/spawner/1.png`
+  - `public/assets/img/map/spawner/2.png`
+  - `public/assets/img/map/spawner/3.png`

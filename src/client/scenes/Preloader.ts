@@ -152,6 +152,21 @@ export class Preloader extends Scene {
         }
       }
     }
+
+    for (const depth of ['front', 'back']) {
+      for (const variant of ['left', 'regular', 'right']) {
+        for (let frame = 0; frame < 4; frame++) {
+          this.load.image(
+            `palm_tree/${depth}/${variant}/${frame}`,
+            `img/map/palm_tree/${depth}/${variant}/${frame}.png`
+          );
+        }
+      }
+    }
+
+    for (let variant = 0; variant < 4; variant++) {
+      this.load.image(`spawner/${variant}`, `img/map/spawner/${variant}.png`);
+    }
   }
 
   create() {
