@@ -1,8 +1,10 @@
 import { Scene } from 'phaser';
 
+export const BOOT_KEY = 'Boot';
+
 export class Boot extends Scene {
   constructor() {
-    super('Boot');
+    super(BOOT_KEY);
   }
 
   preload() {

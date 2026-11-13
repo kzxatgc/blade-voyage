@@ -1,8 +1,10 @@
 import { Scene } from 'phaser';
 
+export const PRELOADER_KEY = 'Preloader';
+
 export class Preloader extends Scene {
   constructor() {
-    super('Preloader');
+    super(PRELOADER_KEY);
   }
 
   init() {
