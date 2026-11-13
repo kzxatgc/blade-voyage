@@ -3,26 +3,31 @@ import { Game as MainGame } from './scenes/Game';
 import * as Phaser from 'phaser';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
+import { DISPLAY_HEIGHT, DISPLAY_WIDTH, TARGET_FPS } from '../shared/constants';
 
 //  Find out more information about the Game Config at:
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
-const config: Phaser.Types.Core.GameConfig = {
+export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   parent: 'game-container',
   backgroundColor: '#000000',
+  fps: {
+    target: TARGET_FPS,
+    forceSetTimeOut: false,
+  },
   scale: {
     // Keep a fixed game resolution but automatically scale it to fit within the available
     // web-view / device while maintaining aspect ratio.
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 1024,
-    height: 768,
+    width: DISPLAY_WIDTH,
+    height: DISPLAY_HEIGHT,
   },
   scene: [Boot, Preloader, MainGame],
 };
 
 const StartGame = (parent: string) => {
-  return new Game({ ...config, parent });
+  return new Game({ ...GAME_CONFIG, parent });
 };
 
 document.addEventListener('DOMContentLoaded', () => {
