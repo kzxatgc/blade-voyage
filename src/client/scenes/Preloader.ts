@@ -108,6 +108,50 @@ export class Preloader extends Scene {
         );
       });
     }
+
+    const enemyAnimationFrameCounts: Record<string, Record<string, number>> = {
+      pink_star: {
+        anticipation: 3,
+        attack: 4,
+        attack_effect: 4,
+        dead: 4,
+        dead_hit: 4,
+        hit: 4,
+        idle: 8,
+        run: 6,
+      },
+      crabby: {
+        anticipation: 3,
+        attack: 4,
+        attack_effect: 3,
+        dead: 4,
+        dead_hit: 4,
+        hit: 4,
+        idle: 9,
+        run: 6,
+      },
+      fierce_tooth: {
+        anticipation: 3,
+        attack: 5,
+        attack_effect: 3,
+        dead: 4,
+        dead_hit: 4,
+        hit: 4,
+        idle: 8,
+        run: 6,
+      },
+    };
+
+    for (const [enemy, animations] of Object.entries(enemyAnimationFrameCounts)) {
+      for (const [animation, frameCount] of Object.entries(animations)) {
+        for (let frame = 0; frame < frameCount; frame++) {
+          this.load.image(
+            `enemy/${enemy}/${animation}/${frame}`,
+            `img/entities/enemy/${enemy}/${animation}/${frame}.png`
+          );
+        }
+      }
+    }
   }
 
   create() {
