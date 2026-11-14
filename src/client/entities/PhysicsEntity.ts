@@ -20,6 +20,12 @@ const createCollisionState = (): EntityCollision => ({
   regular: false,
 });
 
+const PALM_TREE_PLATFORM_TYPES = [
+  'palm_tree/front/left',
+  'palm_tree/front/regular',
+  'palm_tree/front/right',
+] as const;
+
 export class PhysicsEntity {
   readonly type: EntityType;
   readonly pos: EntityPosition;
@@ -33,6 +39,7 @@ export class PhysicsEntity {
   flip = false;
   collision = createCollisionState();
   landedOn = { grass: false, palm_tree: false };
+  private skipPalmTreePlatformsOnce = false;
   knockback = false;
   knockbackVelocity: EntityPosition = [0, 0];
   knockbackTimer = 0;
@@ -71,6 +78,21 @@ export class PhysicsEntity {
     };
   }
 
+  dropThroughPlatform(): boolean {
+    if (
+      this.dead ||
+      this.velocity[1] < 0 ||
+      !this.collision.bottom ||
+      !this.landedOn.palm_tree
+    ) {
+      return false;
+    }
+
+    this.skipPalmTreePlatformsOnce = true;
+    this.velocity[1] = Math.max(this.velocity[1], 1);
+    return true;
+  }
+
   setAction(action: string) {
     if (this.action === action) {
       return;
@@ -88,7 +110,7 @@ export class PhysicsEntity {
   }
 
   update(
-    tilemap: Pick<Tilemap, 'physicalRectsAround'>,
+    tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
     this.collision = createCollisionState();
@@ -164,6 +186,34 @@ export class PhysicsEntity {
       }
 
       this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+    }
+
+    const skipPalmTreePlatforms = this.skipPalmTreePlatformsOnce;
+    this.skipPalmTreePlatformsOnce = false;
+    if (frameMovementY > 0 && !skipPalmTreePlatforms) {
+      for (const platformType of PALM_TREE_PLATFORM_TYPES) {
+        for (const platform of tilemap.platformsAround(this.pos, platformType)) {
+          const intersects =
+            entityRect.x < platform.x + platform.width &&
+            entityRect.x + entityRect.width > platform.x &&
+            entityRect.y < platform.y + platform.height &&
+            entityRect.y + entityRect.height > platform.y;
+          const previousBottom =
+            entityRect.y + entityRect.height - frameMovementY;
+
+          if (!intersects || previousBottom > platform.y) {
+            continue;
+          }
+
+          entityRect = {
+            ...entityRect,
+            y: platform.y - entityRect.height,
+          };
+          this.collision.bottom = true;
+          this.landedOn.palm_tree = true;
+          this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+        }
+      }
     }
 
     this.velocity[1] = Math.min(this.velocity[1] + GRAVITY, MAX_FALL_SPEED);

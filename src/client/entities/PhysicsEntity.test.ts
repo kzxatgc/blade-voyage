@@ -178,6 +178,117 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.pos[1], 224);
   });
 
+  void it('lands on a palm-tree platform when descending from above', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [185, 148]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/front/regular',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+      ],
+    });
+    entity.velocity[1] = 3;
+
+    entity.update(tilemap);
+
+    assert.equal(entity.collision.bottom, true);
+    assert.deepEqual(entity.landedOn, { grass: false, palm_tree: true });
+    assert.equal(entity.pos[1], 148);
+  });
+
+  void it('does not land on palm-tree platforms from below or after passing their top', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/front/regular',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+      ],
+    });
+
+    const risingEntity = new PhysicsEntity('player', [185, 182]);
+    risingEntity.velocity[1] = -8;
+    risingEntity.update(tilemap);
+    assert.equal(risingEntity.collision.bottom, false);
+    assert.equal(risingEntity.landedOn.palm_tree, false);
+
+    const fallingEntity = new PhysicsEntity('player', [185, 153]);
+    fallingEntity.velocity[1] = 1;
+    fallingEntity.update(tilemap);
+    assert.equal(fallingEntity.collision.bottom, false);
+    assert.equal(fallingEntity.landedOn.palm_tree, false);
+  });
+
+  void it('drops through a palm-tree platform for one update when requested', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [185, 148]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/front/regular',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+      ],
+    });
+    entity.velocity[1] = 3;
+    entity.update(tilemap);
+    assert.equal(entity.landedOn.palm_tree, true);
+
+    assert.equal(entity.dropThroughPlatform(), true);
+    entity.update(tilemap);
+    assert.equal(entity.collision.bottom, false);
+    assert.equal(entity.landedOn.palm_tree, false);
+    assert.ok(entity.pos[1] > 148);
+
+    assert.equal(entity.dropThroughPlatform(), false);
+  });
+
+  void it('does not drop through when jumping from a palm-tree platform', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [185, 148]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/front/regular',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+      ],
+    });
+    entity.velocity[1] = 3;
+    entity.update(tilemap);
+    entity.velocity[1] = -8;
+
+    assert.equal(entity.dropThroughPlatform(), false);
+    entity.update(tilemap);
+
+    assert.equal(entity.collision.bottom, false);
+    assert.equal(entity.landedOn.palm_tree, false);
+    assert.ok(entity.pos[1] < 148);
+  });
+
   void it('resolves upward collisions and resets collision state each update', async () => {
     const PhysicsEntity = await getPhysicsEntity();
     const Tilemap = await getTilemap();

@@ -21,6 +21,7 @@ export class Game extends Phaser.Scene {
   private playerSprite?: Phaser.GameObjects.Image;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
+  private downKeys: Phaser.Input.Keyboard.Key[] = [];
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
@@ -52,6 +53,12 @@ export class Game extends Phaser.Scene {
     this.jumpKeys = [
       Phaser.Input.Keyboard.KeyCodes.W,
       Phaser.Input.Keyboard.KeyCodes.UP,
+    ]
+      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
+      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
+    this.downKeys = [
+      Phaser.Input.Keyboard.KeyCodes.S,
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
@@ -126,6 +133,14 @@ export class Game extends Phaser.Scene {
       }
       if (jumpPressed) {
         this.playerEntity.jump();
+      }
+      let dropThroughPressed = false;
+      for (const key of this.downKeys) {
+        dropThroughPressed =
+          Phaser.Input.Keyboard.JustDown(key) || dropThroughPressed;
+      }
+      if (dropThroughPressed) {
+        this.playerEntity.dropThroughPlatform();
       }
 
       this.playerEntity.update(this.tilemap, [

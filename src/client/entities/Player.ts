@@ -38,7 +38,7 @@ export class Player extends PhysicsEntity {
   }
 
   override update(
-    tilemap: Pick<Tilemap, 'physicalRectsAround'>,
+    tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
     super.update(tilemap, movement);
