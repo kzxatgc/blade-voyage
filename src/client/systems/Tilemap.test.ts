@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import type { MapData } from '../../shared/types.js';
 import type {
   AnimationFrameSource,
+  TilemapAnimation,
   TilemapRenderScene,
 } from './Tilemap.js';
 
@@ -46,6 +47,9 @@ const createRenderScene = () => {
         return {
           setOrigin(originX, originY) {
             draw.origin = [originX, originY];
+          },
+          setTexture(texture) {
+            draw.texture = texture;
           },
         };
       },
@@ -191,5 +195,107 @@ void describe('Tilemap front rendering', () => {
       ]
     );
     assert.deepEqual(map.off_grid_tiles, []);
+  });
+
+  void it('draws animated back-depth tiles behind the entity layer', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap();
+    const { scene, draws } = createRenderScene();
+    const animations: Record<string, AnimationFrameSource> = {
+      'palm_tree/back/right': {
+        img: () => 'palm_tree/back/right/2',
+      },
+    };
+
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/back/right',
+          depth: 'back',
+          status: 'animated',
+          pos: [32, 48],
+        },
+        {
+          type: 'palm_tree/front/right',
+          depth: 'front',
+          status: 'animated',
+          pos: [80, 80],
+        },
+        {
+          type: 'palm_tree/back/left',
+          depth: 'back',
+          status: 'static',
+          pos: [100, 100],
+        },
+      ],
+    });
+    tilemap.backRender(scene, [4, 8], animations);
+
+    assert.deepEqual(draws, [
+      {
+        x: 28,
+        y: 40,
+        texture: 'palm_tree/back/right/2',
+        origin: [0, 0],
+      },
+    ]);
+  });
+
+  void it('updates each animated tile type once and refreshes its rendered images', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap();
+    const { scene, draws } = createRenderScene();
+    const animation: TilemapAnimation & { frame: number; updates: number } = {
+      frame: 0,
+      updates: 0,
+      indexChanged: false,
+      img() {
+        return `palm_tree/back/right/${this.frame}`;
+      },
+      update() {
+        this.updates++;
+        this.frame++;
+        this.indexChanged = true;
+      },
+    };
+    const animations = { 'palm_tree/back/right': animation };
+
+    tilemap.loadFromData({
+      tiles: {
+        '0;0': {
+          type: 'palm_tree/back/right',
+          variant: 0,
+          loc: [0, 0],
+        },
+      },
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/back/right',
+          depth: 'back',
+          status: 'animated',
+          pos: [32, 0],
+        },
+        {
+          type: 'palm_tree/back/right',
+          depth: 'front',
+          status: 'animated',
+          pos: [64, 0],
+        },
+      ],
+    });
+    tilemap.backRender(scene, [0, 0], animations);
+    tilemap.frontRender(scene, [0, 0], animations);
+    tilemap.updateAnimations(animations);
+
+    assert.equal(animation.updates, 1);
+    assert.deepEqual(
+      draws.map((draw) => draw.texture),
+      [
+        'palm_tree/back/right/1',
+        'palm_tree/back/right/1',
+        'palm_tree/back/right/1',
+      ]
+    );
   });
 });
