@@ -8,6 +8,7 @@
     "build": "vite build",
     "deploy": "npm run test:types && npm run lint && devvit upload",
     "dev": "devvit playtest",
+    "editor": "vite --config vite.editor.config.ts",
     "local": "vite --config vite.local.config.ts",
     "launch": "npm run deploy && devvit publish",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
