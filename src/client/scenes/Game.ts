@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { TICK_RATE } from '../../shared/constants';
+import { CAMERA_SMOOTHING, TICK_RATE } from '../../shared/constants';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
 import { Tilemap } from '../systems/Tilemap';
@@ -24,7 +24,7 @@ export class Game extends Phaser.Scene {
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
-  private cameraOffset: [number, number] = [0, 0];
+  private scroll: [number, number] = [0, 0];
   private playerRenderAnimation: Animation | null = null;
 
   constructor() {
@@ -57,6 +57,7 @@ export class Game extends Phaser.Scene {
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
     this.add
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
+      .setScrollFactor(0)
       .setDisplaySize(this.scale.width, this.scale.height);
 
     const mapData: unknown = this.cache.json.get('game-map');
@@ -78,11 +79,14 @@ export class Game extends Phaser.Scene {
       playerSpawn.loc[0] * this.tilemap.tileSize,
       playerSpawn.loc[1] * this.tilemap.tileSize,
     ]);
-    this.cameraOffset = [
-      this.playerEntity.pos[0] + 32 - this.scale.width / 2,
-      this.playerEntity.pos[1] + 18 - this.scale.height / 2,
+    const camera = this.cameras.main;
+    this.scroll = [
+      this.playerEntity.pos[0] + 32 - camera.width / 2,
+      this.playerEntity.pos[1] + 18 - camera.height / 2,
     ];
-    this.tilemap.backRender(this, this.cameraOffset, this.tileAnimations);
+    camera.setRoundPixels(false);
+    camera.setScroll(this.scroll[0], this.scroll[1]);
+    this.tilemap.backRender(this, [0, 0], this.tileAnimations);
 
     const playerAnimation = this.playerEntity.animation;
     if (!playerAnimation) {
@@ -90,13 +94,13 @@ export class Game extends Phaser.Scene {
     }
 
     this.playerSprite = this.add.image(
-      this.playerEntity.pos[0] - this.cameraOffset[0],
-      this.playerEntity.pos[1] - this.cameraOffset[1],
+      this.playerEntity.pos[0],
+      this.playerEntity.pos[1],
       playerAnimation.img()
     );
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
-    this.tilemap.frontRender(this, this.cameraOffset, this.tileAnimations);
+    this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
   }
 
   override update(_time: number, delta: number) {
@@ -137,9 +141,17 @@ export class Game extends Phaser.Scene {
         this.playerEntity.landingAnimation ?? playerAnimation;
       const animationChanged = renderAnimation !== this.playerRenderAnimation;
       renderAnimation.update();
+      const camera = this.cameras.main;
+      const targetX =
+        this.playerEntity.pos[0] + 32 - camera.width / 2;
+      const targetY =
+        this.playerEntity.pos[1] + 18 - camera.height / 2;
+      this.scroll[0] += (targetX - this.scroll[0]) / CAMERA_SMOOTHING;
+      this.scroll[1] += (targetY - this.scroll[1]) / CAMERA_SMOOTHING;
+      camera.setScroll(this.scroll[0], this.scroll[1]);
       this.playerSprite.setPosition(
-        this.playerEntity.pos[0] - this.cameraOffset[0],
-        this.playerEntity.pos[1] - this.cameraOffset[1]
+        this.playerEntity.pos[0],
+        this.playerEntity.pos[1]
       );
       this.playerSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
