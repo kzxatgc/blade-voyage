@@ -20,6 +20,7 @@ export class Game extends Phaser.Scene {
   private playerEntity?: Player;
   private playerSprite?: Phaser.GameObjects.Image;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
+  private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
@@ -44,6 +45,12 @@ export class Game extends Phaser.Scene {
     this.rightKeys = [
       Phaser.Input.Keyboard.KeyCodes.D,
       Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    ]
+      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
+      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
+    this.jumpKeys = [
+      Phaser.Input.Keyboard.KeyCodes.W,
+      Phaser.Input.Keyboard.KeyCodes.UP,
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
@@ -107,6 +114,14 @@ export class Game extends Phaser.Scene {
       const movingLeft = this.leftKeys.some((key) => key.isDown);
       const movingRight = this.rightKeys.some((key) => key.isDown);
       const horizontalDirection = Number(movingRight) - Number(movingLeft);
+      let jumpPressed = false;
+      for (const key of this.jumpKeys) {
+        jumpPressed = Phaser.Input.Keyboard.JustDown(key) || jumpPressed;
+      }
+      if (jumpPressed) {
+        this.playerEntity.jump();
+      }
+
       this.playerEntity.update(this.tilemap, [
         horizontalDirection * PLAYER_MOVE_SPEED,
         0,
