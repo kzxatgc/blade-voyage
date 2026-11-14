@@ -1,4 +1,8 @@
-import { RECT_POS_ADJUSTMENT } from '../../shared/constants.ts';
+import {
+  GRAVITY,
+  MAX_FALL_SPEED,
+  RECT_POS_ADJUSTMENT,
+} from '../../shared/constants.ts';
 import type {
   EntityCollision,
   EntityPosition,
@@ -7,6 +11,7 @@ import type {
   EntityType,
 } from '../../shared/types';
 import type { Animation } from '../utils/Animation';
+import type { Tilemap } from '../systems/Tilemap';
 
 const createCollisionState = (): EntityCollision => ({
   right: false,
@@ -27,6 +32,7 @@ export class PhysicsEntity {
   action = '';
   flip = false;
   collision = createCollisionState();
+  landedOn = { grass: false, palm_tree: false };
   knockback = false;
   knockbackVelocity: EntityPosition = [0, 0];
   knockbackTimer = 0;
@@ -79,5 +85,48 @@ export class PhysicsEntity {
     this.action = action;
     this.animationKey = animationKey;
     this.animation = sourceAnimation?.copy() ?? null;
+  }
+
+  update(tilemap: Pick<Tilemap, 'physicalRectsAround'>, movement: EntityPosition = [0, 0]) {
+    this.collision = createCollisionState();
+    this.landedOn = { grass: false, palm_tree: false };
+
+    const frameMovementY = this.dead ? 0 : movement[1] + this.velocity[1];
+    this.pos[1] += frameMovementY;
+    let entityRect = this.rect();
+
+    for (const tileRect of tilemap.physicalRectsAround(this.pos)) {
+      const intersects =
+        entityRect.x < tileRect.x + tileRect.width &&
+        entityRect.x + entityRect.width > tileRect.x &&
+        entityRect.y < tileRect.y + tileRect.height &&
+        entityRect.y + entityRect.height > tileRect.y;
+
+      if (!intersects) {
+        continue;
+      }
+
+      if (frameMovementY > 0) {
+        entityRect = {
+          ...entityRect,
+          y: tileRect.y - entityRect.height,
+        };
+        this.collision.bottom = true;
+        this.landedOn.grass = true;
+      } else if (frameMovementY < 0) {
+        entityRect = {
+          ...entityRect,
+          y: tileRect.y + tileRect.height,
+        };
+        this.collision.regular = true;
+      }
+
+      this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+    }
+
+    this.velocity[1] = Math.min(
+      this.velocity[1] + GRAVITY,
+      MAX_FALL_SPEED
+    );
   }
 }

@@ -5,9 +5,11 @@ import { describe, it } from 'node:test';
 
 const physicsEntityUrl = new URL('./PhysicsEntity.ts', import.meta.url).href;
 const animationUrl = new URL('../utils/Animation.ts', import.meta.url).href;
+const tilemapUrl = new URL('../systems/Tilemap.ts', import.meta.url).href;
 const getPhysicsEntity = async () =>
   (await import(physicsEntityUrl)).PhysicsEntity;
 const getAnimation = async () => (await import(animationUrl)).Animation;
+const getTilemap = async () => (await import(tilemapUrl)).Tilemap;
 
 void describe('PhysicsEntity', () => {
   void it('applies each entity type rectangle adjustment', async () => {
@@ -95,5 +97,78 @@ void describe('PhysicsEntity', () => {
     });
 
     assert.throws(() => entity.setAction('run'), /Missing animation "player\/run"/);
+  });
+
+  void it('applies gravity after vertical movement and caps fall speed', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [160, 0]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    entity.update(tilemap);
+    assert.equal(entity.velocity[1], 0.5);
+    assert.equal(entity.pos[1], 0);
+
+    entity.update(tilemap);
+    assert.equal(entity.velocity[1], 1);
+    assert.equal(entity.pos[1], 0.5);
+
+    entity.velocity[1] = 4.8;
+    entity.update(tilemap);
+    assert.equal(entity.velocity[1], 5);
+  });
+
+  void it('lands on a physical tile and records the bottom collision', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [160, 222], [20, 28]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '5;8': { type: 'grass', variant: 4, loc: [5, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    entity.velocity[1] = 3;
+
+    entity.update(tilemap);
+
+    assert.equal(entity.collision.bottom, true);
+    assert.equal(entity.collision.regular, false);
+    assert.equal(entity.landedOn.grass, true);
+    assert.equal(entity.pos[1], 224);
+  });
+
+  void it('resolves upward collisions and resets collision state each update', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [160, 264], [20, 28]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '5;8': { type: 'grass', variant: 4, loc: [5, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    entity.velocity[1] = -5;
+
+    entity.update(tilemap);
+
+    assert.equal(entity.collision.regular, true);
+    assert.equal(entity.collision.bottom, false);
+    assert.equal(entity.pos[1], 284);
+
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    entity.velocity[1] = 0;
+    entity.update(tilemap);
+
+    assert.deepEqual(entity.collision, {
+      right: false,
+      left: false,
+      bottom: false,
+      regular: false,
+    });
+    assert.deepEqual(entity.landedOn, { grass: false, palm_tree: false });
   });
 });

@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { TICK_RATE } from '../../shared/constants';
+import { PhysicsEntity } from '../entities/PhysicsEntity';
 import { createTemporaryPlusMap, Tilemap } from '../systems/Tilemap';
 import { Animation } from '../utils/Animation';
 
@@ -15,6 +16,7 @@ const TILE_ANIMATION_TYPES = [
 export class Game extends Phaser.Scene {
   private idleAnimation?: Animation;
   private idleSprite?: Phaser.GameObjects.Image;
+  private playerEntity?: PhysicsEntity;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
@@ -37,16 +39,21 @@ export class Game extends Phaser.Scene {
     this.tilemap.backRender(this, [0, 0], this.tileAnimations);
 
     this.idleAnimation = new Animation('player/idle', 5, 6);
-    this.idleSprite = this.add.image(
+    this.playerEntity = new PhysicsEntity('player', [
       this.scale.width * 0.53,
       this.scale.height * 0.08,
+    ]);
+    this.idleSprite = this.add.image(
+      this.playerEntity.pos[0],
+      this.playerEntity.pos[1],
       this.idleAnimation.img()
     );
+    this.idleSprite.setOrigin(0, 0);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
   }
 
   override update(_time: number, delta: number) {
-    if (!this.idleAnimation || !this.idleSprite) {
+    if (!this.idleAnimation || !this.idleSprite || !this.playerEntity || !this.tilemap) {
       return;
     }
 
@@ -56,7 +63,12 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.idleAnimation.update();
-      this.tilemap?.updateAnimations(this.tileAnimations);
+      this.playerEntity.update(this.tilemap);
+      this.idleSprite.setPosition(
+        this.playerEntity.pos[0],
+        this.playerEntity.pos[1]
+      );
+      this.tilemap.updateAnimations(this.tileAnimations);
       if (this.idleAnimation.indexChanged) {
         this.idleSprite.setTexture(this.idleAnimation.img());
       }

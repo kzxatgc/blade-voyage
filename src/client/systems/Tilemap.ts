@@ -46,20 +46,20 @@ const PLATFORM_ADJUSTMENTS = {
 } as const;
 
 export function createTemporaryPlusMap(): MapData {
-  const locations: TileLocation[] = [
-    [8, 5],
-    [9, 5],
-    [10, 5],
-    [11, 5],
-    [12, 5],
-    [10, 3],
-    [10, 4],
-    [10, 6],
-    [10, 7],
+  const locations: readonly [TileLocation, number][] = [
+    [[8, 5], 9],
+    [[9, 5], 10],
+    [[10, 5], 4],
+    [[11, 5], 10],
+    [[12, 5], 11],
+    [[10, 3], 13],
+    [[10, 4], 14],
+    [[10, 6], 14],
+    [[10, 7], 15],
   ];
   const tiles: Record<string, TileData> = {};
 
-  locations.forEach((loc, variant) => {
+  locations.forEach(([loc, variant]) => {
     tiles[`${loc[0]};${loc[1]}`] = { type: 'grass', variant, loc };
   });
 

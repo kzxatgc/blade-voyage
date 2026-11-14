@@ -320,27 +320,23 @@ void describe('Tilemap front rendering', () => {
     );
   });
 
-  void it('creates a temporary plus map with nine unique grass tiles', async () => {
+  void it('creates a temporary plus map with variants matching each tile edge', async () => {
     const { createTemporaryPlusMap } = await getTilemapModule();
     const map = createTemporaryPlusMap();
     const tiles = Object.values(map.tiles);
 
     assert.equal(tiles.length, 9);
-    assert.equal(new Set(tiles.map((tile) => tile.variant)).size, 9);
-    assert.deepEqual(
-      tiles.map((tile) => tile.loc),
-      [
-        [8, 5],
-        [9, 5],
-        [10, 5],
-        [11, 5],
-        [12, 5],
-        [10, 3],
-        [10, 4],
-        [10, 6],
-        [10, 7],
-      ]
-    );
+    assert.deepEqual(tiles.map((tile) => [tile.loc, tile.variant]), [
+      [[8, 5], 9],
+      [[9, 5], 10],
+      [[10, 5], 4],
+      [[11, 5], 10],
+      [[12, 5], 11],
+      [[10, 3], 13],
+      [[10, 4], 14],
+      [[10, 6], 14],
+      [[10, 7], 15],
+    ]);
     assert.deepEqual(map.off_grid_tiles, []);
   });
 
