@@ -524,8 +524,8 @@ export class EditorScene extends Phaser.Scene {
     this.zoom = Math.max(1, Math.min(3, this.zoom * 2 ** this.zoomVelocity));
     camera.setZoom(this.zoom);
     camera.setScroll(
-      centerWorldX - camera.width / (2 * this.zoom),
-      centerWorldY - camera.height / (2 * this.zoom)
+      centerWorldX - camera.width / 2,
+      centerWorldY - camera.height / 2
     );
 
     this.zoomVelocity *= 0.8;
