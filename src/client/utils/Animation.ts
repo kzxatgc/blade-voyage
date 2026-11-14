@@ -44,8 +44,12 @@ export class Animation {
       Math.floor(this.frame / this.imgDur) !== previousIndex;
   }
 
+  get frameIndex(): number {
+    return Math.floor(this.frame / this.imgDur);
+  }
+
   img() {
-    return `${this.path}/${Math.floor(this.frame / this.imgDur)}`;
+    return `${this.path}/${this.frameIndex}`;
   }
 
   copy() {

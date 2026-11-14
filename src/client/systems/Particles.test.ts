@@ -65,6 +65,33 @@ void describe('Particles', () => {
     particles.render(scene);
     assert.equal(image.texture, 'particle/jump_dust/1');
   });
+
+  void it('interpolates new player step particles but leaves old and enemy particles in place', () => {
+    const scene = new MockParticleScene();
+    const particles = new Particles(() => 0);
+    particles.addParticle('player/run_dust', [100, 100], false);
+    particles.addParticle('enemy/run_dust', [200, 200], false);
+
+    particles.render(scene, [-2, 1]);
+
+    assert.deepEqual(
+      scene.images.map(({ x, y }) => [x, y]),
+      [
+        [98, 101],
+        [200, 200],
+      ]
+    );
+
+    particles.update();
+    particles.render(scene, [-2, 1]);
+    assert.deepEqual(
+      scene.images.map(({ x, y }) => [x, y]),
+      [
+        [100, 100],
+        [200, 200],
+      ]
+    );
+  });
 });
 
 class MockParticleImage {

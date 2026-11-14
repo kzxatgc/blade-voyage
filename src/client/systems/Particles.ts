@@ -74,7 +74,10 @@ export class Particle {
     this.animation.update();
   }
 
-  render(scene: ParticleRenderScene) {
+  render(
+    scene: ParticleRenderScene,
+    interpolationOffset: ParticlePosition = [0, 0]
+  ) {
     const texture = this.animation.img();
     if (!this.image) {
       this.image = scene.add.image(this.pos[0], this.pos[1], texture);
@@ -85,7 +88,10 @@ export class Particle {
       this.imageTexture = texture;
     }
 
-    this.image.setPosition(this.pos[0], this.pos[1]);
+    this.image.setPosition(
+      this.pos[0] + interpolationOffset[0],
+      this.pos[1] + interpolationOffset[1]
+    );
     this.image.setFlipX(this.flip);
   }
 
@@ -109,6 +115,7 @@ export class Particles {
 
   private readonly lastSpawnTime = new Map<ParticleType, number>();
   private readonly now: () => number;
+  private readonly spawnedSinceUpdate = new Set<Particle>();
 
   constructor(now: () => number = () => performance.now()) {
     this.now = now;
@@ -138,9 +145,15 @@ export class Particles {
       return;
     }
 
-    this.particles.push(
-      new Particle(type, pos, flip, createParticleAnimation(type), velocity)
+    const particle = new Particle(
+      type,
+      pos,
+      flip,
+      createParticleAnimation(type),
+      velocity
     );
+    this.particles.push(particle);
+    this.spawnedSinceUpdate.add(particle);
     if (type === 'player/run_dust' || type === 'enemy/run_dust') {
       this.sfxFlags[type] = true;
     }
@@ -153,6 +166,7 @@ export class Particles {
   }
 
   update() {
+    this.spawnedSinceUpdate.clear();
     this.resetSfxFlags();
     const activeParticles: Particle[] = [];
     for (const particle of this.particles) {
@@ -167,9 +181,18 @@ export class Particles {
     this.particles = activeParticles;
   }
 
-  render(scene: ParticleRenderScene) {
+  render(
+    scene: ParticleRenderScene,
+    playerInterpolationOffset: ParticlePosition = [0, 0]
+  ) {
     for (const particle of this.particles) {
-      particle.render(scene);
+      const needsPlayerInterpolation =
+        this.spawnedSinceUpdate.has(particle) &&
+        (particle.type === 'player/run_dust' || particle.type === 'land_dust');
+      particle.render(
+        scene,
+        needsPlayerInterpolation ? playerInterpolationOffset : [0, 0]
+      );
     }
   }
 }

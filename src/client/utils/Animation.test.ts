@@ -13,10 +13,13 @@ void describe('Animation', () => {
     const animation = new Animation('test', 4, 6);
 
     assert.equal(animation.img(), 'test/0');
+    assert.equal(animation.frameIndex, 0);
     for (let i = 0; i < 6; i++) animation.update();
     assert.equal(animation.img(), 'test/1');
+    assert.equal(animation.frameIndex, 1);
     for (let i = 0; i < 18; i++) animation.update();
     assert.equal(animation.img(), 'test/0');
+    assert.equal(animation.frameIndex, 0);
     assert.equal(animation.done, false);
   });
 
