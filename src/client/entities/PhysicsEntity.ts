@@ -78,6 +78,23 @@ export class PhysicsEntity {
     };
   }
 
+  attackRangeRect(
+    flip: boolean,
+    sizeExpansion: readonly [number, number],
+    posAdjustment: readonly [number, number] = [0, 0]
+  ): EntityRect {
+    return {
+      x:
+        this.pos[0] +
+        this.rectPosAdjustment[0] +
+        posAdjustment[0] -
+        (flip ? sizeExpansion[0] : 0),
+      y: this.pos[1] + this.rectPosAdjustment[1] + posAdjustment[1],
+      width: this.size[0] + sizeExpansion[0],
+      height: this.size[0] + sizeExpansion[1],
+    };
+  }
+
   dropThroughPlatform(): boolean {
     if (
       this.dead ||

@@ -320,4 +320,29 @@ void describe('PhysicsEntity', () => {
     });
     assert.deepEqual(entity.landedOn, { grass: false, palm_tree: false });
   });
+
+  void it('computes directional attackRangeRect based on facing flip', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const entity = new PhysicsEntity('player', [100, 200], [20, 28]);
+    // rectPosAdjustment['player'] = [22, 4]
+    // pos [100, 200] -> base x = 122, base y = 204
+
+    // Facing right (flip = false)
+    const rightRect = entity.attackRangeRect(false, [25, 0]);
+    assert.deepEqual(rightRect, {
+      x: 122,
+      y: 204,
+      width: 45, // 20 + 25
+      height: 20, // 20 + 0 (size[0] + sizeExpansion[1])
+    });
+
+    // Facing left (flip = true)
+    const leftRect = entity.attackRangeRect(true, [25, 0]);
+    assert.deepEqual(leftRect, {
+      x: 97, // 122 - 25
+      y: 204,
+      width: 45,
+      height: 20,
+    });
+  });
 });

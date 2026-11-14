@@ -162,7 +162,7 @@ export class Swords {
       return null;
     }
 
-    if (!(this.random() < 0.2 && this.swords.length < 5)) {
+    if (!(this.random() < 0.01 && this.swords.length < 5)) {
       return null;
     }
 
@@ -209,6 +209,16 @@ export class Swords {
     for (const sword of this.swords) {
       sword.update(tilemap, movement);
     }
+  }
+
+  removeSword(sword: Sword): boolean {
+    const index = this.swords.indexOf(sword);
+    if (index !== -1) {
+      sword.destroy();
+      this.swords.splice(index, 1);
+      return true;
+    }
+    return false;
   }
 
   render(

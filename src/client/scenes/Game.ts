@@ -33,6 +33,7 @@ export class Game extends Phaser.Scene {
   private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
   private downKeys: Phaser.Input.Keyboard.Key[] = [];
   private shiftKeys: Phaser.Input.Keyboard.Key[] = [];
+  private spaceKey: Phaser.Input.Keyboard.Key | undefined;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
@@ -84,6 +85,14 @@ export class Game extends Phaser.Scene {
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
+    this.spaceKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SPACE
+    );
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.leftButtonDown()) {
+        this.triggerAttackOrPickup();
+      }
+    });
     this.add
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
       .setScrollFactor(0)
@@ -215,6 +224,14 @@ export class Game extends Phaser.Scene {
         this.playerEntity.dropThroughPlatform();
       }
 
+      let spacePressed = false;
+      if (this.spaceKey) {
+        spacePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey);
+      }
+      if (spacePressed) {
+        this.triggerAttackOrPickup();
+      }
+
       this.playerEntity.update(this.tilemap, [
         horizontalDirection * PLAYER_MOVE_SPEED,
         0,
@@ -268,10 +285,22 @@ export class Game extends Phaser.Scene {
     );
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
     this.swords?.render(this);
+    this.playerEntity.attackHandler.render(this);
     this.particles?.render(this, [
       renderedPlayerX - this.playerEntity.pos[0],
       renderedPlayerY - this.playerEntity.pos[1],
     ]);
+  }
+
+  private triggerAttackOrPickup() {
+    if (!this.playerEntity) {
+      return;
+    }
+    if (!this.playerEntity.swordState && this.swords) {
+      this.playerEntity.pickupSword(this.swords.swords);
+    } else if (this.playerEntity.swordState) {
+      this.playerEntity.attack();
+    }
   }
 
   private getCloudImageSource(key: string): CloudImageSource {

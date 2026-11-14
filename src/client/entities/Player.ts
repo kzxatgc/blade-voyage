@@ -1,8 +1,15 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
-import type { EntityPosition } from '../../shared/types.ts';
+import type { EntityPosition, EntityRect } from '../../shared/types.ts';
+import { Attack } from '../systems/Attack.ts';
 import type { Particles } from '../systems/Particles.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
+
+export interface PickupSwordTarget {
+  readonly pos: EntityPosition;
+  rect?(): EntityRect;
+  destroy?(): void;
+}
 
 export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
   spawnCooldown?: Record<string, number | null>;
@@ -18,6 +25,7 @@ export class Player extends PhysicsEntity {
   wasInAir = false;
   justLanded = false;
   landingAnimation: Animation | null = null;
+  readonly attackHandler = new Attack(this);
   private readonly particles: PlayerParticleSystem | undefined;
 
   constructor(pos: EntityPosition, particles?: PlayerParticleSystem) {
@@ -32,6 +40,11 @@ export class Player extends PhysicsEntity {
       'player/sword/jump': new Animation('player/sword/jump', 3, 6),
       'player/sword/fall': new Animation('player/sword/fall', 1, 6),
       'player/sword/land': new Animation('player/sword/land', 2, 6, false),
+      'player/sword/attack_1': new Animation('player/sword/attack_1', 3, 6, false),
+      'player/sword/attack_2': new Animation('player/sword/attack_2', 3, 6, false),
+      'player/sword/attack_3': new Animation('player/sword/attack_3', 3, 6, false),
+      'player/sword/air_attack_1': new Animation('player/sword/air_attack_1', 3, 6, false),
+      'player/sword/air_attack_2': new Animation('player/sword/air_attack_2', 3, 6, false),
     });
     this.particles = particles;
     if (this.particles?.spawnCooldown) {
@@ -58,6 +71,75 @@ export class Player extends PhysicsEntity {
       this.airTime = 5;
       this.jumps -= 1;
     }
+  }
+
+  attack(): boolean {
+    if (this.swordState) {
+      return this.attackHandler.triggerAttack(this.airTime);
+    }
+    return false;
+  }
+
+  pickupSword(swords: PickupSwordTarget[]): boolean {
+    if (this.swordState) {
+      return false;
+    }
+
+    const playerRect = this.rect();
+    const playerBounds: EntityRect = {
+      x: Math.min(playerRect.x, this.pos[0]),
+      y: Math.min(playerRect.y, this.pos[1]),
+      width:
+        Math.max(playerRect.x + playerRect.width, this.pos[0] + this.size[0]) -
+        Math.min(playerRect.x, this.pos[0]),
+      height:
+        Math.max(
+          playerRect.y + playerRect.height,
+          this.pos[1] + this.size[1]
+        ) - Math.min(playerRect.y, this.pos[1]),
+    };
+
+    for (let i = 0; i < swords.length; i++) {
+      const sword = swords[i];
+      if (!sword) {
+        continue;
+      }
+
+      const swordRect: EntityRect =
+        typeof sword.rect === 'function'
+          ? sword.rect()
+          : {
+              x: sword.pos[0],
+              y: sword.pos[1],
+              width: 20,
+              height: 20,
+            };
+
+      const overlapsPhysical =
+        playerRect.x < swordRect.x + swordRect.width &&
+        playerRect.x + playerRect.width > swordRect.x &&
+        playerRect.y < swordRect.y + swordRect.height &&
+        playerRect.y + playerRect.height > swordRect.y;
+
+      const overlapsBounds =
+        playerBounds.x < swordRect.x + swordRect.width &&
+        playerBounds.x + playerBounds.width > swordRect.x &&
+        playerBounds.y < swordRect.y + swordRect.height &&
+        playerBounds.y + playerBounds.height > swordRect.y;
+
+      if (overlapsPhysical || overlapsBounds) {
+        swords.splice(i, 1);
+        sword.destroy?.();
+        this.swordState = true;
+        const currentBaseAction = this.action.replace(/^sword\//, '');
+        this.action = '';
+        this.setAction(`sword/${currentBaseAction}`);
+        this.animation?.update();
+        return true;
+      }
+    }
+
+    return false;
   }
 
   override update(
@@ -118,29 +200,33 @@ export class Player extends PhysicsEntity {
       this.landingAnimation = null;
     }
 
-    const swordPrefix = this.swordState ? 'sword/' : '';
-    if (this.airTime > 4) {
-      this.setAction(`${swordPrefix}${this.velocity[1] > 0 ? 'fall' : 'jump'}`);
-    } else if (Math.abs(movement[0]) > 0) {
-      const wasNotRunning = this.action !== `${swordPrefix}run`;
-      this.setAction(`${swordPrefix}run`);
-
-      const currentAnimation = this.animation;
-      const isFootstepFrame =
-        wasNotRunning ||
-        (currentAnimation !== null &&
-          (currentAnimation.frameIndex === 0 || currentAnimation.frameIndex === 3) &&
-          currentAnimation.frame % currentAnimation.imgDur === 0);
-
-      if (isFootstepFrame) {
-        this.particles?.addParticle(
-          'player/run_dust',
-          [this.pos[0] + (this.flip ? 13 : -3), this.pos[1] + 12],
-          this.flip
-        );
-      }
+    if (this.attackHandler.attackState) {
+      this.attackHandler.setAction();
     } else {
-      this.setAction(`${swordPrefix}idle`);
+      const swordPrefix = this.swordState ? 'sword/' : '';
+      if (this.airTime > 4) {
+        this.setAction(`${swordPrefix}${this.velocity[1] > 0 ? 'fall' : 'jump'}`);
+      } else if (Math.abs(movement[0]) > 0) {
+        const wasNotRunning = this.action !== `${swordPrefix}run`;
+        this.setAction(`${swordPrefix}run`);
+
+        const currentAnimation = this.animation;
+        const isFootstepFrame =
+          wasNotRunning ||
+          (currentAnimation !== null &&
+            (currentAnimation.frameIndex === 0 || currentAnimation.frameIndex === 3) &&
+            currentAnimation.frame % currentAnimation.imgDur === 0);
+
+        if (isFootstepFrame) {
+          this.particles?.addParticle(
+            'player/run_dust',
+            [this.pos[0] + (this.flip ? 13 : -3), this.pos[1] + 12],
+            this.flip
+          );
+        }
+      } else {
+        this.setAction(`${swordPrefix}idle`);
+      }
     }
 
     if (this.collision.bottom) {
@@ -150,5 +236,6 @@ export class Player extends PhysicsEntity {
 
     this.wasInAir = !this.collision.bottom;
     this.airTime += 1;
+    this.attackHandler.update();
   }
 }

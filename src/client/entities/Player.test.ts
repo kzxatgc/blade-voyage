@@ -347,6 +347,48 @@ void describe('Player', () => {
     assert.equal(player.justLanded, false);
     assert.equal(player.landingAnimation?.img(), 'player/sword/land/0');
   });
+
+  void it('picks up sword when overlapping', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    player.pickupSword([
+      { pos: [100, 200], rect: () => ({ x: 100, y: 200, width: 20, height: 20 }) },
+    ]);
+    assert.equal(player.swordState, true);
+    assert.equal(player.animation?.img(), 'player/sword/idle/0');
+  });
+
+  void it('does not pick up if already has sword', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    player.swordState = true;
+    const swords = [
+      { pos: [100, 200], rect: () => ({ x: 100, y: 200, width: 20, height: 20 }) },
+    ];
+    const lenBefore = swords.length;
+    player.pickupSword(swords);
+    assert.equal(swords.length, lenBefore);
+  });
+
+  void it('attacks when swordState is active', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Cannot attack without sword
+    assert.equal(player.attack(), false);
+
+    // Pick up sword
+    player.swordState = true;
+    assert.equal(player.attack(), true);
+    assert.equal(player.attackHandler.attackState, true);
+
+    // During update, switches to sword attack action
+    player.update(tilemap);
+    assert.ok(player.action.startsWith('sword/attack_'));
+  });
 });
 
 const createParticleRecorder = () => {
