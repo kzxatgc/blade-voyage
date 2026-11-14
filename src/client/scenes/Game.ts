@@ -1,7 +1,13 @@
 import * as Phaser from 'phaser';
-import { CAMERA_SMOOTHING, TICK_RATE } from '../../shared/constants';
+import {
+  CAMERA_SMOOTHING,
+  DISPLAY_WIDTH,
+  TICK_RATE,
+  WINDOW_WIDTH,
+} from '../../shared/constants';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
+import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Tilemap } from '../systems/Tilemap';
 import { Animation } from '../utils/Animation';
 
@@ -14,6 +20,7 @@ const TILE_ANIMATION_TYPES = [
   'palm_tree/back/right',
 ];
 const PLAYER_MOVE_SPEED = 2.5;
+const CLOUD_RENDER_ZOOM = WINDOW_WIDTH / DISPLAY_WIDTH;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -26,6 +33,10 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
   private scroll: [number, number] = [0, 0];
+  private previousScroll: [number, number] = [0, 0];
+  private previousPlayerPosition: [number, number] = [0, 0];
+  private worldScroll: [number, number] = [0, 0];
+  private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
 
   constructor() {
@@ -37,7 +48,7 @@ export class Game extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor(0x000000);
+    this.cameras.main.setBackgroundColor(0xe6e6e6);
     this.leftKeys = [
       Phaser.Input.Keyboard.KeyCodes.A,
       Phaser.Input.Keyboard.KeyCodes.LEFT,
@@ -91,8 +102,21 @@ export class Game extends Phaser.Scene {
       this.playerEntity.pos[0] + 32 - camera.width / 2,
       this.playerEntity.pos[1] + 18 - camera.height / 2,
     ];
+    this.previousScroll = [...this.scroll];
+    this.previousPlayerPosition = [...this.playerEntity.pos];
+    this.worldScroll = [...this.scroll];
     camera.setRoundPixels(false);
     camera.setScroll(this.scroll[0], this.scroll[1]);
+
+    const cloudImages = [0, 1, 2].map((frame) =>
+      this.getCloudImageSource(`background/cloud/${frame}`)
+    );
+    this.clouds = new Clouds(
+      cloudImages,
+      10,
+      [this.getCloudImageSource('background/big_cloud')]
+    );
+    this.renderClouds();
     this.tilemap.backRender(this, [0, 0], this.tileAnimations);
 
     const playerAnimation = this.playerEntity.animation;
@@ -124,6 +148,8 @@ export class Game extends Phaser.Scene {
 
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
+      this.previousScroll = [...this.scroll];
+      this.previousPlayerPosition = [...this.playerEntity.pos];
       const movingLeft = this.leftKeys.some((key) => key.isDown);
       const movingRight = this.rightKeys.some((key) => key.isDown);
       const horizontalDirection = Number(movingRight) - Number(movingLeft);
@@ -147,6 +173,7 @@ export class Game extends Phaser.Scene {
         horizontalDirection * PLAYER_MOVE_SPEED,
         0,
       ]);
+      this.clouds?.update();
       const playerAnimation = this.playerEntity.animation;
       if (!playerAnimation) {
         throw new Error('The player animation is not configured.');
@@ -163,11 +190,13 @@ export class Game extends Phaser.Scene {
         this.playerEntity.pos[1] + 18 - camera.height / 2;
       this.scroll[0] += (targetX - this.scroll[0]) / CAMERA_SMOOTHING;
       this.scroll[1] += (targetY - this.scroll[1]) / CAMERA_SMOOTHING;
-      camera.setScroll(this.scroll[0], this.scroll[1]);
-      this.playerSprite.setPosition(
-        this.playerEntity.pos[0],
-        this.playerEntity.pos[1]
-      );
+      const worldTargetX =
+        this.playerEntity.pos[0] + 32 - camera.width / 2;
+      const worldTargetY =
+        this.playerEntity.pos[1] + 18 - camera.height / 2;
+      this.worldScroll[0] += (worldTargetX - this.worldScroll[0]) / 20;
+      this.worldScroll[1] += (worldTargetY - this.worldScroll[1]) / 20;
+      this.renderClouds();
       this.playerSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
       if (animationChanged || renderAnimation.indexChanged) {
@@ -175,5 +204,34 @@ export class Game extends Phaser.Scene {
       }
       this.playerRenderAnimation = renderAnimation;
     }
+
+    const interpolation = Math.min(this.tickAccumulator / tickDuration, 1);
+    this.cameras.main.setScroll(
+      this.previousScroll[0] +
+        (this.scroll[0] - this.previousScroll[0]) * interpolation,
+      this.previousScroll[1] +
+        (this.scroll[1] - this.previousScroll[1]) * interpolation
+    );
+    this.playerSprite.setPosition(
+      this.previousPlayerPosition[0] +
+        (this.playerEntity.pos[0] - this.previousPlayerPosition[0]) *
+          interpolation,
+      this.previousPlayerPosition[1] +
+        (this.playerEntity.pos[1] - this.previousPlayerPosition[1]) *
+          interpolation
+    );
+  }
+
+  private getCloudImageSource(key: string): CloudImageSource {
+    const source = this.textures.get(key).getSourceImage();
+    return { key, width: source.width, height: source.height };
+  }
+
+  private renderClouds() {
+    this.clouds?.render(
+      this,
+      [Math.floor(this.worldScroll[0]), Math.floor(this.worldScroll[1])],
+      CLOUD_RENDER_ZOOM
+    );
   }
 }

@@ -1,0 +1,61 @@
+{
+  "tiles": {
+    "17;14": {
+      "type": "grass",
+      "variant": 9,
+      "loc": [
+        17,
+        14
+      ]
+    },
+    "18;14": {
+      "type": "grass",
+      "variant": 10,
+      "loc": [
+        18,
+        14
+      ]
+    },
+    "19;14": {
+      "type": "grass",
+      "variant": 10,
+      "loc": [
+        19,
+        14
+      ]
+    },
+    "20;14": {
+      "type": "grass",
+      "variant": 10,
+      "loc": [
+        20,
+        14
+      ]
+    },
+    "21;14": {
+      "type": "grass",
+      "variant": 10,
+      "loc": [
+        21,
+        14
+      ]
+    },
+    "22;14": {
+      "type": "grass",
+      "variant": 11,
+      "loc": [
+        22,
+        14
+      ]
+    },
+    "19;13": {
+      "type": "spawner",
+      "variant": 0,
+      "loc": [
+        19,
+        13
+      ]
+    }
+  },
+  "off_grid_tiles": []
+}
