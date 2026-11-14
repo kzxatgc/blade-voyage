@@ -27,8 +27,7 @@ export class EditorScene extends Phaser.Scene {
     { x: 17, y: 4, width: 40, height: 25 },
     { x: 6, y: 7, width: 23, height: 21 },
   ] as const;
-  private readonly tilemap: Tilemap & { autoTile?: () => void } =
-    new Tilemap();
+  private readonly tilemap = new Tilemap();
   private depthToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private gridToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private shiftKey: Phaser.Input.Keyboard.Key | undefined;
@@ -585,11 +584,6 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private triggerAutoTile() {
-    if (!this.tilemap.autoTile) {
-      console.warn('Autotiling is unavailable until Tilemap.autoTile() is implemented.');
-      return;
-    }
-
     this.tilemap.autoTile();
     this.renderTilemap();
   }

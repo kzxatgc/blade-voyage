@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { MapData } from '../../shared/types.js';
+import type { MapData, TileData, TileLocation } from '../../shared/types.js';
 import type {
   AnimationFrameSource,
   TilemapAnimation,
@@ -440,5 +440,66 @@ void describe('Tilemap front rendering', () => {
         'palm_tree/back/right/1',
       ]
     );
+  });
+});
+
+void describe('Tilemap autotiling', () => {
+  void it('maps cardinal neighbor combinations to the source grass variants', async () => {
+    const Tilemap = await getTilemap();
+    const combinations: {
+      neighbors: TileLocation[];
+      variant: number;
+    }[] = [
+      { neighbors: [[0, 1], [1, 0]], variant: 0 },
+      { neighbors: [[0, 1], [1, 0], [-1, 0]], variant: 1 },
+      { neighbors: [[0, 1], [-1, 0]], variant: 2 },
+      { neighbors: [[0, 1], [1, 0], [0, -1]], variant: 3 },
+      { neighbors: [[0, 1], [1, 0], [0, -1], [-1, 0]], variant: 4 },
+      { neighbors: [[0, 1], [-1, 0], [0, -1]], variant: 5 },
+      { neighbors: [[1, 0], [0, -1]], variant: 6 },
+      { neighbors: [[1, 0], [0, -1], [-1, 0]], variant: 7 },
+      { neighbors: [[0, -1], [-1, 0]], variant: 8 },
+      { neighbors: [[1, 0]], variant: 9 },
+      { neighbors: [[-1, 0], [1, 0]], variant: 10 },
+      { neighbors: [[-1, 0]], variant: 11 },
+      { neighbors: [], variant: 12 },
+      { neighbors: [[0, 1]], variant: 13 },
+      { neighbors: [[0, 1], [0, -1]], variant: 14 },
+      { neighbors: [[0, -1]], variant: 15 },
+    ];
+
+    for (const { neighbors, variant } of combinations) {
+      const tiles: Record<string, TileData> = {
+        '0;0': { type: 'grass', variant: -1, loc: [0, 0] },
+      };
+      for (const [x, y] of neighbors) {
+        tiles[`${x};${y}`] = { type: 'grass', variant: 0, loc: [x, y] };
+      }
+
+      const tilemap = new Tilemap();
+      tilemap.loadFromData({ tiles, off_grid_tiles: [] });
+      tilemap.autoTile();
+
+      assert.equal(tilemap.tiles['0;0']?.variant, variant);
+    }
+  });
+
+  void it('ignores different tile types as neighbors and leaves non-grass variants unchanged', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap();
+    tilemap.loadFromData({
+      tiles: {
+        '0;0': { type: 'grass', variant: 7, loc: [0, 0] },
+        '-1;0': { type: 'spawner', variant: 0, loc: [-1, 0] },
+        '10;10': { type: 'spawner', variant: 3, loc: [10, 10] },
+        '11;10': { type: 'spawner', variant: 2, loc: [11, 10] },
+      },
+      off_grid_tiles: [],
+    });
+
+    tilemap.autoTile();
+
+    assert.equal(tilemap.tiles['0;0']?.variant, 12);
+    assert.equal(tilemap.tiles['10;10']?.variant, 3);
   });
 });

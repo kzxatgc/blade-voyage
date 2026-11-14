@@ -39,6 +39,35 @@ const NEIGHBOR_SHIFT_LOCS: readonly TileLocation[] = [
   [1, 1],
 ];
 
+const AUTO_TILE_DIRECTIONS: readonly {
+  shift: TileLocation;
+  bit: number;
+}[] = [
+  { shift: [-1, 0], bit: 0b0001 },
+  { shift: [1, 0], bit: 0b0010 },
+  { shift: [0, -1], bit: 0b0100 },
+  { shift: [0, 1], bit: 0b1000 },
+];
+
+const AUTO_TILE_SETS: Readonly<Record<number, number>> = {
+  0b0000: 12,
+  0b0001: 11,
+  0b0010: 9,
+  0b0011: 10,
+  0b0100: 15,
+  0b0101: 8,
+  0b0110: 6,
+  0b0111: 7,
+  0b1000: 13,
+  0b1001: 2,
+  0b1010: 0,
+  0b1011: 1,
+  0b1100: 14,
+  0b1101: 5,
+  0b1110: 3,
+  0b1111: 4,
+};
+
 const PLATFORM_ADJUSTMENTS = {
   'palm_tree/front/left': { posOffset: [-30, 0], size: [25, 1] },
   'palm_tree/front/regular': { posOffset: [-7, 0], size: [25, 1] },
@@ -93,6 +122,27 @@ export class Tilemap {
       tiles: this.tiles,
       off_grid_tiles: this.offGridTiles,
     };
+  }
+
+  autoTile() {
+    for (const tile of Object.values(this.tiles)) {
+      if (tile.type !== 'grass') {
+        continue;
+      }
+
+      let neighborMask = 0;
+      for (const { shift, bit } of AUTO_TILE_DIRECTIONS) {
+        const neighborKey = `${tile.loc[0] + shift[0]};${tile.loc[1] + shift[1]}`;
+        if (this.tiles[neighborKey]?.type === tile.type) {
+          neighborMask |= bit;
+        }
+      }
+
+      const variant = AUTO_TILE_SETS[neighborMask];
+      if (variant !== undefined) {
+        tile.variant = variant;
+      }
+    }
   }
 
   extract(idPairs: readonly (readonly [string, number])[], keep = true) {
