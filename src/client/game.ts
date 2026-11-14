@@ -11,6 +11,9 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   parent: 'game-container',
   backgroundColor: '#000000',
+  pixelArt: true,
+  antialias: false,
+  roundPixels: true,
   fps: {
     target: TARGET_FPS,
     forceSetTimeOut: false,
@@ -18,7 +21,7 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   scale: {
     // Keep a fixed game resolution but automatically scale it to fit within the available
     // web-view / device while maintaining aspect ratio.
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: DISPLAY_WIDTH,
     height: DISPLAY_HEIGHT,

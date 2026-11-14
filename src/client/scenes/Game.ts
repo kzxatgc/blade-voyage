@@ -25,6 +25,10 @@ export class Game extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(0x000000);
+    this.add
+      .image(this.scale.width / 2, this.scale.height / 2, 'background')
+      .setDisplaySize(this.scale.width, this.scale.height);
+
     this.tilemap = new Tilemap();
     this.tilemap.loadFromData(createTemporaryPlusMap());
     this.tileAnimations = Object.fromEntries(
@@ -34,7 +38,7 @@ export class Game extends Phaser.Scene {
 
     this.idleAnimation = new Animation('player/idle', 5, 6);
     this.idleSprite = this.add.image(
-      this.scale.width * 0.31,
+      this.scale.width * 0.53,
       this.scale.height * 0.08,
       this.idleAnimation.img()
     );
