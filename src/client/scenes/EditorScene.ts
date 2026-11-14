@@ -37,7 +37,7 @@ export class EditorScene extends Phaser.Scene {
   private tileObjects?: Phaser.GameObjects.Container;
   private onGrid = true;
   private selectedDepth: 'front' | 'back' = 'front';
-  private zoom = 2;
+  private zoom = 1;
   private zoomVelocity = 0;
   private isPanning = false;
   private panStartMouse: TileLocation | undefined;
@@ -51,6 +51,8 @@ export class EditorScene extends Phaser.Scene {
   private tileIcon?: Phaser.GameObjects.Image;
   private tilePreview?: Phaser.GameObjects.Image;
   private statusText?: Phaser.GameObjects.Text;
+  private zoomText?: Phaser.GameObjects.Text;
+  private helpButton?: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super(EDITOR_SCENE_KEY);
@@ -125,9 +127,108 @@ export class EditorScene extends Phaser.Scene {
     this.statusText = statusText;
     this.updateTileIcon();
 
+    const zoomPanel = this.add
+      .rectangle(1086, 10, 132, 38, 0xffffff, 0.95)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setStrokeStyle(1, 0x333333, 0.5);
+    const zoomText = this.add
+      .text(1097, 18, `Zoom: ${this.getZoomLabel()}`, {
+        color: '#111827',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '16px',
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(101);
+    this.zoomText = zoomText;
+
+    const helpButton = this.add
+      .rectangle(1230, 10, 38, 38, 0x1f2937, 1)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(101)
+      .setInteractive({ useHandCursor: true });
+    this.helpButton = helpButton;
+    const helpLabel = this.add
+      .text(1249, 29, '?', {
+        color: '#ffffff',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '22px',
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(102);
+    const helpPanel = this.add
+      .rectangle(790, 58, 478, 220, 0x1f2937, 0.98)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(102)
+      .setStrokeStyle(1, 0x64748b, 1)
+      .setVisible(false);
+    const helpTitle = this.add
+      .text(806, 69, 'Editor controls', {
+        color: '#ffffff',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '16px',
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(103)
+      .setVisible(false);
+    const helpText = this.add
+      .text(
+        806,
+        94,
+        [
+          'Left click / drag: Place selected tile',
+          'Right click: Delete tile',
+          'Wheel: Cycle subtype or variant',
+          'Shift + wheel: Switch tile category',
+          'Middle mouse drag: Pan the view',
+          'Ctrl + wheel: Zoom (1.00x-3.00x)',
+          'G: Toggle grid snapping',
+          'B: Toggle front/back depth',
+          'Space: Auto-tile grass',
+        ].join('\n'),
+        {
+          color: '#f9fafb',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: '14px',
+        }
+      )
+      .setScrollFactor(0)
+      .setDepth(103)
+      .setVisible(false);
+    const showHelp = () => {
+      helpPanel.setVisible(true);
+      helpTitle.setVisible(true);
+      helpText.setVisible(true);
+    };
+    const hideHelp = () => {
+      helpPanel.setVisible(false);
+      helpTitle.setVisible(false);
+      helpText.setVisible(false);
+    };
+    helpButton.on('pointerover', showHelp);
+    helpButton.on('pointerout', hideHelp);
+
     const hudCamera = this.cameras.add(0, 0, camera.width, camera.height);
     hudCamera.ignore([gridGraphics, tileObjects, tilePreview]);
-    camera.ignore([hudPanel, tileIcon, statusText]);
+    camera.ignore([
+      hudPanel,
+      tileIcon,
+      statusText,
+      zoomPanel,
+      zoomText,
+      helpButton,
+      helpLabel,
+      helpPanel,
+      helpTitle,
+      helpText,
+    ]);
 
     this.gridToggleKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.G
@@ -276,7 +377,14 @@ export class EditorScene extends Phaser.Scene {
     }
   }
 
-  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+  private handlePointerDown(
+    pointer: Phaser.Input.Pointer,
+    currentlyOver: Phaser.GameObjects.GameObject[]
+  ) {
+    if (this.helpButton && currentlyOver.includes(this.helpButton)) {
+      return;
+    }
+
     if (pointer.middleButtonDown()) {
       this.isPanning = true;
       this.panStartMouse = [pointer.x, pointer.y];
@@ -523,6 +631,7 @@ export class EditorScene extends Phaser.Scene {
     const centerWorldY = camera.scrollY + camera.height / 2;
     this.zoom = Math.max(1, Math.min(3, this.zoom * 2 ** this.zoomVelocity));
     camera.setZoom(this.zoom);
+    this.zoomText?.setText(`Zoom: ${this.getZoomLabel()}`);
     camera.setScroll(
       centerWorldX - camera.width / 2,
       centerWorldY - camera.height / 2
@@ -532,6 +641,12 @@ export class EditorScene extends Phaser.Scene {
     if (Math.abs(this.zoomVelocity) < 0.0001) {
       this.zoomVelocity = 0;
     }
+  }
+
+  private getZoomLabel() {
+    return Number.isInteger(this.zoom)
+      ? `${this.zoom}x`
+      : `${this.zoom.toFixed(2)}x`;
   }
 
   private createCroppedIconTexture(
