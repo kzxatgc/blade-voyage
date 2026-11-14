@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { TILE_SIZE } from '../../shared/constants';
+import { isMapData } from '../../shared/mapData';
 import type { OffGridTile, TileLocation } from '../../shared/types';
 import { Tilemap } from '../systems/Tilemap';
 
@@ -35,6 +36,8 @@ export class EditorScene extends Phaser.Scene {
   private autoTileKey: Phaser.Input.Keyboard.Key | undefined;
   private gridGraphics?: Phaser.GameObjects.Graphics;
   private tileObjects?: Phaser.GameObjects.Container;
+  private editorActionButtons: Phaser.GameObjects.Rectangle[] = [];
+  private ignorePointerDrag = false;
   private onGrid = true;
   private selectedDepth: 'front' | 'back' = 'front';
   private zoom = 1;
@@ -51,6 +54,7 @@ export class EditorScene extends Phaser.Scene {
   private tileIcon?: Phaser.GameObjects.Image;
   private tilePreview?: Phaser.GameObjects.Image;
   private statusText?: Phaser.GameObjects.Text;
+  private actionStatusText?: Phaser.GameObjects.Text;
   private zoomText?: Phaser.GameObjects.Text;
   private helpButton?: Phaser.GameObjects.Rectangle;
 
@@ -127,6 +131,87 @@ export class EditorScene extends Phaser.Scene {
     this.statusText = statusText;
     this.updateTileIcon();
 
+    const createActionButton = (
+      icon: 'new' | 'save' | 'open',
+      x: number,
+      color: number,
+      action: () => void
+    ) => {
+      const background = this.add
+        .rectangle(x, 10, 40, 38, color, 1)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(101)
+        .setInteractive({ useHandCursor: true });
+      const iconGraphics = this.add
+        .graphics()
+        .setScrollFactor(0)
+        .setDepth(102);
+      iconGraphics.lineStyle(2, 0xffffff, 1);
+      if (icon === 'new') {
+        iconGraphics.lineBetween(x + 10, 18, x + 24, 18);
+        iconGraphics.lineBetween(x + 24, 18, x + 24, 28);
+        iconGraphics.lineBetween(x + 24, 28, x + 18, 28);
+        iconGraphics.lineBetween(x + 18, 28, x + 18, 38);
+        iconGraphics.lineBetween(x + 18, 38, x + 10, 38);
+        iconGraphics.lineBetween(x + 10, 38, x + 10, 18);
+        iconGraphics.lineBetween(x + 13, 23, x + 21, 23);
+        iconGraphics.lineBetween(x + 13, 26, x + 21, 26);
+        iconGraphics.lineBetween(x + 29, 30, x + 29, 40);
+        iconGraphics.lineBetween(x + 24, 35, x + 34, 35);
+      } else if (icon === 'save') {
+        iconGraphics.lineBetween(x + 10, 18, x + 27, 18);
+        iconGraphics.lineBetween(x + 27, 18, x + 30, 21);
+        iconGraphics.lineBetween(x + 30, 21, x + 30, 38);
+        iconGraphics.lineBetween(x + 30, 38, x + 10, 38);
+        iconGraphics.lineBetween(x + 10, 38, x + 10, 18);
+        iconGraphics.lineBetween(x + 15, 18, x + 15, 25);
+        iconGraphics.lineBetween(x + 15, 25, x + 25, 25);
+        iconGraphics.lineBetween(x + 25, 25, x + 25, 18);
+        iconGraphics.lineBetween(x + 15, 29, x + 25, 29);
+        iconGraphics.lineBetween(x + 25, 29, x + 25, 37);
+        iconGraphics.lineBetween(x + 25, 37, x + 15, 37);
+        iconGraphics.lineBetween(x + 15, 37, x + 15, 29);
+      } else {
+        iconGraphics.lineBetween(x + 9, 23, x + 17, 23);
+        iconGraphics.lineBetween(x + 17, 23, x + 20, 27);
+        iconGraphics.lineBetween(x + 20, 27, x + 31, 27);
+        iconGraphics.lineBetween(x + 31, 27, x + 27, 38);
+        iconGraphics.lineBetween(x + 27, 38, x + 10, 38);
+        iconGraphics.lineBetween(x + 10, 38, x + 9, 23);
+        iconGraphics.lineBetween(x + 13, 20, x + 24, 20);
+        iconGraphics.lineBetween(x + 24, 20, x + 29, 25);
+        iconGraphics.lineBetween(x + 29, 25, x + 26, 25);
+      }
+      background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.leftButtonDown()) {
+          action();
+        }
+      });
+
+      return { background, iconGraphics };
+    };
+    const actionButtons = [
+      createActionButton('new', 385, 0x475569, () => this.newMap()),
+      createActionButton('save', 433, 0x15803d, () => {
+        void this.saveMap();
+      }),
+      createActionButton('open', 481, 0x1d4ed8, () => {
+        void this.loadMap();
+      }),
+    ];
+    this.editorActionButtons = actionButtons.map(({ background }) => background);
+    const actionStatusText = this.add
+      .text(632, 20, '', {
+        color: '#166534',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontSize: '14px',
+        fontStyle: 'bold',
+      })
+      .setScrollFactor(0)
+      .setDepth(101);
+    this.actionStatusText = actionStatusText;
+
     const zoomPanel = this.add
       .rectangle(1086, 10, 132, 38, 0xffffff, 0.95)
       .setOrigin(0, 0)
@@ -162,7 +247,7 @@ export class EditorScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(102);
     const helpPanel = this.add
-      .rectangle(790, 58, 478, 220, 0x1f2937, 0.98)
+      .rectangle(790, 58, 478, 260, 0x1f2937, 0.98)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(102)
@@ -192,6 +277,9 @@ export class EditorScene extends Phaser.Scene {
           'G: Toggle grid snapping',
           'B: Toggle front/back depth',
           'Space: Auto-tile grass',
+          'New: Clear the map (confirmation if populated)',
+          'Save: Choose a name for the map',
+          'Open: Load a map by filename',
         ].join('\n'),
         {
           color: '#f9fafb',
@@ -221,6 +309,11 @@ export class EditorScene extends Phaser.Scene {
       hudPanel,
       tileIcon,
       statusText,
+      ...actionButtons.flatMap(({ background, iconGraphics }) => [
+        background,
+        iconGraphics,
+      ]),
+      actionStatusText,
       zoomPanel,
       zoomText,
       helpButton,
@@ -271,10 +364,7 @@ export class EditorScene extends Phaser.Scene {
       this.selectedDepth = this.selectedDepth === 'front' ? 'back' : 'front';
       statusChanged = true;
     }
-    if (
-      this.autoTileKey &&
-      Phaser.Input.Keyboard.JustDown(this.autoTileKey)
-    ) {
+    if (this.autoTileKey && Phaser.Input.Keyboard.JustDown(this.autoTileKey)) {
       this.triggerAutoTile();
     }
     if (statusChanged) {
@@ -381,7 +471,11 @@ export class EditorScene extends Phaser.Scene {
     pointer: Phaser.Input.Pointer,
     currentlyOver: Phaser.GameObjects.GameObject[]
   ) {
-    if (this.helpButton && currentlyOver.includes(this.helpButton)) {
+    if (
+      (this.helpButton && currentlyOver.includes(this.helpButton)) ||
+      this.editorActionButtons.some((button) => currentlyOver.includes(button))
+    ) {
+      this.ignorePointerDrag = true;
       return;
     }
 
@@ -400,6 +494,10 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer) {
+    if (this.ignorePointerDrag) {
+      return;
+    }
+
     if (this.isPanning && this.panStartMouse && this.panStartScroll) {
       const camera = this.cameras.main;
       camera.setScroll(
@@ -416,6 +514,7 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private handlePointerUp(pointer: Phaser.Input.Pointer) {
+    this.ignorePointerDrag = false;
     if (pointer.middleButtonReleased()) {
       this.isPanning = false;
       this.panStartMouse = undefined;
@@ -486,7 +585,11 @@ export class EditorScene extends Phaser.Scene {
       changed = true;
     }
 
-    for (let index = this.tilemap.offGridTiles.length - 1; index >= 0; index--) {
+    for (
+      let index = this.tilemap.offGridTiles.length - 1;
+      index >= 0;
+      index--
+    ) {
       const tile = this.tilemap.offGridTiles[index];
       if (!tile) {
         continue;
@@ -701,6 +804,135 @@ export class EditorScene extends Phaser.Scene {
   private triggerAutoTile() {
     this.tilemap.autoTile();
     this.renderTilemap();
+  }
+
+  private newMap() {
+    const hasTiles =
+      Object.keys(this.tilemap.tiles).length > 0 ||
+      this.tilemap.offGridTiles.length > 0;
+    if (
+      hasTiles &&
+      !window.confirm('Start a new map? All current tiles will be cleared.')
+    ) {
+      return;
+    }
+
+    this.tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    this.lastOffGridPos = undefined;
+    this.renderTilemap();
+    this.setActionStatus('New map', '#334155');
+  }
+
+  private async saveMap() {
+    const mapName = window.prompt(
+      'Name this map:',
+      ''
+    );
+    if (mapName === null || !mapName.trim()) {
+      return;
+    }
+
+    const filename = this.getMapFilename(mapName);
+    if (!filename) {
+      console.error(
+        'Invalid map name. Use letters, numbers, spaces, hyphens, or underscores.'
+      );
+      this.setActionStatus('Invalid map name', '#b91c1c');
+      return;
+    }
+
+    this.setActionStatus('Saving...', '#334155');
+
+    try {
+      const data = this.tilemap.save();
+      const sendSaveRequest = (overwrite: boolean) =>
+        fetch('/api/save-map', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, data, overwrite }),
+        });
+      let response = await sendSaveRequest(false);
+      if (response.status === 409) {
+        if (!window.confirm(`"${filename}" already exists. Overwrite it?`)) {
+          this.setActionStatus('Save canceled', '#334155');
+          return;
+        }
+
+        response = await sendSaveRequest(true);
+      }
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(
+          `Map save failed with status ${response.status}: ${detail}`
+        );
+      }
+
+      console.log(`Map saved to ${filename}!`);
+      this.setActionStatus(`Saved: ${filename}`, '#166534');
+    } catch (error) {
+      console.error(`Failed to save map "${filename}".`, error);
+      this.setActionStatus('Save failed', '#b91c1c');
+    }
+  }
+
+  private async loadMap() {
+    const filename = window.prompt(
+      'Enter a map name or filename to load:',
+      ''
+    );
+    if (filename === null) {
+      return;
+    }
+    const mapFilename = this.getMapFilename(filename);
+    if (!mapFilename) {
+      console.error(
+        'Invalid map name. Use letters, numbers, spaces, hyphens, or underscores.'
+      );
+      this.setActionStatus('Invalid map filename', '#b91c1c');
+      return;
+    }
+
+    this.setActionStatus('Loading...', '#334155');
+    try {
+      const response = await fetch(
+        `/assets/maps/${encodeURIComponent(mapFilename)}`
+      );
+      if (!response.ok) {
+        throw new Error(
+          `Map load failed with status ${response.status} for "${mapFilename}".`
+        );
+      }
+
+      const data: unknown = await response.json();
+      if (!isMapData(data)) {
+        throw new Error(`Map "${mapFilename}" contains invalid map data.`);
+      }
+
+      this.tilemap.loadFromData(data);
+      this.lastOffGridPos = undefined;
+      this.renderTilemap();
+      console.log(`Map loaded from ${mapFilename}!`);
+      this.setActionStatus(`Loaded: ${mapFilename}`, '#166534');
+    } catch (error) {
+      console.error(`Failed to load map "${mapFilename}".`, error);
+      this.setActionStatus('Load failed', '#b91c1c');
+    }
+  }
+
+  private getMapFilename(input: string) {
+    const name = input
+      .trim()
+      .replace(/\.json$/i, '')
+      .replace(/\s+/g, '-');
+    if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+      return undefined;
+    }
+
+    return `${name}.json`;
+  }
+
+  private setActionStatus(message: string, color: string) {
+    this.actionStatusText?.setText(message).setColor(color);
   }
 
   private updateStatusText() {
