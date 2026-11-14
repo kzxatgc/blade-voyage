@@ -32,11 +32,17 @@ export class EditorScene extends Phaser.Scene {
   private depthToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private gridToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private shiftKey: Phaser.Input.Keyboard.Key | undefined;
+  private ctrlKey: Phaser.Input.Keyboard.Key | undefined;
   private autoTileKey: Phaser.Input.Keyboard.Key | undefined;
   private gridGraphics?: Phaser.GameObjects.Graphics;
   private tileObjects?: Phaser.GameObjects.Container;
   private onGrid = true;
   private selectedDepth: 'front' | 'back' = 'front';
+  private zoom = 2;
+  private zoomVelocity = 0;
+  private isPanning = false;
+  private panStartMouse: TileLocation | undefined;
+  private panStartScroll: TileLocation | undefined;
   private tileGroup = 0;
   private subTypeIndex = 0;
   private tileVariant = 0;
@@ -78,27 +84,37 @@ export class EditorScene extends Phaser.Scene {
   }
 
   create() {
-    this.cameras.main.setBackgroundColor('#ffffff');
+    const camera = this.cameras.main;
+    camera.setBackgroundColor('#ffffff');
+    camera.setZoom(this.zoom);
+    camera.setScroll(
+      -camera.width / 2 + camera.width / (2 * this.zoom),
+      -camera.height / 2 + camera.height / (2 * this.zoom)
+    );
     this.input.mouse?.disableContextMenu();
-    this.gridGraphics = this.add.graphics().setDepth(10);
-    this.tileObjects = this.add.container().setDepth(0);
-    this.tilePreview = this.add
+    const gridGraphics = this.add.graphics().setDepth(10);
+    this.gridGraphics = gridGraphics;
+    const tileObjects = this.add.container().setDepth(0);
+    this.tileObjects = tileObjects;
+    const tilePreview = this.add
       .image(0, 0, 'grass/0')
       .setOrigin(0, 0)
       .setDepth(20);
+    this.tilePreview = tilePreview;
 
-    this.add
+    const hudPanel = this.add
       .rectangle(4, 4, 360, 76, 0xffffff, 0.95)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(100)
       .setStrokeStyle(1, 0x333333, 0.5);
-    this.tileIcon = this.add
+    const tileIcon = this.add
       .image(10, 6, 'grass/0')
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(101);
-    this.statusText = this.add
+    this.tileIcon = tileIcon;
+    const statusText = this.add
       .text(68, 7, '', {
         color: '#111827',
         fontFamily: 'Arial, Helvetica, sans-serif',
@@ -107,7 +123,12 @@ export class EditorScene extends Phaser.Scene {
       })
       .setScrollFactor(0)
       .setDepth(101);
+    this.statusText = statusText;
     this.updateTileIcon();
+
+    const hudCamera = this.cameras.add(0, 0, camera.width, camera.height);
+    hudCamera.ignore([gridGraphics, tileObjects, tilePreview]);
+    camera.ignore([hudPanel, tileIcon, statusText]);
 
     this.gridToggleKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.G
@@ -117,6 +138,9 @@ export class EditorScene extends Phaser.Scene {
     );
     this.shiftKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.SHIFT
+    );
+    this.ctrlKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.CTRL
     );
     this.autoTileKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
@@ -157,12 +181,19 @@ export class EditorScene extends Phaser.Scene {
       this.updateStatusText();
     }
 
+    this.updateZoom();
     this.drawGrid();
 
     const pointer = this.input.activePointer;
     const camera = this.cameras.main;
-    const worldX = pointer.x + camera.scrollX;
-    const worldY = pointer.y + camera.scrollY;
+    const worldX =
+      camera.scrollX +
+      camera.width / 2 +
+      (pointer.x - camera.width / 2) / camera.zoom;
+    const worldY =
+      camera.scrollY +
+      camera.height / 2 +
+      (pointer.y - camera.height / 2) / camera.zoom;
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);
     const previewFrame = this.textures.getFrame(this.getSelectedTextureKey());
@@ -188,10 +219,14 @@ export class EditorScene extends Phaser.Scene {
     }
 
     const camera = this.cameras.main;
-    const left = Math.floor(camera.scrollX / TILE_SIZE) * TILE_SIZE;
-    const top = Math.floor(camera.scrollY / TILE_SIZE) * TILE_SIZE;
-    const right = camera.scrollX + camera.width;
-    const bottom = camera.scrollY + camera.height;
+    const leftWorld =
+      camera.scrollX + camera.width / 2 - camera.width / (2 * camera.zoom);
+    const topWorld =
+      camera.scrollY + camera.height / 2 - camera.height / (2 * camera.zoom);
+    const left = Math.floor(leftWorld / TILE_SIZE) * TILE_SIZE;
+    const top = Math.floor(topWorld / TILE_SIZE) * TILE_SIZE;
+    const right = leftWorld + camera.width / camera.zoom;
+    const bottom = topWorld + camera.height / camera.zoom;
     graphics.lineStyle(1, 0x64748b, 0.2);
 
     for (let x = left; x <= right; x += TILE_SIZE) {
@@ -243,7 +278,14 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer) {
-    if (pointer.leftButtonDown()) {
+    if (pointer.middleButtonDown()) {
+      this.isPanning = true;
+      this.panStartMouse = [pointer.x, pointer.y];
+      this.panStartScroll = [
+        this.cameras.main.scrollX,
+        this.cameras.main.scrollY,
+      ];
+    } else if (pointer.leftButtonDown()) {
       this.placeTile(pointer);
     } else if (pointer.rightButtonDown()) {
       this.deleteTile(pointer);
@@ -251,14 +293,27 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer) {
-    if (pointer.leftButtonDown()) {
+    if (this.isPanning && this.panStartMouse && this.panStartScroll) {
+      const camera = this.cameras.main;
+      camera.setScroll(
+        this.panStartScroll[0] -
+          (pointer.x - this.panStartMouse[0]) / camera.zoom,
+        this.panStartScroll[1] -
+          (pointer.y - this.panStartMouse[1]) / camera.zoom
+      );
+    } else if (pointer.leftButtonDown()) {
       this.placeTile(pointer);
     } else if (pointer.rightButtonDown()) {
       this.deleteTile(pointer);
     }
   }
 
-  private handlePointerUp() {
+  private handlePointerUp(pointer: Phaser.Input.Pointer) {
+    if (pointer.middleButtonReleased()) {
+      this.isPanning = false;
+      this.panStartMouse = undefined;
+      this.panStartScroll = undefined;
+    }
     this.lastOffGridPos = undefined;
   }
 
@@ -349,7 +404,14 @@ export class EditorScene extends Phaser.Scene {
 
   private getWorldPosition(pointer: Phaser.Input.Pointer): TileLocation {
     const camera = this.cameras.main;
-    return [pointer.x + camera.scrollX, pointer.y + camera.scrollY];
+    return [
+      camera.scrollX +
+        camera.width / 2 +
+        (pointer.x - camera.width / 2) / camera.zoom,
+      camera.scrollY +
+        camera.height / 2 +
+        (pointer.y - camera.height / 2) / camera.zoom,
+    ];
   }
 
   private getSelectedTextureKey() {
@@ -371,6 +433,10 @@ export class EditorScene extends Phaser.Scene {
     }
 
     const direction = deltaY < 0 ? 1 : -1;
+    if (this.ctrlKey?.isDown) {
+      this.zoomVelocity += direction * 0.04;
+      return;
+    }
     if (this.shiftKey?.isDown) {
       this.tileGroup =
         (this.tileGroup + direction + this.tileCategories.length) %
@@ -446,6 +512,27 @@ export class EditorScene extends Phaser.Scene {
       .setTexture(iconTextureKey)
       .setDisplaySize(width, height)
       .setPosition(8 + (areaWidth - width) / 2, 6 + (areaHeight - height) / 2);
+  }
+
+  private updateZoom() {
+    if (Math.abs(this.zoomVelocity) <= 0.0001) {
+      return;
+    }
+
+    const camera = this.cameras.main;
+    const centerWorldX = camera.scrollX + camera.width / 2;
+    const centerWorldY = camera.scrollY + camera.height / 2;
+    this.zoom = Math.max(1, Math.min(3, this.zoom * 2 ** this.zoomVelocity));
+    camera.setZoom(this.zoom);
+    camera.setScroll(
+      centerWorldX - camera.width / (2 * this.zoom),
+      centerWorldY - camera.height / (2 * this.zoom)
+    );
+
+    this.zoomVelocity *= 0.8;
+    if (Math.abs(this.zoomVelocity) < 0.0001) {
+      this.zoomVelocity = 0;
+    }
   }
 
   private createCroppedIconTexture(

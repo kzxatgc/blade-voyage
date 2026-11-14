@@ -10,6 +10,11 @@ export const EDITOR_CONFIG: Phaser.Types.Core.GameConfig = {
   pixelArt: true,
   antialias: false,
   roundPixels: true,
+  input: {
+    mouse: {
+      preventDefaultWheel: true,
+    },
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
