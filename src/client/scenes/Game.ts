@@ -9,6 +9,7 @@ import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
+import { Swords } from '../systems/Swords';
 import { Tilemap } from '../systems/Tilemap';
 import { Animation } from '../utils/Animation';
 
@@ -35,6 +36,7 @@ export class Game extends Phaser.Scene {
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
+  private swords?: Swords;
   private tickAccumulator = 0;
   private scroll: [number, number] = [0, 0];
   private previousScroll: [number, number] = [0, 0];
@@ -103,6 +105,7 @@ export class Game extends Phaser.Scene {
       TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 10)])
     );
     this.particles = new Particles();
+    this.swords = new Swords();
     this.playerEntity = new Player([
       playerSpawn.loc[0] * this.tilemap.tileSize,
       playerSpawn.loc[1] * this.tilemap.tileSize,
@@ -183,6 +186,7 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
+      this.swords?.update(this.tilemap);
       this.previousScroll = [...this.scroll];
       this.previousPlayerPosition = [...this.playerEntity.pos];
       const movingLeft = this.leftKeys.some((key) => key.isDown);
@@ -263,6 +267,7 @@ export class Game extends Phaser.Scene {
       (this.scroll[1] - this.previousScroll[1]) * interpolation
     );
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
+    this.swords?.render(this);
     this.particles?.render(this, [
       renderedPlayerX - this.playerEntity.pos[0],
       renderedPlayerY - this.playerEntity.pos[1],
