@@ -6,17 +6,41 @@ import { Tilemap } from '../systems/Tilemap';
 export const EDITOR_SCENE_KEY = 'EditorScene';
 
 export class EditorScene extends Phaser.Scene {
+  private readonly tileCategories = [
+    { name: 'grass', types: ['grass'] },
+    {
+      name: 'palm_tree',
+      types: [
+        'palm_tree/front/regular',
+        'palm_tree/front/left',
+        'palm_tree/front/right',
+        'palm_tree/back/regular',
+        'palm_tree/back/left',
+        'palm_tree/back/right',
+      ],
+    },
+    { name: 'spawner', types: ['spawner'] },
+  ] as const;
+  private readonly spawnerIconBounds = [
+    { x: 20, y: 4, width: 24, height: 28 },
+    { x: 3, y: 4, width: 27, height: 25 },
+    { x: 17, y: 4, width: 40, height: 25 },
+    { x: 6, y: 7, width: 23, height: 21 },
+  ] as const;
   private readonly tilemap: Tilemap & { autoTile?: () => void } =
     new Tilemap();
   private depthToggleKey: Phaser.Input.Keyboard.Key | undefined;
   private gridToggleKey: Phaser.Input.Keyboard.Key | undefined;
+  private shiftKey: Phaser.Input.Keyboard.Key | undefined;
   private autoTileKey: Phaser.Input.Keyboard.Key | undefined;
   private gridGraphics?: Phaser.GameObjects.Graphics;
   private tileObjects?: Phaser.GameObjects.Container;
   private onGrid = true;
   private selectedDepth: 'front' | 'back' = 'front';
+  private tileGroup = 0;
+  private subTypeIndex = 0;
+  private tileVariant = 0;
   private selectedTileType = 'grass';
-  private selectedTileVariant = 0;
   private selectedTileStatus: 'static' | 'animated' = 'static';
   private lastOffGridPos: TileLocation | undefined;
   private tileIcon?: Phaser.GameObjects.Image;
@@ -64,19 +88,18 @@ export class EditorScene extends Phaser.Scene {
       .setDepth(20);
 
     this.add
-      .rectangle(4, 4, 300, 60, 0xffffff, 0.95)
+      .rectangle(4, 4, 360, 76, 0xffffff, 0.95)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(100)
       .setStrokeStyle(1, 0x333333, 0.5);
     this.tileIcon = this.add
-      .image(10, 10, 'grass/0')
+      .image(10, 6, 'grass/0')
       .setOrigin(0, 0)
-      .setDisplaySize(TILE_SIZE, TILE_SIZE)
       .setScrollFactor(0)
       .setDepth(101);
     this.statusText = this.add
-      .text(50, 7, '', {
+      .text(68, 7, '', {
         color: '#111827',
         fontFamily: 'Arial, Helvetica, sans-serif',
         fontSize: '18px',
@@ -84,12 +107,16 @@ export class EditorScene extends Phaser.Scene {
       })
       .setScrollFactor(0)
       .setDepth(101);
+    this.updateTileIcon();
 
     this.gridToggleKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.G
     );
     this.depthToggleKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.B
+    );
+    this.shiftKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.SHIFT
     );
     this.autoTileKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
@@ -98,6 +125,7 @@ export class EditorScene extends Phaser.Scene {
     this.input.on('pointermove', this.handlePointerMove, this);
     this.input.on('pointerup', this.handlePointerUp, this);
     this.input.on('pointerupoutside', this.handlePointerUp, this);
+    this.input.on('wheel', this.handleWheel, this);
 
     this.renderTilemap();
     this.updateStatusText();
@@ -144,8 +172,8 @@ export class EditorScene extends Phaser.Scene {
         this.onGrid ? tileX * TILE_SIZE : worldX - previewFrame.width,
         this.onGrid ? tileY * TILE_SIZE : worldY - previewFrame.height
       )
-      .setAlpha(this.selectedDepth === 'back' ? 0.3 : 0.55);
-    this.tileIcon?.setAlpha(this.selectedDepth === 'back' ? 0.35 : 1);
+      .setAlpha(this.getSelectedDepth() === 'back' ? 0.3 : 0.55);
+    this.tileIcon?.setAlpha(this.getSelectedDepth() === 'back' ? 0.35 : 1);
   }
 
   private drawGrid() {
@@ -245,14 +273,14 @@ export class EditorScene extends Phaser.Scene {
       const existing = this.tilemap.tiles[key];
       if (
         existing?.type === this.selectedTileType &&
-        existing.variant === this.selectedTileVariant
+        existing.variant === this.tileVariant
       ) {
         return;
       }
 
       this.tilemap.tiles[key] = {
         type: this.selectedTileType,
-        variant: this.selectedTileVariant,
+        variant: this.tileVariant,
         loc: location,
       };
       this.renderTilemap();
@@ -275,8 +303,8 @@ export class EditorScene extends Phaser.Scene {
 
     const tile: OffGridTile = {
       type: this.selectedTileType,
-      variant: this.selectedTileVariant,
-      depth: this.selectedDepth,
+      variant: this.tileVariant,
+      depth: this.getSelectedDepth(),
       status: this.selectedTileStatus,
       pos,
     };
@@ -325,11 +353,148 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private getSelectedTextureKey() {
-    return `${this.selectedTileType}/${this.selectedTileStatus === 'animated' ? 0 : this.selectedTileVariant}`;
+    return `${this.selectedTileType}/${this.selectedTileStatus === 'animated' ? 0 : this.tileVariant}`;
   }
 
   private getTextureKey(tile: OffGridTile) {
     return `${tile.type}/${tile.status === 'animated' ? 0 : (tile.variant ?? 0)}`;
+  }
+
+  private handleWheel(
+    _pointer: Phaser.Input.Pointer,
+    _currentlyOver: Phaser.GameObjects.GameObject[],
+    _deltaX: number,
+    deltaY: number
+  ) {
+    if (deltaY === 0) {
+      return;
+    }
+
+    const direction = deltaY < 0 ? 1 : -1;
+    if (this.shiftKey?.isDown) {
+      this.tileGroup =
+        (this.tileGroup + direction + this.tileCategories.length) %
+        this.tileCategories.length;
+      this.subTypeIndex = 0;
+      this.tileVariant = 0;
+    } else {
+      const category = this.getSelectedCategory();
+      if (category.types.length > 1) {
+        this.subTypeIndex =
+          (this.subTypeIndex + direction + category.types.length) %
+          category.types.length;
+        this.tileVariant = 0;
+      } else {
+        const variantCount = category.name === 'grass' ? 16 : 4;
+        this.tileVariant =
+          (this.tileVariant + direction + variantCount) % variantCount;
+      }
+    }
+
+    this.updateSelectedTile();
+  }
+
+  private getSelectedCategory() {
+    const category = this.tileCategories[this.tileGroup];
+    if (!category) {
+      throw new Error(`Unknown editor tile category index: ${this.tileGroup}`);
+    }
+
+    return category;
+  }
+
+  private updateSelectedTile() {
+    const category = this.getSelectedCategory();
+    const selectedType = category.types[this.subTypeIndex];
+    if (!selectedType) {
+      throw new Error(`Unknown tile subtype index: ${this.subTypeIndex}`);
+    }
+
+    this.selectedTileType = selectedType;
+    this.selectedTileStatus =
+      category.name === 'palm_tree' ? 'animated' : 'static';
+    const textureKey = this.getSelectedTextureKey();
+    this.tilePreview?.setTexture(textureKey);
+    this.updateTileIcon();
+    this.updateStatusText();
+  }
+
+  private updateTileIcon() {
+    const tileIcon = this.tileIcon;
+    if (!tileIcon) {
+      return;
+    }
+
+    const textureKey = this.getSelectedTextureKey();
+    const frame = this.textures.getFrame(textureKey);
+    const crop =
+      this.selectedTileType === 'spawner'
+        ? this.spawnerIconBounds[this.tileVariant]
+        : undefined;
+    const iconTextureKey = crop
+      ? this.createCroppedIconTexture(textureKey, crop)
+      : textureKey;
+    const widthToFit = crop?.width ?? frame.width;
+    const heightToFit = crop?.height ?? frame.height;
+    const areaWidth = TILE_SIZE * 1.5;
+    const areaHeight = TILE_SIZE * 2;
+    const scale = Math.min(areaWidth / widthToFit, areaHeight / heightToFit);
+    const width = widthToFit * scale;
+    const height = heightToFit * scale;
+
+    tileIcon
+      .setTexture(iconTextureKey)
+      .setDisplaySize(width, height)
+      .setPosition(8 + (areaWidth - width) / 2, 6 + (areaHeight - height) / 2);
+  }
+
+  private createCroppedIconTexture(
+    textureKey: string,
+    crop: { x: number; y: number; width: number; height: number }
+  ) {
+    const iconTextureKey = `editor-icon:${textureKey}`;
+    if (this.textures.exists(iconTextureKey)) {
+      return iconTextureKey;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = crop.width;
+    canvas.height = crop.height;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Unable to create the editor tile icon canvas.');
+    }
+
+    const sourceImage = this.textures.get(textureKey).source[0]?.image;
+    if (!sourceImage) {
+      throw new Error(`Unable to load source image for ${textureKey}.`);
+    }
+
+    context.drawImage(
+      sourceImage,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      0,
+      0,
+      crop.width,
+      crop.height
+    );
+    this.textures.addCanvas(iconTextureKey, canvas);
+
+    return iconTextureKey;
+  }
+
+  private getSelectedDepth(): 'front' | 'back' {
+    if (this.selectedTileType.startsWith('palm_tree/back/')) {
+      return 'back';
+    }
+    if (this.selectedTileType.startsWith('palm_tree/front/')) {
+      return 'front';
+    }
+
+    return this.selectedDepth;
   }
 
   private triggerAutoTile() {
@@ -343,8 +508,13 @@ export class EditorScene extends Phaser.Scene {
   }
 
   private updateStatusText() {
+    const category = this.getSelectedCategory();
+    const selection =
+      category.name === 'palm_tree'
+        ? `Palm ${this.selectedTileType.slice('palm_tree/'.length).replace(/\//g, ' ')}`
+        : `${category.name === 'grass' ? 'Grass' : 'Spawner'} ${this.tileVariant}`;
     this.statusText?.setText(
-      `${this.selectedTileType} ${this.selectedTileVariant}\nG: grid ${this.onGrid ? 'on' : 'off'} | B: ${this.selectedDepth}`
+      `${selection}\nG: grid ${this.onGrid ? 'on' : 'off'} | B: ${this.getSelectedDepth()}`
     );
   }
 }
