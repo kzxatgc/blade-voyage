@@ -86,5 +86,35 @@ void describe('Player', () => {
     assert.equal(player.collision.bottom, true);
     assert.equal(player.jumps, 2);
     assert.equal(player.airTime, 1);
+    assert.equal(player.wasInAir, false);
+  });
+
+  void it('selects idle, run, jump, and fall animations from player state', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    player.update(tilemap);
+    assert.equal(player.animationKey, 'player/idle');
+    assert.equal(player.wasInAir, true);
+
+    player.update(tilemap, [2.5, 0]);
+    assert.equal(player.animationKey, 'player/run');
+
+    player.jump();
+    player.update(tilemap);
+    assert.equal(player.animationKey, 'player/jump');
+
+    player.velocity[1] = 1;
+    player.update(tilemap);
+    assert.equal(player.animationKey, 'player/fall');
+
+    player.swordState = true;
+    player.velocity[1] = 0;
+    player.airTime = 0;
+    player.update(tilemap, [2.5, 0]);
+    assert.equal(player.animationKey, 'player/sword/run');
   });
 });
