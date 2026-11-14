@@ -12,11 +12,14 @@ const TILE_ANIMATION_TYPES = [
   'palm_tree/back/regular',
   'palm_tree/back/right',
 ];
+const PLAYER_MOVE_SPEED = 2.5;
 
 export class Game extends Phaser.Scene {
   private idleAnimation?: Animation;
   private idleSprite?: Phaser.GameObjects.Image;
+  private leftKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerEntity?: PhysicsEntity;
+  private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
@@ -27,6 +30,18 @@ export class Game extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(0x000000);
+    this.leftKeys = [
+      Phaser.Input.Keyboard.KeyCodes.A,
+      Phaser.Input.Keyboard.KeyCodes.LEFT,
+    ]
+      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
+      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
+    this.rightKeys = [
+      Phaser.Input.Keyboard.KeyCodes.D,
+      Phaser.Input.Keyboard.KeyCodes.RIGHT,
+    ]
+      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
+      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
     this.add
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
       .setDisplaySize(this.scale.width, this.scale.height);
@@ -53,7 +68,12 @@ export class Game extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number) {
-    if (!this.idleAnimation || !this.idleSprite || !this.playerEntity || !this.tilemap) {
+    if (
+      !this.idleAnimation ||
+      !this.idleSprite ||
+      !this.playerEntity ||
+      !this.tilemap
+    ) {
       return;
     }
 
@@ -63,11 +83,18 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.idleAnimation.update();
-      this.playerEntity.update(this.tilemap);
+      const movingLeft = this.leftKeys.some((key) => key.isDown);
+      const movingRight = this.rightKeys.some((key) => key.isDown);
+      const horizontalDirection = Number(movingRight) - Number(movingLeft);
+      this.playerEntity.update(this.tilemap, [
+        horizontalDirection * PLAYER_MOVE_SPEED,
+        0,
+      ]);
       this.idleSprite.setPosition(
         this.playerEntity.pos[0],
         this.playerEntity.pos[1]
       );
+      this.idleSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
       if (this.idleAnimation.indexChanged) {
         this.idleSprite.setTexture(this.idleAnimation.img());

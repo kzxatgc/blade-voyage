@@ -96,7 +96,10 @@ void describe('PhysicsEntity', () => {
       'player/idle': new Animation('player/idle', 5, 6),
     });
 
-    assert.throws(() => entity.setAction('run'), /Missing animation "player\/run"/);
+    assert.throws(
+      () => entity.setAction('run'),
+      /Missing animation "player\/run"/
+    );
   });
 
   void it('applies gravity after vertical movement and caps fall speed', async () => {
@@ -117,6 +120,41 @@ void describe('PhysicsEntity', () => {
     entity.velocity[1] = 4.8;
     entity.update(tilemap);
     assert.equal(entity.velocity[1], 5);
+  });
+
+  void it('moves horizontally and updates facing direction', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [100, 100]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    entity.update(tilemap, [3, 0]);
+    assert.equal(entity.pos[0], 103);
+    assert.equal(entity.flip, false);
+
+    entity.update(tilemap, [-3, 0]);
+    assert.equal(entity.pos[0], 100);
+    assert.equal(entity.flip, true);
+  });
+
+  void it('stops horizontal movement at a solid tile', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const entity = new PhysicsEntity('player', [120, 224]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '5;7': { type: 'grass', variant: 4, loc: [5, 7] },
+      },
+      off_grid_tiles: [],
+    });
+
+    entity.update(tilemap, [20, 0]);
+
+    assert.equal(entity.collision.right, true);
+    assert.equal(entity.pos[0], 118);
+    assert.equal(entity.rect().x + entity.rect().width, 160);
   });
 
   void it('lands on a physical tile and records the bottom collision', async () => {

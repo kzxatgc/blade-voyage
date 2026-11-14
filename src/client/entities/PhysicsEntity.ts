@@ -87,13 +87,55 @@ export class PhysicsEntity {
     this.animation = sourceAnimation?.copy() ?? null;
   }
 
-  update(tilemap: Pick<Tilemap, 'physicalRectsAround'>, movement: EntityPosition = [0, 0]) {
+  update(
+    tilemap: Pick<Tilemap, 'physicalRectsAround'>,
+    movement: EntityPosition = [0, 0]
+  ) {
     this.collision = createCollisionState();
     this.landedOn = { grass: false, palm_tree: false };
 
+    const frameMovementX = this.dead ? 0 : movement[0] + this.velocity[0];
+    this.pos[0] += frameMovementX;
+    let entityRect = this.rect();
+
+    for (const tileRect of tilemap.physicalRectsAround(this.pos)) {
+      const overlapsVertically =
+        entityRect.y < tileRect.y + tileRect.height &&
+        entityRect.y + entityRect.height > tileRect.y;
+      const overlapsHorizontally =
+        entityRect.x < tileRect.x + tileRect.width &&
+        entityRect.x + entityRect.width > tileRect.x;
+
+      if (!overlapsVertically || !overlapsHorizontally) {
+        continue;
+      }
+
+      if (frameMovementX > 0) {
+        entityRect = {
+          ...entityRect,
+          x: tileRect.x - entityRect.width,
+        };
+        this.collision.right = true;
+      } else if (frameMovementX < 0) {
+        entityRect = {
+          ...entityRect,
+          x: tileRect.x + tileRect.width,
+        };
+        this.collision.left = true;
+      }
+
+      this.pos[0] = entityRect.x - this.rectPosAdjustment[0];
+    }
+
+    if (frameMovementX < 0) {
+      this.flip = true;
+    } else if (frameMovementX > 0) {
+      this.flip = false;
+    }
+
     const frameMovementY = this.dead ? 0 : movement[1] + this.velocity[1];
     this.pos[1] += frameMovementY;
-    let entityRect = this.rect();
+    entityRect = this.rect();
 
     for (const tileRect of tilemap.physicalRectsAround(this.pos)) {
       const intersects =
@@ -124,9 +166,6 @@ export class PhysicsEntity {
       this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
     }
 
-    this.velocity[1] = Math.min(
-      this.velocity[1] + GRAVITY,
-      MAX_FALL_SPEED
-    );
+    this.velocity[1] = Math.min(this.velocity[1] + GRAVITY, MAX_FALL_SPEED);
   }
 }
