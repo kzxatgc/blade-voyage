@@ -25,6 +25,7 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
   private cameraOffset: [number, number] = [0, 0];
+  private playerRenderAnimation: Animation | null = null;
 
   constructor() {
     super('Game');
@@ -93,6 +94,7 @@ export class Game extends Phaser.Scene {
       this.playerEntity.pos[1] - this.cameraOffset[1],
       playerAnimation.img()
     );
+    this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
     this.tilemap.frontRender(this, this.cameraOffset, this.tileAnimations);
   }
@@ -131,16 +133,20 @@ export class Game extends Phaser.Scene {
         throw new Error('The player animation is not configured.');
       }
 
-      playerAnimation.update();
+      const renderAnimation =
+        this.playerEntity.landingAnimation ?? playerAnimation;
+      const animationChanged = renderAnimation !== this.playerRenderAnimation;
+      renderAnimation.update();
       this.playerSprite.setPosition(
         this.playerEntity.pos[0] - this.cameraOffset[0],
         this.playerEntity.pos[1] - this.cameraOffset[1]
       );
       this.playerSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
-      if (playerAnimation.indexChanged) {
-        this.playerSprite.setTexture(playerAnimation.img());
+      if (animationChanged || renderAnimation.indexChanged) {
+        this.playerSprite.setTexture(renderAnimation.img());
       }
+      this.playerRenderAnimation = renderAnimation;
     }
   }
 }

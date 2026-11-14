@@ -19,6 +19,8 @@ void describe('Player', () => {
     assert.equal(player.lastKey, null);
     assert.equal(player.lastPressTime, 0);
     assert.equal(player.runBoost, 0);
+    assert.equal(player.justLanded, false);
+    assert.equal(player.landingAnimation, null);
   });
 
   void it('has player type', async () => {
@@ -116,5 +118,52 @@ void describe('Player', () => {
     player.airTime = 0;
     player.update(tilemap, [2.5, 0]);
     assert.equal(player.animationKey, 'player/sword/run');
+  });
+
+  void it('starts the matching landing animation when landing from the air', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([160, 224]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '5;8': { type: 'grass', variant: 4, loc: [5, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    player.wasInAir = true;
+    player.velocity[1] = 3;
+
+    player.update(tilemap);
+
+    assert.equal(player.justLanded, true);
+    assert.equal(player.landedOn.grass, true);
+    assert.equal(player.landedOn.palm_tree, false);
+    assert.equal(player.landingAnimation?.img(), 'player/land/0');
+    assert.equal(player.landingAnimation?.loop, false);
+  });
+
+  void it('uses the sword landing animation and only marks the landing transition once', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([160, 224]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '5;8': { type: 'grass', variant: 4, loc: [5, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    player.wasInAir = true;
+    player.velocity[1] = 3;
+    player.swordState = true;
+
+    player.update(tilemap);
+    assert.equal(player.justLanded, true);
+    assert.equal(player.landingAnimation?.img(), 'player/sword/land/0');
+
+    player.update(tilemap);
+    assert.equal(player.justLanded, false);
+    assert.equal(player.landingAnimation?.img(), 'player/sword/land/0');
   });
 });

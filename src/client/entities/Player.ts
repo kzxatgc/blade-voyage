@@ -11,6 +11,8 @@ export class Player extends PhysicsEntity {
   lastPressTime = 0;
   runBoost = 0;
   wasInAir = false;
+  justLanded = false;
+  landingAnimation: Animation | null = null;
 
   constructor(pos: EntityPosition) {
     super('player', pos, [20, 28], {
@@ -18,10 +20,12 @@ export class Player extends PhysicsEntity {
       'player/run': new Animation('player/run', 6, 6),
       'player/jump': new Animation('player/jump', 3, 6),
       'player/fall': new Animation('player/fall', 1, 6),
+      'player/land': new Animation('player/land', 2, 6, false),
       'player/sword/idle': new Animation('player/sword/idle', 5, 6),
       'player/sword/run': new Animation('player/sword/run', 6, 6),
       'player/sword/jump': new Animation('player/sword/jump', 3, 6),
       'player/sword/fall': new Animation('player/sword/fall', 1, 6),
+      'player/sword/land': new Animation('player/sword/land', 2, 6, false),
     });
   }
 
@@ -38,6 +42,18 @@ export class Player extends PhysicsEntity {
     movement: EntityPosition = [0, 0]
   ) {
     super.update(tilemap, movement);
+
+    this.justLanded = this.wasInAir && this.collision.bottom;
+    if (this.justLanded) {
+      const landingKey = `player/${this.swordState ? 'sword/' : ''}land`;
+      const landingAnimation = this.animations?.[landingKey];
+      if (!landingAnimation) {
+        throw new Error(`Missing animation "${landingKey}".`);
+      }
+      this.landingAnimation = landingAnimation.copy();
+    } else if (this.landingAnimation?.done) {
+      this.landingAnimation = null;
+    }
 
     const swordPrefix = this.swordState ? 'sword/' : '';
     if (this.airTime > 4) {
