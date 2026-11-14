@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { TICK_RATE } from '../../shared/constants';
-import { PhysicsEntity } from '../entities/PhysicsEntity';
-import { createTemporaryPlusMap, Tilemap } from '../systems/Tilemap';
+import { isMapData } from '../../shared/mapData';
+import { Player } from '../entities/Player';
+import { Tilemap } from '../systems/Tilemap';
 import { Animation } from '../utils/Animation';
 
 const TILE_ANIMATION_TYPES = [
@@ -15,17 +16,21 @@ const TILE_ANIMATION_TYPES = [
 const PLAYER_MOVE_SPEED = 2.5;
 
 export class Game extends Phaser.Scene {
-  private idleAnimation?: Animation;
-  private idleSprite?: Phaser.GameObjects.Image;
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
-  private playerEntity?: PhysicsEntity;
+  private playerEntity?: Player;
+  private playerSprite?: Phaser.GameObjects.Image;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private tickAccumulator = 0;
+  private cameraOffset: [number, number] = [0, 0];
 
   constructor() {
     super('Game');
+  }
+
+  preload() {
+    this.load.json('game-map', '/assets/maps/0.json');
   }
 
   create() {
@@ -46,31 +51,48 @@ export class Game extends Phaser.Scene {
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
       .setDisplaySize(this.scale.width, this.scale.height);
 
-    this.tilemap = new Tilemap();
-    this.tilemap.loadFromData(createTemporaryPlusMap());
-    this.tileAnimations = Object.fromEntries(
-      TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 28)])
-    );
-    this.tilemap.backRender(this, [0, 0], this.tileAnimations);
+    const mapData: unknown = this.cache.json.get('game-map');
+    if (!isMapData(mapData)) {
+      throw new Error('The game map at /assets/maps/0.json is missing or invalid.');
+    }
 
-    this.idleAnimation = new Animation('player/idle', 5, 6);
-    this.playerEntity = new PhysicsEntity('player', [
-      this.scale.width * 0.53,
-      this.scale.height * 0.08,
-    ]);
-    this.idleSprite = this.add.image(
-      this.playerEntity.pos[0],
-      this.playerEntity.pos[1],
-      this.idleAnimation.img()
+    this.tilemap = new Tilemap();
+    this.tilemap.loadFromData(mapData);
+    const [playerSpawn] = this.tilemap.extract([['spawner', 0]], false);
+    if (!playerSpawn) {
+      throw new Error('The game map does not contain a player spawner (variant 0).');
+    }
+
+    this.tileAnimations = Object.fromEntries(
+      TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 10)])
     );
-    this.idleSprite.setOrigin(0, 0);
-    this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
+    this.playerEntity = new Player([
+      playerSpawn.loc[0] * this.tilemap.tileSize,
+      playerSpawn.loc[1] * this.tilemap.tileSize,
+    ]);
+    this.cameraOffset = [
+      this.playerEntity.pos[0] + 32 - this.scale.width / 2,
+      this.playerEntity.pos[1] + 18 - this.scale.height / 2,
+    ];
+    this.tilemap.backRender(this, this.cameraOffset, this.tileAnimations);
+
+    const playerAnimation = this.playerEntity.animation;
+    if (!playerAnimation) {
+      throw new Error('The player idle animation is not configured.');
+    }
+
+    this.playerSprite = this.add.image(
+      this.playerEntity.pos[0] - this.cameraOffset[0],
+      this.playerEntity.pos[1] - this.cameraOffset[1],
+      playerAnimation.img()
+    );
+    this.playerSprite.setOrigin(0, 0);
+    this.tilemap.frontRender(this, this.cameraOffset, this.tileAnimations);
   }
 
   override update(_time: number, delta: number) {
     if (
-      !this.idleAnimation ||
-      !this.idleSprite ||
+      !this.playerSprite ||
       !this.playerEntity ||
       !this.tilemap
     ) {
@@ -82,7 +104,6 @@ export class Game extends Phaser.Scene {
 
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
-      this.idleAnimation.update();
       const movingLeft = this.leftKeys.some((key) => key.isDown);
       const movingRight = this.rightKeys.some((key) => key.isDown);
       const horizontalDirection = Number(movingRight) - Number(movingLeft);
@@ -90,14 +111,20 @@ export class Game extends Phaser.Scene {
         horizontalDirection * PLAYER_MOVE_SPEED,
         0,
       ]);
-      this.idleSprite.setPosition(
-        this.playerEntity.pos[0],
-        this.playerEntity.pos[1]
+      const playerAnimation = this.playerEntity.animation;
+      if (!playerAnimation) {
+        throw new Error('The player animation is not configured.');
+      }
+
+      playerAnimation.update();
+      this.playerSprite.setPosition(
+        this.playerEntity.pos[0] - this.cameraOffset[0],
+        this.playerEntity.pos[1] - this.cameraOffset[1]
       );
-      this.idleSprite.setFlipX(this.playerEntity.flip);
+      this.playerSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
-      if (this.idleAnimation.indexChanged) {
-        this.idleSprite.setTexture(this.idleAnimation.img());
+      if (playerAnimation.indexChanged) {
+        this.playerSprite.setTexture(playerAnimation.img());
       }
     }
   }
