@@ -5,6 +5,8 @@
     "tsBuildInfoFile": "../dist/types/client/tsconfig.tsbuildinfo",
     "customConditions": ["browser"],
     "rootDir": "../src/client",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "strictPropertyInitialization": false
   },
   "include": ["../src/client/**/*"],

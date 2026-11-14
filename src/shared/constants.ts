@@ -1,3 +1,5 @@
+import type { EntityPosition, EntityType } from './types';
+
 export const WINDOW_WIDTH = 1280;
 export const WINDOW_HEIGHT = 680;
 
@@ -11,6 +13,15 @@ export const CAMERA_SMOOTHING = 40;
 export const TICK_RATE = 60;
 export const TARGET_FPS = 144;
 export const PHYSICAL_TILES = new Set(['grass']);
+export const RECT_POS_ADJUSTMENT: Readonly<
+  Record<EntityType, EntityPosition>
+> = {
+  player: [22, 4],
+  sword: [0, 0],
+  'enemy/pink_star': [4, 6],
+  'enemy/crabby': [20, 3],
+  'enemy/fierce_tooth': [5, 8],
+};
 
 export type RgbColor = [number, number, number];
 
