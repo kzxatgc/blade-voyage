@@ -1,9 +1,11 @@
 import type {
   MapData,
   OffGridTile,
+  Rect,
   TileData,
   TileLocation,
 } from '../../shared/types';
+import { PHYSICAL_TILES } from '../../shared/constants.ts';
 
 export interface TilemapRenderImage {
   setOrigin(x: number, y: number): void;
@@ -24,6 +26,24 @@ export interface TilemapAnimation extends AnimationFrameSource {
   indexChanged: boolean;
   update(): void;
 }
+
+const NEIGHBOR_SHIFT_LOCS: readonly TileLocation[] = [
+  [-1, 0],
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+  [1, 0],
+  [0, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+];
+
+const PLATFORM_ADJUSTMENTS = {
+  'palm_tree/front/left': { posOffset: [-30, 0], size: [25, 1] },
+  'palm_tree/front/regular': { posOffset: [-7, 0], size: [25, 1] },
+  'palm_tree/front/right': { posOffset: [-7, 0], size: [25, 1] },
+} as const;
 
 export function createTemporaryPlusMap(): MapData {
   const locations: TileLocation[] = [
@@ -95,6 +115,64 @@ export class Tilemap {
     }
 
     return matches;
+  }
+
+  tilesAround(pos: TileLocation): TileData[] {
+    const loc: TileLocation = [
+      Math.floor((pos[0] + 22) / this.tileSize),
+      Math.floor((pos[1] + 4) / this.tileSize),
+    ];
+    const nearbyTiles: TileData[] = [];
+
+    for (const shift of NEIGHBOR_SHIFT_LOCS) {
+      const location = `${loc[0] + shift[0]};${loc[1] + shift[1]}`;
+      const tile = this.tiles[location];
+      if (tile) {
+        nearbyTiles.push(tile);
+      }
+    }
+
+    return nearbyTiles;
+  }
+
+  physicalRectsAround(pos: TileLocation): Rect[] {
+    return this.tilesAround(pos)
+      .filter((tile) => PHYSICAL_TILES.has(tile.type))
+      .map((tile) => ({
+        x: tile.loc[0] * this.tileSize,
+        y: tile.loc[1] * this.tileSize,
+        width: this.tileSize,
+        height: this.tileSize,
+      }));
+  }
+
+  solidCheck(pos: TileLocation): TileData | undefined {
+    const loc: TileLocation = [
+      Math.floor(pos[0] / this.tileSize),
+      Math.floor(pos[1] / this.tileSize),
+    ];
+    const tile = this.tiles[`${loc[0]};${loc[1]}`];
+    return tile && PHYSICAL_TILES.has(tile.type) ? tile : undefined;
+  }
+
+  offGridTilesAround(pos: TileLocation, radius = 40): OffGridTile[] {
+    return this.offGridTiles.filter(
+      (tile) =>
+        Math.abs(tile.pos[0] - pos[0]) <= radius &&
+        Math.abs(tile.pos[1] - pos[1]) <= radius
+    );
+  }
+
+  platformsAround(pos: TileLocation, type: keyof typeof PLATFORM_ADJUSTMENTS): Rect[] {
+    const adjustment = PLATFORM_ADJUSTMENTS[type];
+    return this.offGridTilesAround(pos)
+      .filter((tile) => tile.type === type)
+      .map((tile) => ({
+        x: tile.pos[0] - adjustment.posOffset[0],
+        y: tile.pos[1] - adjustment.posOffset[1],
+        width: adjustment.size[0],
+        height: adjustment.size[1],
+      }));
   }
 
   frontRender(

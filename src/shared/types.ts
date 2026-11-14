@@ -16,6 +16,13 @@ export interface EntityRect {
   height: number;
 }
 
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface EntityCollision {
   right: boolean;
   left: boolean;

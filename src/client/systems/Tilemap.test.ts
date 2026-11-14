@@ -87,6 +87,153 @@ void describe('Tilemap', () => {
   });
 });
 
+void describe('Tilemap collision queries', () => {
+  void it('returns the tiles in the source nine-cell neighborhood and order', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    const map: MapData = {
+      tiles: {
+        '2;3': { type: 'grass', variant: 0, loc: [2, 3] },
+        '2;2': { type: 'grass', variant: 1, loc: [2, 2] },
+        '3;2': { type: 'grass', variant: 2, loc: [3, 2] },
+        '4;2': { type: 'grass', variant: 3, loc: [4, 2] },
+        '4;3': { type: 'grass', variant: 4, loc: [4, 3] },
+        '3;3': { type: 'grass', variant: 5, loc: [3, 3] },
+        '2;4': { type: 'grass', variant: 6, loc: [2, 4] },
+        '3;4': { type: 'grass', variant: 7, loc: [3, 4] },
+        '4;4': { type: 'grass', variant: 8, loc: [4, 4] },
+        '5;3': { type: 'grass', variant: 9, loc: [5, 3] },
+      },
+      off_grid_tiles: [],
+    };
+    tilemap.loadFromData(map);
+
+    assert.deepEqual(tilemap.tilesAround([100, 100]), [
+      map.tiles['2;3'],
+      map.tiles['2;2'],
+      map.tiles['3;2'],
+      map.tiles['4;2'],
+      map.tiles['4;3'],
+      map.tiles['3;3'],
+      map.tiles['2;4'],
+      map.tiles['3;4'],
+      map.tiles['4;4'],
+    ]);
+  });
+
+  void it('returns rectangles only for nearby physical tiles', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;3': { type: 'grass', variant: 4, loc: [3, 3] },
+        '2;3': { type: 'spawner', variant: 0, loc: [2, 3] },
+        '6;3': { type: 'grass', variant: 4, loc: [6, 3] },
+      },
+      off_grid_tiles: [],
+    });
+
+    assert.deepEqual(tilemap.physicalRectsAround([100, 100]), [
+      { x: 96, y: 96, width: 32, height: 32 },
+    ]);
+  });
+
+  void it('returns a solid tile only for positions inside physical tiles', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    const grass = { type: 'grass', variant: 4, loc: [2, 3] as [number, number] };
+    const spawner = {
+      type: 'spawner',
+      variant: 0,
+      loc: [3, 3] as [number, number],
+    };
+    tilemap.loadFromData({
+      tiles: { '2;3': grass, '3;3': spawner },
+      off_grid_tiles: [],
+    });
+
+    assert.equal(tilemap.solidCheck([64, 96]), grass);
+    assert.equal(tilemap.solidCheck([95, 127]), grass);
+    assert.equal(tilemap.solidCheck([96, 96]), undefined);
+    assert.equal(tilemap.solidCheck([0, 0]), undefined);
+  });
+
+  void it('uses an inclusive per-axis radius for nearby off-grid tiles', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap();
+    const boundaryTile = {
+      type: 'palm_tree/back/right',
+      depth: 'back' as const,
+      status: 'animated' as const,
+      pos: [140, 60] as [number, number],
+    };
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        boundaryTile,
+        {
+          ...boundaryTile,
+          pos: [141, 100],
+        },
+        {
+          ...boundaryTile,
+          pos: [100, 59],
+        },
+      ],
+    });
+
+    assert.deepEqual(tilemap.offGridTilesAround([100, 100]), [boundaryTile]);
+    assert.equal(tilemap.offGridTilesAround([100, 100], 41).length, 3);
+  });
+
+  void it('returns front palm platform rectangles with source offsets', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap();
+    tilemap.loadFromData({
+      tiles: {},
+      off_grid_tiles: [
+        {
+          type: 'palm_tree/front/left',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+        {
+          type: 'palm_tree/front/regular',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+        {
+          type: 'palm_tree/front/right',
+          depth: 'front',
+          status: 'animated',
+          pos: [200, 180],
+        },
+        {
+          type: 'palm_tree/back/regular',
+          depth: 'back',
+          status: 'animated',
+          pos: [200, 180],
+        },
+      ],
+    });
+
+    assert.deepEqual(
+      tilemap.platformsAround([200, 180], 'palm_tree/front/left'),
+      [{ x: 230, y: 180, width: 25, height: 1 }]
+    );
+    assert.deepEqual(
+      tilemap.platformsAround([200, 180], 'palm_tree/front/regular'),
+      [{ x: 207, y: 180, width: 25, height: 1 }]
+    );
+    assert.deepEqual(
+      tilemap.platformsAround([200, 180], 'palm_tree/front/right'),
+      [{ x: 207, y: 180, width: 25, height: 1 }]
+    );
+  });
+});
+
 void describe('Tilemap front rendering', () => {
   void it('draws grid tiles at their world position minus the render offset', async () => {
     const Tilemap = await getTilemap();
