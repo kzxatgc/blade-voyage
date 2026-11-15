@@ -38,6 +38,17 @@ export const GRASS_COLORS: RgbColor[] = [
   [62, 89, 67],
 ];
 
+export const RENDER_DEPTH = {
+  BACKGROUND: 0,
+  BACK_TILES: 1,
+  EMBEDDED_SWORD: 2,
+  FRONT_TILES: 4,
+  ENTITIES: 5,
+  EFFECTS: 6,
+  PARTICLES: 7,
+  DEBUG: 10,
+} as const;
+
 export const HEART_COLORS: RgbColor[] = [
   [255, 0, 0],
   [220, 20, 60],

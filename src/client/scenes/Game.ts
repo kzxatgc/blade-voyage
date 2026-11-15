@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import {
   CAMERA_SMOOTHING,
   DISPLAY_WIDTH,
+  RENDER_DEPTH,
   TICK_RATE,
   WINDOW_WIDTH,
 } from '../../shared/constants';
@@ -29,7 +30,7 @@ const TILE_ANIMATION_TYPES = [
   'palm_tree/back/regular',
   'palm_tree/back/right',
 ];
-const PLAYER_MOVE_SPEED = 2.25;
+const PLAYER_MOVE_SPEED = 2.0;
 const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
 const CLOUD_RENDER_ZOOM = WINDOW_WIDTH / DISPLAY_WIDTH;
 
@@ -228,7 +229,8 @@ export class Game extends Phaser.Scene {
     );
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
-    this.sparksGraphics = this.add.graphics().setDepth(10);
+    this.playerSprite.setDepth(RENDER_DEPTH.ENTITIES);
+    this.sparksGraphics = this.add.graphics().setDepth(RENDER_DEPTH.DEBUG);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
 
     this.soundSystem = new SoundSystem(this.sound);

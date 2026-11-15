@@ -3,7 +3,7 @@ import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import type { Particles } from '../systems/Particles.ts';
-import { GRASS_COLORS, RECT_POS_ADJUSTMENT } from '../../shared/constants.ts';
+import { GRASS_COLORS, RECT_POS_ADJUSTMENT, RENDER_DEPTH } from '../../shared/constants.ts';
 import { Sparks } from '../systems/Sparks.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
@@ -161,6 +161,7 @@ export interface EnemyRenderImage {
   clearTint?(): void;
   setFlipX?(flip: boolean): void;
   setVisible?(visible: boolean): void;
+  setDepth?(depth: number): void;
   destroy(): void;
 }
 
@@ -643,6 +644,7 @@ export class Enemy extends PhysicsEntity {
       this.image = scene.add.image(renderX, renderY, texture);
       this.image.setOrigin(0, 0);
       this.image.setFlipX?.(flipX);
+      this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
@@ -651,6 +653,7 @@ export class Enemy extends PhysicsEntity {
       }
       this.image.setPosition(renderX, renderY);
       this.image.setFlipX?.(flipX);
+      this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
     }
 
     // Hit flash: white on the first frame of invincibility, then blink every 4 frames
@@ -684,6 +687,7 @@ export class Enemy extends PhysicsEntity {
         );
         this.dialogueImage.setOrigin(0, 0);
         this.dialogueImage.setFlipX?.(dType === 'dead' ? false : flipX);
+        this.dialogueImage.setDepth?.(RENDER_DEPTH.EFFECTS);
         this.dialogueTexture = dialogueTexture;
       } else {
         if (this.dialogueTexture !== dialogueTexture) {
@@ -692,6 +696,7 @@ export class Enemy extends PhysicsEntity {
         }
         this.dialogueImage.setPosition(dialogueX, dialogueY);
         this.dialogueImage.setFlipX?.(dType === 'dead' ? false : flipX);
+        this.dialogueImage.setDepth?.(RENDER_DEPTH.EFFECTS);
         this.dialogueImage.setVisible?.(true);
       }
     } else if (this.dialogueImage) {
@@ -715,6 +720,7 @@ export class Enemy extends PhysicsEntity {
         );
         this.attackEffectImage.setOrigin(0, 0);
         this.attackEffectImage.setFlipX?.(flipX);
+        this.attackEffectImage.setDepth?.(RENDER_DEPTH.EFFECTS);
         this.attackEffectTexture = effectTexture;
       } else {
         if (this.attackEffectTexture !== effectTexture) {
@@ -723,6 +729,7 @@ export class Enemy extends PhysicsEntity {
         }
         this.attackEffectImage.setPosition(effectX, effectY);
         this.attackEffectImage.setFlipX?.(flipX);
+        this.attackEffectImage.setDepth?.(RENDER_DEPTH.EFFECTS);
         this.attackEffectImage.setVisible?.(true);
       }
     } else if (this.attackEffectImage) {

@@ -5,11 +5,12 @@ import type {
   TileData,
   TileLocation,
 } from '../../shared/types';
-import { PHYSICAL_TILES } from '../../shared/constants.ts';
+import { PHYSICAL_TILES, RENDER_DEPTH } from '../../shared/constants.ts';
 
 export interface TilemapRenderImage {
   setOrigin(x: number, y: number): void;
   setTexture(texture: string): void;
+  setDepth?(depth: number): void;
 }
 
 export interface TilemapRenderScene {
@@ -238,6 +239,7 @@ export class Tilemap {
         animation?.img() ?? `${tile.type}/${tile.variant}`
       );
       image.setOrigin(0, 0);
+      image.setDepth?.(RENDER_DEPTH.FRONT_TILES);
       if (animation) {
         this.animatedImages.push({ type: tile.type, image });
       }
@@ -253,7 +255,14 @@ export class Tilemap {
         throw new Error(`Missing animation for front tile "${tile.type}".`);
       }
 
-      this.renderAnimatedTile(scene, tile.type, tile.pos, offset, animation);
+      this.renderAnimatedTile(
+        scene,
+        tile.type,
+        tile.pos,
+        offset,
+        animation,
+        RENDER_DEPTH.FRONT_TILES
+      );
     }
   }
 
@@ -272,7 +281,14 @@ export class Tilemap {
         throw new Error(`Missing animation for back tile "${tile.type}".`);
       }
 
-      this.renderAnimatedTile(scene, tile.type, tile.pos, offset, animation);
+      this.renderAnimatedTile(
+        scene,
+        tile.type,
+        tile.pos,
+        offset,
+        animation,
+        RENDER_DEPTH.BACK_TILES
+      );
     }
   }
 
@@ -318,11 +334,13 @@ export class Tilemap {
     type: string,
     pos: TileLocation,
     offset: TileLocation,
-    animation: AnimationFrameSource
+    animation: AnimationFrameSource,
+    depth = 0
   ) {
     const image = scene.add
       .image(pos[0] - offset[0], pos[1] - offset[1], animation.img());
     image.setOrigin(0, 0);
+    image.setDepth?.(depth);
     this.animatedImages.push({ type, image });
   }
 }

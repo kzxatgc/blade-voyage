@@ -1,4 +1,5 @@
 import { PhysicsEntity } from '../entities/PhysicsEntity.ts';
+import { RENDER_DEPTH } from '../../shared/constants.ts';
 import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
@@ -31,6 +32,7 @@ export interface SwordRenderImage {
   setRotation?(rotation: number): void;
   setFlipX?(flip: boolean): void;
   setVisible?(visible: boolean): void;
+  setDepth?(depth: number): void;
   destroy(): void;
 }
 
@@ -141,6 +143,7 @@ export class Sword extends PhysicsEntity {
       );
       this.image.setOrigin(0.5, 0.5);
       this.image.setAngle?.(90);
+      this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
@@ -291,11 +294,16 @@ export class SpinningSword extends PhysicsEntity {
       (this.action === 'embedded' ? 'sword/embedded/0' : 'sword/spinning/0');
     const renderX = this.pos[0] - offset[0] + (this.flip ? -8 : 7);
     const renderY = this.pos[1] - offset[1] - 10;
+    const targetDepth =
+      this.action === 'embedded'
+        ? RENDER_DEPTH.EMBEDDED_SWORD
+        : RENDER_DEPTH.ENTITIES;
 
     if (!this.image) {
       this.image = scene.add.image(renderX, renderY, texture);
       this.image.setOrigin(0, 0);
       this.image.setFlipX?.(this.flip);
+      this.image.setDepth?.(targetDepth);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
@@ -304,6 +312,7 @@ export class SpinningSword extends PhysicsEntity {
       }
       this.image.setPosition(renderX, renderY);
       this.image.setFlipX?.(this.flip);
+      this.image.setDepth?.(targetDepth);
       this.image.setVisible?.(true);
     }
   }

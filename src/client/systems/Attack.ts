@@ -1,5 +1,6 @@
 import { Animation } from '../utils/Animation.ts';
 import type { EntityPosition } from '../../shared/types.ts';
+import { RENDER_DEPTH } from '../../shared/constants.ts';
 
 export const ATTACK_TYPES = ['attack_1', 'attack_2', 'attack_3'] as const;
 export type AttackType = typeof ATTACK_TYPES[number];
@@ -49,6 +50,7 @@ export interface AttackRenderImage {
   setPosition(x: number, y: number): void;
   setTexture(texture: string): void;
   setFlipX(flip: boolean): void;
+  setDepth?(depth: number): void;
   destroy(): void;
 }
 
@@ -143,6 +145,7 @@ export class Attack {
     if (!this.effectImage) {
       this.effectImage = scene.add.image(posX, posY, texture);
       this.effectImage.setOrigin(0, 0);
+      this.effectImage.setDepth?.(RENDER_DEPTH.EFFECTS);
       this.effectTexture = texture;
     } else {
       if (this.effectTexture !== texture) {
@@ -150,6 +153,7 @@ export class Attack {
         this.effectTexture = texture;
       }
       this.effectImage.setPosition(posX, posY);
+      this.effectImage.setDepth?.(RENDER_DEPTH.EFFECTS);
     }
     this.effectImage.setFlipX(this.player.flip);
   }

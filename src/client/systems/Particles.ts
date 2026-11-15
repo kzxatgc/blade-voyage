@@ -1,4 +1,5 @@
 import { Animation } from '../utils/Animation.ts';
+import { RENDER_DEPTH } from '../../shared/constants.ts';
 
 export type ParticleType =
   | 'player/run_dust'
@@ -18,6 +19,7 @@ export interface ParticleRenderImage {
   setPosition(x: number, y: number): void;
   setTexture(texture: string): void;
   setFlipX(flip: boolean): void;
+  setDepth?(depth: number): void;
   destroy(): void;
 }
 
@@ -82,6 +84,7 @@ export class Particle {
     if (!this.image) {
       this.image = scene.add.image(this.pos[0], this.pos[1], texture);
       this.image.setOrigin(0, 0);
+      this.image.setDepth?.(RENDER_DEPTH.PARTICLES);
       this.imageTexture = texture;
     } else if (this.imageTexture !== texture) {
       this.image.setTexture(texture);

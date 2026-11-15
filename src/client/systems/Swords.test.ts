@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import { Sword, SpinningSword, Swords } from './Swords.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
+import { RENDER_DEPTH } from '../../shared/constants.ts';
 
 void describe('Sword entity', () => {
   void it('hovers for first 18 frames', () => {
@@ -524,6 +525,41 @@ void describe('SpinningSword entity', () => {
     assert.equal(capturedX, 82);
     assert.equal(capturedY, 80);
     assert.equal(capturedFlip, true);
+  });
+
+  void it('renders spinning sword in front of tiles and switches behind tiles when embedded in wall', () => {
+    const sword = new SpinningSword([100, 100], false);
+    let capturedDepth: number | undefined;
+
+    const mockScene = {
+      add: {
+        image() {
+          return {
+            setOrigin() {},
+            setPosition() {},
+            setTexture() {},
+            setFlipX() {},
+            setDepth(depth: number) {
+              capturedDepth = depth;
+            },
+            setVisible() {},
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    // 1. Spinning action: depth is RENDER_DEPTH.ENTITIES (5), in front of FRONT_TILES (4)
+    assert.equal(sword.action, 'spinning');
+    sword.render(mockScene);
+    assert.equal(capturedDepth, RENDER_DEPTH.ENTITIES);
+    assert.ok(capturedDepth > RENDER_DEPTH.FRONT_TILES);
+
+    // 2. Embedded action: depth switches to RENDER_DEPTH.EMBEDDED_SWORD (2), behind FRONT_TILES (4)
+    sword.setAction('embedded');
+    sword.render(mockScene);
+    assert.equal(capturedDepth, RENDER_DEPTH.EMBEDDED_SWORD);
+    assert.ok(capturedDepth < RENDER_DEPTH.FRONT_TILES);
   });
 
   void it('creates diamond stone-strike sparks on wall embed and sets sparksTriggered', () => {
