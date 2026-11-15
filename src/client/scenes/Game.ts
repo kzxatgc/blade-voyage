@@ -241,9 +241,46 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
-      this.swords?.update(this.tilemap, [0, 0], this.playerEntity.pos);
+      this.swords?.update(
+        this.tilemap,
+        [0, 0],
+        this.playerEntity.pos,
+        this.enemies
+      );
       for (const enemy of this.enemies) {
         enemy.update(this.tilemap, [0, 0], this.playerEntity);
+
+        // Enemy attack or contact hit resolution against player
+        if (!enemy.dead && (enemy.attackHitDetected || enemy.contactCollisionDetected)) {
+          this.playerEntity.takeDamage(1);
+        }
+      }
+
+      // Player melee attack resolution against enemies
+      if (this.playerEntity.attackHandler.attackState) {
+        const playerAtkRect = this.playerEntity.getAttackRangeRect();
+        if (playerAtkRect) {
+          const damage = this.playerEntity.getAttackDamage();
+          for (const enemy of this.enemies) {
+            if (
+              enemy.dead ||
+              this.playerEntity.attackHandler.hitEntities.has(enemy)
+            ) {
+              continue;
+            }
+            const eRect = enemy.rect();
+            const intersects =
+              playerAtkRect.x < eRect.x + eRect.width &&
+              playerAtkRect.x + playerAtkRect.width > eRect.x &&
+              playerAtkRect.y < eRect.y + eRect.height &&
+              playerAtkRect.y + playerAtkRect.height > eRect.y;
+
+            if (intersects) {
+              this.playerEntity.attackHandler.hitEntities.add(enemy);
+              enemy.takeDamage(damage);
+            }
+          }
+        }
       }
       for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
         const sparks = this.sparksEffect[i];

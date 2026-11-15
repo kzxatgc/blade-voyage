@@ -1,8 +1,22 @@
 import { PhysicsEntity } from '../entities/PhysicsEntity.ts';
-import type { EntityPosition, EntitySize } from '../../shared/types.ts';
+import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
+
+export interface SwordEnemyTarget {
+  enemyType: string;
+  dead: boolean;
+  attackTimer: number;
+  rect(): EntityRect;
+  takeDamage(amount: number): boolean;
+}
+
+export interface SwordHitResult {
+  type: 'hit' | 'deflection';
+  enemy: SwordEnemyTarget;
+  sword: SpinningSword;
+}
 
 export interface SwordRenderImage {
   setOrigin(x: number, y: number): void;
@@ -451,8 +465,9 @@ export class Swords {
   update(
     tilemap: Tilemap,
     movement: EntityPosition = [0, 0],
-    playerPos?: readonly [number, number]
-  ) {
+    playerPos?: readonly [number, number],
+    enemies?: readonly SwordEnemyTarget[]
+  ): SwordHitResult[] {
     this.spawnSword(tilemap, playerPos);
 
     this.swords = this.swords.filter((sword) => {
@@ -467,14 +482,50 @@ export class Swords {
       sword.update(tilemap, movement);
     }
 
+    const hitResults: SwordHitResult[] = [];
+
     this.thrownSwords = this.thrownSwords.filter((sword) => {
       sword.update(tilemap, movement);
+
+      if (sword.action === 'spinning' && enemies) {
+        const sRect = sword.rect();
+        for (const enemy of enemies) {
+          if (enemy.dead) {
+            continue;
+          }
+          const eRect = enemy.rect();
+          const collides =
+            sRect.x < eRect.x + eRect.width &&
+            sRect.x + sRect.width > eRect.x &&
+            sRect.y < eRect.y + eRect.height &&
+            sRect.y + sRect.height > eRect.y;
+
+          if (collides) {
+            if (enemy.attackTimer > 0 && enemy.enemyType === 'pink_star') {
+              // Deflection result on Pink Star charging attack
+              sword.flip = !sword.flip;
+              sword.velocity[0] = sword.flip ? -7 : 7;
+              sword.pos[0] += sword.flip ? -2 : 2;
+              hitResults.push({ type: 'deflection', enemy, sword });
+            } else {
+              // Ordinary hit: 20 source damage
+              enemy.takeDamage(20);
+              hitResults.push({ type: 'hit', enemy, sword });
+              sword.destroy();
+              return false;
+            }
+          }
+        }
+      }
+
       if (sword.timer >= 1200) {
         sword.destroy();
         return false;
       }
       return true;
     });
+
+    return hitResults;
   }
 
   removeSword(sword: Sword): boolean {

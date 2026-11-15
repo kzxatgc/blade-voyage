@@ -578,4 +578,95 @@ void describe('SpinningSword entity', () => {
     sword.update(tm);
     assert.equal(sword.indexChanged, true);
   });
+
+  void it('thrown sword deals 20 damage to normal enemy and is removed', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    const manager = new Swords([0, 0], () => 0.5);
+
+    manager.throwSword([100, 100], false);
+    assert.equal(manager.thrownSwords.length, 1);
+
+    let enemyDamagedAmount = 0;
+    const mockEnemy = {
+      enemyType: 'crabby',
+      dead: false,
+      attackTimer: 0,
+      rect() {
+        return { x: 104, y: 98, width: 32, height: 26 };
+      },
+      takeDamage(amount: number) {
+        enemyDamagedAmount += amount;
+        return true;
+      },
+    };
+
+    const results = manager.update(tm, [0, 0], [0, 0], [mockEnemy]);
+    assert.equal(results.length, 1);
+    assert.equal(results[0]?.type, 'hit');
+    assert.equal(enemyDamagedAmount, 20);
+    // Sword was removed on hit
+    assert.equal(manager.thrownSwords.length, 0);
+  });
+
+  void it('thrown sword deflecting against attacking pink_star deals no damage and flips velocity', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    const manager = new Swords([0, 0], () => 0.5);
+
+    const sword = manager.throwSword([100, 100], false);
+    assert.equal(sword.flip, false);
+
+    let enemyDamagedAmount = 0;
+    const mockPinkStarAttacking = {
+      enemyType: 'pink_star',
+      dead: false,
+      attackTimer: 60, // attacking!
+      rect() {
+        return { x: 104, y: 98, width: 26, height: 23 };
+      },
+      takeDamage(amount: number) {
+        enemyDamagedAmount += amount;
+        return true;
+      },
+    };
+
+    const results = manager.update(tm, [0, 0], [0, 0], [mockPinkStarAttacking]);
+    assert.equal(results.length, 1);
+    assert.equal(results[0]?.type, 'deflection');
+    // Pink Star takes NO damage on deflection
+    assert.equal(enemyDamagedAmount, 0);
+    // Sword flipped direction and gained deflection velocity
+    assert.equal(sword.flip, true);
+    assert.equal(sword.velocity[0], -7);
+    // Sword is NOT removed on deflection
+    assert.equal(manager.thrownSwords.length, 1);
+  });
+
+  void it('thrown sword ignores dead enemies', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    const manager = new Swords([0, 0], () => 0.5);
+
+    manager.throwSword([100, 100], false);
+
+    let enemyDamagedAmount = 0;
+    const mockDeadEnemy = {
+      enemyType: 'crabby',
+      dead: true,
+      attackTimer: 0,
+      rect() {
+        return { x: 104, y: 98, width: 32, height: 26 };
+      },
+      takeDamage(amount: number) {
+        enemyDamagedAmount += amount;
+        return true;
+      },
+    };
+
+    const results = manager.update(tm, [0, 0], [0, 0], [mockDeadEnemy]);
+    assert.equal(results.length, 0);
+    assert.equal(enemyDamagedAmount, 0);
+    assert.equal(manager.thrownSwords.length, 1);
+  });
 });

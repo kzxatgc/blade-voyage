@@ -110,6 +110,19 @@ export class Player extends PhysicsEntity {
     return false;
   }
 
+  getAttackRangeRect(): EntityRect | null {
+    if (!this.attackHandler.attackState) {
+      return null;
+    }
+    const isAir = this.attackHandler.currentAttackType.includes('air');
+    const sizeExpansion: [number, number] = isAir ? [19, 60] : [25, 0];
+    return this.attackRangeRect(this.flip, sizeExpansion);
+  }
+
+  getAttackDamage(): number {
+    return this.attackHandler.currentAttackType.includes('air') ? 30 : 10;
+  }
+
   pickupSword(swords: PickupSwordTarget[]): boolean {
     if (this.swordState || this.pendingThrow || this.throwingAnimation) {
       return false;

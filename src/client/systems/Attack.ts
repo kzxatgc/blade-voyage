@@ -63,6 +63,7 @@ export class Attack {
   currentAttackType = '';
   effect: Animation | null = null;
   readonly posAdjustment = POS_ADJUSTMENT;
+  readonly hitEntities = new Set<unknown>();
   private readonly random: () => number;
   private effectImage: AttackRenderImage | null = null;
   private effectTexture: string | null = null;
@@ -81,6 +82,7 @@ export class Attack {
     }
 
     this.attackState = true;
+    this.hitEntities.clear();
     const effectiveAirTime = airTime ?? this.player?.airTime ?? 0;
 
     if (effectiveAirTime <= 1) {

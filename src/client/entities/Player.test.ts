@@ -506,6 +506,48 @@ void describe('Player', () => {
       assert.equal(spark.sparks.length, 3);
     }
   });
+
+  void it('computes attackRangeRect and attackDamage for ground and air attacks', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 100], [20, 28]);
+    assert.equal(player.getAttackRangeRect(), null);
+
+    // 1. Ground attack: damage is 10, range expansion [25, 0]
+    player.swordState = true;
+    player.airTime = 0;
+    player.attack();
+    assert.equal(player.attackHandler.attackState, true);
+    assert.equal(player.getAttackDamage(), 10);
+
+    const groundRect = player.getAttackRangeRect();
+    assert.ok(groundRect !== null);
+    // player rectPosAdjustment is [22, 4], size is [20, 28] -> base x 122, base y 104
+    // facing right (flip = false), expansion [25, 0] -> w = 20 + 25 = 45
+    assert.deepEqual(groundRect, {
+      x: 122,
+      y: 104,
+      width: 45,
+      height: 20,
+    });
+
+    // 2. Air attack: damage is 30, range expansion [19, 60]
+    const airPlayer = new Player([100, 100], [20, 28]);
+    airPlayer.swordState = true;
+    airPlayer.airTime = 5;
+    airPlayer.attack();
+    assert.equal(airPlayer.attackHandler.attackState, true);
+    assert.equal(airPlayer.getAttackDamage(), 30);
+
+    const airRect = airPlayer.getAttackRangeRect();
+    assert.ok(airRect !== null);
+    // facing right (flip = false), expansion [19, 60] -> w = 20 + 19 = 39, h = 20 + 60 = 80
+    assert.deepEqual(airRect, {
+      x: 122,
+      y: 104,
+      width: 39,
+      height: 80,
+    });
+  });
 });
 
 const createParticleRecorder = () => {
