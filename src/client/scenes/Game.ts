@@ -342,7 +342,8 @@ export class Game extends Phaser.Scene {
                 ...createHeartSparkParticles(
                   [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
                   enemy.flip,
-                  getDamageSparkCount(damage)
+                  getDamageSparkCount(damage),
+                  { direction: 'up', gravity: 0.16 }
                 )
               );
             }
@@ -366,7 +367,8 @@ export class Game extends Phaser.Scene {
             ...createHeartSparkParticles(
               [eRect.x + eRect.width / 2, result.sword.pos[1]],
               result.sword.flip,
-              getDamageSparkCount(result.damage)
+              getDamageSparkCount(result.damage),
+              { direction: 'up', gravity: 0.16 }
             )
           );
         } else if (result.type === 'deflection') {

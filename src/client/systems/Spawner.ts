@@ -1,6 +1,7 @@
 import type { Tilemap } from './Tilemap.ts';
 import { Enemy, type EnemyName, type EnemyParticleSystem } from '../entities/Enemy.ts';
-import type { EntityPosition, EntitySize } from '../../shared/types.ts';
+import type { EntityPosition, EntitySize, EntityType } from '../../shared/types.ts';
+import { PHYSICAL_TILES, RECT_POS_ADJUSTMENT } from '../../shared/constants.ts';
 import type { Sparks } from './Sparks.ts';
 
 export { Enemy, type EnemyName, type EnemyParticleSystem };
@@ -20,6 +21,16 @@ export const ENEMY_SIZE: Record<number, EntitySize> = {
 export interface SpawnEntitiesResult {
   playerPos?: EntityPosition | undefined;
   enemies: Enemy[];
+}
+
+function findFloorY(tilemap: Tilemap, gridX: number, startGridY: number): number {
+  for (let y = startGridY; y < startGridY + 20; y++) {
+    const tile = tilemap.tiles[`${gridX};${y}`];
+    if (tile && PHYSICAL_TILES.has(tile.type)) {
+      return y * tilemap.tileSize;
+    }
+  }
+  return startGridY * tilemap.tileSize;
 }
 
 export function spawnEntities(
@@ -42,31 +53,54 @@ export function spawnEntities(
   const enemies: Enemy[] = [];
 
   for (const spawner of spawnerTiles) {
-    const worldPos: EntityPosition = [
-      spawner.loc[0] * tilemap.tileSize,
-      spawner.loc[1] * tilemap.tileSize,
-    ];
+    const floorY = findFloorY(tilemap, spawner.loc[0], spawner.loc[1] + 1);
 
     if (spawner.variant === 0) {
-      playerPos = worldPos;
+      const playerAdj = RECT_POS_ADJUSTMENT.player;
+      const playerHeight = 28;
+      const playerSpawnY = floorY - playerHeight - playerAdj[1];
+      playerPos = [spawner.loc[0] * tilemap.tileSize, playerSpawnY];
       if (player) {
-        player.pos[0] = worldPos[0];
-        player.pos[1] = worldPos[1];
+        player.pos[0] = playerPos[0];
+        player.pos[1] = playerPos[1];
+        if ('velocity' in player && Array.isArray((player as any).velocity)) {
+          (player as any).velocity[1] = 0;
+        }
+        if ('collision' in player && (player as any).collision) {
+          (player as any).collision.bottom = true;
+        }
+        if ('standingOn' in player && (player as any).standingOn) {
+          (player as any).standingOn.grass = true;
+        }
+        if ('airTime' in player) {
+          (player as any).airTime = 0;
+        }
+        if ('wasInAir' in player) {
+          (player as any).wasInAir = false;
+        }
+        if ('justLanded' in player) {
+          (player as any).justLanded = false;
+        }
       }
     } else {
       const enemyName = ENEMY_NAME[spawner.variant];
       const enemySize = ENEMY_SIZE[spawner.variant];
       if (enemyName && enemySize) {
-        enemies.push(
-          new Enemy(
-            enemyName,
-            worldPos,
-            enemySize,
-            undefined,
-            particles,
-            sparksEffect
-          )
+        const enemyAdj = RECT_POS_ADJUSTMENT[`enemy/${enemyName}` as EntityType];
+        const spawnY = floorY - enemySize[1] - enemyAdj[1];
+        const spawnX = spawner.loc[0] * tilemap.tileSize;
+        const enemy = new Enemy(
+          enemyName,
+          [spawnX, spawnY],
+          enemySize,
+          undefined,
+          particles,
+          sparksEffect
         );
+        enemy.velocity[1] = 0;
+        enemy.collision.bottom = true;
+        enemy.standingOn.grass = true;
+        enemies.push(enemy);
       }
     }
   }

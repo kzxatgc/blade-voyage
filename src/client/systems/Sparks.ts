@@ -224,8 +224,8 @@ export function createHeartSparkParticles(
   } = {}
 ): Sparks[] {
   const {
-    direction = Math.PI * 0.9,
-    gravity = 0,
+    direction = 'up',
+    gravity = 0.16,
     randomColor = Math.random,
   } = options;
 

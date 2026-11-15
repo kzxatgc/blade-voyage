@@ -36,11 +36,11 @@ All metrics are scaled to the $32\text{px}$ tile grid:
 
 Defined in `Player.ts` (`getAttackDamage`) and `Swords.ts`. Enemy HP = 100.
 
-| Attack | Damage | Hits to Kill | Notes |
+| Attack | Damage | Notes |
 |---|---|---|---|
-| Ground melee | **20** | 5 | Standard sword swing while grounded |
-| Air melee | **30** | 4 | Jumping sword strike |
-| Thrown sword | **35** | 3 | Spinning sword projectile; deflected by attacking Pink Star |
+| Ground melee | **20** | Standard sword swing while grounded |
+| Air melee | **30** | Jumping sword strike |
+| Thrown sword | **35** | Spinning sword projectile; deflected by attacking Pink Star |
 
 ### Special Rules
 - **Pink Star** is **immune** to player melee and thrown sword while `attackTimer > 0` (actively charging).

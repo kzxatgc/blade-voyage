@@ -208,6 +208,7 @@ export class PhysicsEntity {
     movement: EntityPosition = [0, 0]
   ) {
     const wasKnockedBack = this.knockback;
+    const wasGrounded = this.collision.bottom;
     this.checkDead();
     if (this.invincibleTimer > 0) {
       this.invincibleTimer -= 1;
@@ -292,49 +293,76 @@ export class PhysicsEntity {
     entityRect = this.rect();
 
     for (const tileRect of tilemap.physicalRectsAround(this.pos)) {
-      const intersects =
+      const overlapsHorizontally =
         entityRect.x < tileRect.x + tileRect.width &&
-        entityRect.x + entityRect.width > tileRect.x &&
-        entityRect.y < tileRect.y + tileRect.height &&
-        entityRect.y + entityRect.height > tileRect.y;
+        entityRect.x + entityRect.width > tileRect.x;
 
-      if (!intersects) {
+      if (!overlapsHorizontally) {
         continue;
       }
 
-      if (frameMovementY > 0) {
-        entityRect = {
-          ...entityRect,
-          y: tileRect.y - entityRect.height,
-        };
-        this.collision.bottom = true;
-        this.landedOn.grass = true;
-        this.standingOn.grass = true;
-      } else if (frameMovementY < 0) {
-        entityRect = {
-          ...entityRect,
-          y: tileRect.y + tileRect.height,
-        };
-        this.collision.regular = true;
-      }
+      if (frameMovementY >= 0) {
+        const isDescendingIntoTile =
+          frameMovementY > 0 &&
+          entityRect.y < tileRect.y + tileRect.height &&
+          entityRect.y + entityRect.height > tileRect.y;
+        const isRestingOnTile =
+          frameMovementY === 0 &&
+          wasGrounded &&
+          entityRect.y < tileRect.y + tileRect.height &&
+          Math.abs(entityRect.y + entityRect.height - tileRect.y) < 1;
 
-      this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+        if (isDescendingIntoTile || isRestingOnTile) {
+          entityRect = {
+            ...entityRect,
+            y: tileRect.y - entityRect.height,
+          };
+          this.collision.bottom = true;
+          this.landedOn.grass = true;
+          this.standingOn.grass = true;
+          this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+        }
+      } else if (frameMovementY < 0) {
+        const intersectsCeiling =
+          entityRect.y < tileRect.y + tileRect.height &&
+          entityRect.y + entityRect.height > tileRect.y;
+
+        if (intersectsCeiling) {
+          entityRect = {
+            ...entityRect,
+            y: tileRect.y + tileRect.height,
+          };
+          this.collision.regular = true;
+          this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
+        }
+      }
     }
 
     const skipPalmTreePlatforms = this.skipPalmTreePlatformsOnce;
     this.skipPalmTreePlatformsOnce = false;
-    if (frameMovementY > 0 && !skipPalmTreePlatforms) {
+    if (frameMovementY >= 0 && !skipPalmTreePlatforms) {
       for (const platformType of PALM_TREE_PLATFORM_TYPES) {
         for (const platform of tilemap.platformsAround(this.pos, platformType)) {
-          const intersects =
+          const overlapsHorizontally =
             entityRect.x < platform.x + platform.width &&
-            entityRect.x + entityRect.width > platform.x &&
-            entityRect.y < platform.y + platform.height &&
-            entityRect.y + entityRect.height > platform.y;
-          const previousBottom =
-            entityRect.y + entityRect.height - frameMovementY;
+            entityRect.x + entityRect.width > platform.x;
 
-          if (!intersects || previousBottom > platform.y) {
+          if (!overlapsHorizontally) {
+            continue;
+          }
+
+          const isDescending =
+            frameMovementY > 0 &&
+            entityRect.y < platform.y + platform.height &&
+            entityRect.y + entityRect.height > platform.y &&
+            entityRect.y + entityRect.height - frameMovementY <= platform.y;
+          const isResting =
+            frameMovementY === 0 &&
+            wasGrounded &&
+            entityRect.y < platform.y + platform.height &&
+            Math.abs(entityRect.y + entityRect.height - platform.y) < 1;
+
+          if (!isDescending && !isResting) {
             continue;
           }
 
@@ -351,6 +379,9 @@ export class PhysicsEntity {
     }
 
     this.velocity[1] = Math.min(this.velocity[1] + GRAVITY, MAX_FALL_SPEED);
+    if (this.collision.bottom && this.velocity[1] > 0) {
+      this.velocity[1] = 0;
+    }
 
     this.checkDead();
     this.justDied = this.wasLiving && this.dead;
