@@ -26,6 +26,30 @@ void describe('Clouds', () => {
     assert.equal(image.scrollFactor, 0);
   });
 
+  void it('renders small clouds with smooth continuous vertical parallax without wrapping', () => {
+    const scene = new MockCloudScene();
+    const cloud = new Cloud(
+      { key: 'background/cloud/0', width: 100, height: 20 },
+      [100, 245],
+      0,
+      0.6,
+      1
+    );
+
+    // Standing on ground (offset y = 50)
+    cloud.render(scene, [0, 50], 1);
+    const yBefore = scene.images[0]?.y;
+    assert.ok(yBefore !== undefined);
+
+    // High jump (offset y = -300)
+    cloud.render(scene, [0, -300], 1);
+    const yAfter = scene.images[0]?.y;
+    assert.ok(yAfter !== undefined);
+
+    // Smooth 10.5px parallax shift without wrapping or snapping
+    assert.ok(Math.abs((yAfter - yBefore) - 10.5) < 0.001);
+  });
+
   void it('tiles the big cloud across the surface and pins it to sea level', () => {
     const scene = new MockCloudScene();
     const cloud = new BigCloud(

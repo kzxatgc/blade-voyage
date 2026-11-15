@@ -25,7 +25,7 @@ export interface CloudRenderScene {
 export type CloudOffset = readonly [number, number];
 
 const CLOUD_WRAP_WIDTH = 1600;
-const CLOUD_WRAP_HEIGHT = 250;
+const CLOUD_SPAWN_HEIGHT = 250;
 const CLOUD_SKY_BASE_Y = 130;
 const BIG_CLOUD_SEA_LEVEL_FRAC = 0.676;
 
@@ -86,11 +86,7 @@ export class Cloud {
     const renderX = this.pos[0] - offset[0] * (this.depth * 0.15);
     const renderY = this.pos[1] - offset[1] * (this.depth * 0.05);
     const x = (modulo(renderX, CLOUD_WRAP_WIDTH) - scaledWidth) / zoom;
-    const y =
-      (CLOUD_SKY_BASE_Y +
-        modulo(renderY, CLOUD_WRAP_HEIGHT) -
-        scaledHeight) /
-      zoom;
+    const y = (CLOUD_SKY_BASE_Y + renderY - scaledHeight) / zoom;
     const width = Math.max(1, Math.floor(scaledWidth / zoom));
     const height = Math.max(1, Math.floor(scaledHeight / zoom));
 
@@ -202,7 +198,7 @@ export class Clouds {
       const slotStart = slot * slotWidth;
       const maxJitter = Math.max(0, slotWidth - cloudWidth);
       const x = slotStart + random() * maxJitter;
-      const y = random() * CLOUD_WRAP_HEIGHT;
+      const y = random() * CLOUD_SPAWN_HEIGHT;
       const depth = random() * 0.6 + 0.2;
       const speed = baseSpeed * (0.3 + depth * 0.8);
       this.clouds.push(new Cloud(image, [x, y], speed, depth, scale));
