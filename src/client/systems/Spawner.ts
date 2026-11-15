@@ -1,6 +1,7 @@
 import type { Tilemap } from './Tilemap.ts';
 import { Enemy, type EnemyName, type EnemyParticleSystem } from '../entities/Enemy.ts';
 import type { EntityPosition, EntitySize } from '../../shared/types.ts';
+import type { Sparks } from './Sparks.ts';
 
 export { Enemy, type EnemyName, type EnemyParticleSystem };
 
@@ -24,7 +25,8 @@ export interface SpawnEntitiesResult {
 export function spawnEntities(
   tilemap: Tilemap,
   player?: { pos: EntityPosition },
-  particles?: EnemyParticleSystem
+  particles?: EnemyParticleSystem,
+  sparksEffect?: Sparks[]
 ): SpawnEntitiesResult {
   const spawnerTiles = tilemap.extract(
     [
@@ -56,7 +58,14 @@ export function spawnEntities(
       const enemySize = ENEMY_SIZE[spawner.variant];
       if (enemyName && enemySize) {
         enemies.push(
-          new Enemy(enemyName, worldPos, enemySize, undefined, particles)
+          new Enemy(
+            enemyName,
+            worldPos,
+            enemySize,
+            undefined,
+            particles,
+            sparksEffect
+          )
         );
       }
     }

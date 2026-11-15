@@ -27,6 +27,10 @@ A starter to build web applications on Reddit's developer platform
 - `npm run login`: Logs your CLI into Reddit
 - `npm run type-check`: Type checks, lints, and prettifies your app
 
+## Documentation
+
+- [Enemy Detection AI System](docs/ENEMY_DETECTION.md): Detailed specifications for enemy vision range, Line-of-Sight raycasting, and proximity detection.
+
 ## Credits
 
 Thanks to the Phaser team for [providing a great template](https://github.com/phaserjs/template-vite-ts)!

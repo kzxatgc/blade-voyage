@@ -3,6 +3,8 @@ import type { EntityPosition, EntitySize } from '../../shared/types.ts';
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import type { Particles } from '../systems/Particles.ts';
+import { GRASS_COLORS } from '../../shared/constants.ts';
+import { Sparks } from '../systems/Sparks.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
 export type EnemyParticleSystem = Pick<Particles, 'addParticle'>;
@@ -33,6 +35,10 @@ export const DIALOGUE_POS_ADJUSTMENT: Record<
   crabby: { exclamation: [15, 8, -3], dead: [-23, 48, 0] },
   fierce_tooth: { exclamation: [7, -11, 0], dead: [-40, 33, 0] },
 };
+
+export const ENEMY_SIGHT_RANGE_X = 6.5 * 32; // 208px (~65% of half-screen)
+export const ENEMY_SIGHT_RANGE_Y = 24; // 24px (jump/slope tolerance)
+export const ENEMY_BEHIND_TOUCH_DIST = 24; // 24px (turns if bumped into)
 
 export function createDefaultEnemyAnimations(
   enemyType: EnemyName
@@ -164,16 +170,23 @@ export class Enemy extends PhysicsEntity {
   dialogueType = '';
   dialogueExclamationSfxTriggered = false;
   particles?: EnemyParticleSystem | undefined;
+  sparksEffect?: Sparks[] | undefined;
+  playSfx?: ((name: string) => void) | undefined;
   random: () => number = Math.random;
   private image: EnemyRenderImage | null = null;
   private imageTexture: string | null = null;
+  private dialogueImage: EnemyRenderImage | null = null;
+  private dialogueTexture: string | null = null;
+  private attackEffectImage: EnemyRenderImage | null = null;
+  private attackEffectTexture: string | null = null;
 
   constructor(
     enemyType: EnemyName,
     pos: EntityPosition,
     size: EntitySize,
     animations?: Readonly<Record<string, Animation>>,
-    particles?: EnemyParticleSystem
+    particles?: EnemyParticleSystem,
+    sparksEffect?: Sparks[]
   ) {
     super(
       `enemy/${enemyType}`,
@@ -186,6 +199,91 @@ export class Enemy extends PhysicsEntity {
     this.attackEffectPosAdjustment = ATTACK_EFFECT_POS_ADJUSTMENT[enemyType];
     this.dialoguePosAdjustment = DIALOGUE_POS_ADJUSTMENT[enemyType];
     this.particles = particles;
+    this.sparksEffect = sparksEffect;
+  }
+
+  attack() {
+    if (this.enemyType === 'pink_star') {
+      this.attackTimer = 120;
+      this.velocity[0] = this.flip ? -2 : 2;
+      if (this.sparksEffect) {
+        for (const color of GRASS_COLORS) {
+          this.sparksEffect.push(
+            new Sparks(
+              [
+                this.pos[0] + (this.flip ? 0 : this.size[0]),
+                this.pos[1] + this.size[1],
+              ],
+              !this.flip,
+              4,
+              8,
+              color,
+              this.flip ? -0.2 : -0.6,
+              'diamond'
+            )
+          );
+        }
+      }
+    }
+    const attackEffectAnim =
+      this.animations?.[`enemy/${this.enemyType}/attack_effect`];
+    if (attackEffectAnim) {
+      this.attackEffect = attackEffectAnim.copy();
+    }
+  }
+
+  checkPlayerDetection(
+    tilemap: Tilemap,
+    playerPos: readonly [number, number]
+  ): boolean {
+    if (
+      this.dead ||
+      this.anticipationState ||
+      this.attackTimer > 0 ||
+      this.knockback
+    ) {
+      return false;
+    }
+
+    const disX = playerPos[0] - this.pos[0];
+    const disY = playerPos[1] - this.pos[1];
+
+    if (Math.abs(disY) > ENEMY_SIGHT_RANGE_Y) {
+      return false;
+    }
+
+    const facingPlayer = (this.flip && disX < 0) || (!this.flip && disX > 0);
+    const absDistX = Math.abs(disX);
+
+    // 1. Proximity touch awareness from behind
+    if (!facingPlayer && absDistX <= ENEMY_BEHIND_TOUCH_DIST) {
+      this.flip = !this.flip;
+      this.anticipationState = true;
+      this.walking = 0;
+      return true;
+    }
+
+    // 2. Forward sight range
+    if (!facingPlayer || absDistX > ENEMY_SIGHT_RANGE_X) {
+      return false;
+    }
+
+    // 3. Line-of-sight raycast: check every 16px along the line of sight for solid obstacles
+    const enemyEyeY = this.pos[1] + 16;
+    const dir = this.flip ? -1 : 1;
+    const steps = Math.floor(absDistX / 16);
+    const startX = this.rect().x + (this.flip ? 0 : this.rect().width);
+
+    for (let i = 1; i < steps; i++) {
+      const checkX = startX + dir * (i * 16);
+      if (tilemap.solidCheck([checkX, enemyEyeY])) {
+        return false; // Solid wall blocks vision
+      }
+    }
+
+    this.anticipationState = true;
+    this.walking = 0;
+    return true;
   }
 
   override update(
@@ -193,6 +291,10 @@ export class Enemy extends PhysicsEntity {
     movement: EntityPosition = [0, 0],
     playerPos?: readonly [number, number]
   ) {
+    if (playerPos) {
+      this.checkPlayerDetection(tilemap, playerPos);
+    }
+
     let moveX = movement[0];
     const moveY = movement[1];
 
@@ -222,25 +324,62 @@ export class Enemy extends PhysicsEntity {
       }
 
       this.walking = Math.max(0, this.walking - 1);
-      if (this.walking === 0 && playerPos) {
-        const disX = playerPos[0] - this.pos[0];
-        const disY = playerPos[1] - this.pos[1];
-        if (Math.abs(disY) < 16) {
-          if ((this.flip && disX < 0) || (!this.flip && disX > 0)) {
-            this.anticipationState = true;
-          }
-        }
-      }
-    } else if (!this.dead && this.random() < 0.01) {
+    } else if (
+      !this.dead &&
+      !this.anticipationState &&
+      !this.attackTimer &&
+      this.random() < 0.01
+    ) {
       this.walking = Math.floor(this.random() * (120 - 30 + 1)) + 30;
     }
 
     super.update(tilemap, [moveX, moveY]);
 
     if (!this.dead) {
+      this.animation?.update();
+
       if (this.knockback) {
         this.setAction('hit');
         this.walking = 0;
+      } else if (this.attackTimer > 0) {
+        this.setAction('attack');
+        this.attackEffect?.update();
+
+        if (
+          this.enemyType === 'pink_star' &&
+          (this.collision.right || this.collision.left)
+        ) {
+          this.flip = !this.flip;
+          this.velocity[0] = -this.velocity[0];
+        }
+        this.attackTimer -= 1;
+        if (this.attackTimer === 0) {
+          if (this.enemyType === 'pink_star') {
+            this.attackEffect = null;
+          }
+          this.velocity[0] = 0;
+          this.velocity[1] = 0;
+        }
+      } else if (this.anticipationState) {
+        this.setAction('anticipation');
+        this.generateDialogue('exclamation');
+        if (
+          !this.dialogueExclamationSfxTriggered &&
+          this.dialogueAnimation &&
+          Math.floor(
+            this.dialogueAnimation.frame / this.dialogueAnimation.imgDur
+          ) === 1
+        ) {
+          this.dialogueExclamationSfxTriggered = true;
+          this.playSfx?.('dialogue/exclamation');
+        }
+        this.dialogueAnimation?.update();
+        if (this.animation?.done) {
+          this.anticipationState = false;
+          this.dialogueAnimation = null;
+          this.dialogueExclamationSfxTriggered = false;
+          this.attack();
+        }
       } else if (moveX !== 0) {
         this.setAction('run');
         this.particles?.addParticle(
@@ -292,11 +431,81 @@ export class Enemy extends PhysicsEntity {
       this.image.setPosition(renderX, renderY);
       this.image.setFlipX?.(flipX);
     }
+
+    if (this.dialogueAnimation && this.dialogueType) {
+      const dialogueTexture = this.dialogueAnimation.img();
+      const dType = this.dialogueType as 'exclamation' | 'dead';
+      const adj = this.dialoguePosAdjustment[dType];
+      const dialogueX =
+        renderX + (this.flip ? this.size[0] + adj[0] : adj[1]);
+      const dialogueY = renderY + adj[2];
+
+      if (!this.dialogueImage) {
+        this.dialogueImage = scene.add.image(
+          dialogueX,
+          dialogueY,
+          dialogueTexture
+        );
+        this.dialogueImage.setOrigin(0, 0);
+        this.dialogueImage.setFlipX?.(flipX);
+        this.dialogueTexture = dialogueTexture;
+      } else {
+        if (this.dialogueTexture !== dialogueTexture) {
+          this.dialogueImage.setTexture(dialogueTexture);
+          this.dialogueTexture = dialogueTexture;
+        }
+        this.dialogueImage.setPosition(dialogueX, dialogueY);
+        this.dialogueImage.setFlipX?.(flipX);
+        this.dialogueImage.setVisible?.(true);
+      }
+    } else if (this.dialogueImage) {
+      this.dialogueImage.destroy();
+      this.dialogueImage = null;
+      this.dialogueTexture = null;
+    }
+
+    if (this.attackEffect) {
+      const effectTexture = this.attackEffect.img();
+      const effectAdj = this.attackEffectPosAdjustment;
+      const effectX =
+        renderX + (this.flip ? effectAdj[0][0] : effectAdj[0][1]);
+      const effectY = renderY + effectAdj[1];
+
+      if (!this.attackEffectImage) {
+        this.attackEffectImage = scene.add.image(
+          effectX,
+          effectY,
+          effectTexture
+        );
+        this.attackEffectImage.setOrigin(0, 0);
+        this.attackEffectImage.setFlipX?.(flipX);
+        this.attackEffectTexture = effectTexture;
+      } else {
+        if (this.attackEffectTexture !== effectTexture) {
+          this.attackEffectImage.setTexture(effectTexture);
+          this.attackEffectTexture = effectTexture;
+        }
+        this.attackEffectImage.setPosition(effectX, effectY);
+        this.attackEffectImage.setFlipX?.(flipX);
+        this.attackEffectImage.setVisible?.(true);
+      }
+    } else if (this.attackEffectImage) {
+      this.attackEffectImage.destroy();
+      this.attackEffectImage = null;
+      this.attackEffectTexture = null;
+    }
   }
 
   destroy() {
     this.image?.destroy();
     this.image = null;
+    this.imageTexture = null;
+    this.dialogueImage?.destroy();
+    this.dialogueImage = null;
+    this.dialogueTexture = null;
+    this.attackEffectImage?.destroy();
+    this.attackEffectImage = null;
+    this.attackEffectTexture = null;
   }
 }
 

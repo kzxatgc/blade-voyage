@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Enemy, PARTICLE_POS_ADJUSTMENT, ATTACK_EFFECT_POS_ADJUSTMENT, DIALOGUE_POS_ADJUSTMENT } from './Enemy.ts';
 import { Tilemap } from '../systems/Tilemap.ts';
+import { Sparks } from '../systems/Sparks.ts';
 
 void describe('Enemy entity', () => {
   void it('initializes pink_star with default properties and adjustments', () => {
@@ -260,10 +261,75 @@ void describe('Enemy entity', () => {
     enemy.update(tm, [0, 0], [110, 195]);
     assert.equal(enemy.anticipationState, false);
 
-    // Reset walking and test player too far vertically (30px > 16px)
+    // Reset walking and test player too far vertically (45px > 24px)
     enemy.walking = 1;
     enemy.update(tm, [0, 0], [210, 240]);
     assert.equal(enemy.anticipationState, false);
+  });
+
+  void it('detects player immediately while patrolling mid-walk', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.walking = 60; // in the middle of a walk
+    enemy.flip = false;
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '4;7': { type: 'grass', variant: 0, loc: [4, 7] },
+        '5;7': { type: 'grass', variant: 0, loc: [5, 7] },
+      },
+      off_grid_tiles: [],
+    });
+
+    enemy.update(tm, [0, 0], [220, 195]);
+    assert.equal(enemy.anticipationState, true);
+    assert.equal(enemy.walking, 0); // walking cancelled
+  });
+
+  void it('ignores player beyond maximum sight range of 6.5 tiles (208px)', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.walking = 10;
+    enemy.flip = false;
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Player is 220px to the right (> 208px)
+    enemy.update(tm, [0, 0], [160 + 220, 195]);
+    assert.equal(enemy.anticipationState, false);
+  });
+
+  void it('blocks detection if a solid wall is between enemy and player', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.walking = 10;
+    enemy.flip = false;
+
+    const tm = new Tilemap(32);
+    // Enemy is around col 5 (x=160), Player is at col 9 (x=300). Solid wall at col 7 (x=224, y=192).
+    tm.loadFromData({
+      tiles: {
+        '7;6': { type: 'grass', variant: 0, loc: [7, 6] },
+      },
+      off_grid_tiles: [],
+    });
+
+    enemy.update(tm, [0, 0], [300, 195]);
+    assert.equal(enemy.anticipationState, false); // wall blocks vision!
+  });
+
+  void it('detects player touching enemy from behind and turns around', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.walking = 10;
+    enemy.flip = false; // facing right
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Player touches from behind (15px to the left <= 24px)
+    enemy.update(tm, [0, 0], [145, 195]);
+    assert.equal(enemy.flip, true); // turned around!
+    assert.equal(enemy.anticipationState, true);
+    assert.equal(enemy.walking, 0);
   });
 
   void it('resets walking to 0 and sets hit action on knockback', () => {
@@ -277,5 +343,149 @@ void describe('Enemy entity', () => {
     enemy.update(tm);
     assert.equal(enemy.walking, 0);
     assert.equal(enemy.action, 'hit');
+  });
+
+  void it('pink_star attack sets attackTimer to 120, velocity to 2, and spawns grass sparks', () => {
+    const sparksEffect: Sparks[] = [];
+    const enemy = new Enemy('pink_star', [100, 100], [26, 23], undefined, undefined, sparksEffect);
+    enemy.flip = false;
+    enemy.attack();
+
+    assert.equal(enemy.attackTimer, 120);
+    assert.equal(enemy.velocity[0], 2);
+    assert.ok(enemy.attackEffect !== null);
+    assert.equal(sparksEffect.length, 2); // 2 colors in GRASS_COLORS
+
+    // Facing left
+    enemy.flip = true;
+    enemy.attack();
+    assert.equal(enemy.velocity[0], -2);
+  });
+
+  void it('pink_star charges during attack, bounces on wall collision, and resets when attackTimer ends', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.flip = false;
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 120);
+    assert.equal(enemy.velocity[0], 2);
+
+    const tm = new Tilemap(32);
+    // Row 7 ground (Y = 224), wall at col 6 row 6 (X = 192..224, Y = 192..224)
+    tm.loadFromData({
+      tiles: {
+        '4;7': { type: 'grass', variant: 0, loc: [4, 7] },
+        '5;7': { type: 'grass', variant: 0, loc: [5, 7] },
+        '6;6': { type: 'grass', variant: 0, loc: [6, 6] },
+      },
+      off_grid_tiles: [],
+    });
+
+    // Tick 1: charges forward at velocity 2
+    enemy.update(tm);
+    assert.equal(enemy.action, 'attack');
+    assert.equal(enemy.attackTimer, 119);
+
+    // Charge until enemy hits the wall at column 6
+    while (!enemy.flip && enemy.attackTimer > 0) {
+      enemy.update(tm);
+    }
+
+    assert.equal(enemy.flip, true); // bounced against wall & reversed
+    assert.equal(enemy.velocity[0], -2);
+
+    // Run until attack ends
+    enemy.attackTimer = 1;
+    enemy.update(tm);
+    assert.equal(enemy.attackTimer, 0);
+    assert.equal(enemy.attackEffect, null);
+    assert.deepEqual(enemy.velocity, [0, 0]);
+  });
+
+  void it('anticipation state sets action, generates exclamation dialogue, triggers SFX on frame 1, and calls attack when done', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.anticipationState = true;
+
+    const sfxPlayed: string[] = [];
+    enemy.playSfx = (sfx: string) => {
+      sfxPlayed.push(sfx);
+    };
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '5;7': { type: 'grass', variant: 0, loc: [5, 7] },
+      },
+      off_grid_tiles: [],
+    });
+
+    // Tick 1: starts anticipation, generates exclamation dialogue
+    enemy.update(tm);
+    assert.equal(enemy.action, 'anticipation');
+    assert.ok(enemy.dialogueAnimation !== null);
+    assert.equal(enemy.dialogueType, 'exclamation');
+    assert.equal(enemy.dialogueExclamationSfxTriggered, false);
+
+    // When dialogue animation reaches frame 12 (frameIndex 1, duration is 12)
+    if (enemy.dialogueAnimation) {
+      enemy.dialogueAnimation.frame = 12;
+    }
+    enemy.update(tm);
+    assert.equal(enemy.dialogueExclamationSfxTriggered, true);
+    assert.deepEqual(sfxPlayed, ['dialogue/exclamation']);
+
+    // When main animation completes: anticipation finishes, calls attack()
+    if (enemy.animation) {
+      enemy.animation.done = true;
+    }
+    enemy.update(tm);
+    assert.equal(enemy.anticipationState, false);
+    assert.equal(enemy.dialogueAnimation, null);
+    assert.equal(enemy.dialogueExclamationSfxTriggered, false);
+    assert.equal(enemy.attackTimer, 120); // attack() was called!
+  });
+
+  void it('renders exclamation dialogue and attack effect sprites', () => {
+    const enemy = new Enemy('pink_star', [100, 100], [26, 23]);
+    enemy.anticipationState = true;
+    enemy.generateDialogue('exclamation');
+    enemy.attack(); // creates attackEffect
+
+    const createdImages: { texture: string; x: number; y: number; flipX?: boolean }[] = [];
+    const mockScene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const img = {
+            texture,
+            x,
+            y,
+            flipX: false,
+            setOrigin() {},
+            setPosition(nx: number, ny: number) {
+              img.x = nx;
+              img.y = ny;
+            },
+            setTexture(t: string) {
+              img.texture = t;
+            },
+            setFlipX(f: boolean) {
+              img.flipX = f;
+            },
+            setVisible() {},
+            destroy() {},
+          };
+          createdImages.push(img);
+          return img;
+        },
+      },
+    };
+
+    enemy.render(mockScene);
+    // Should create 3 images: base enemy, dialogue, and attack_effect
+    assert.equal(createdImages.length, 3);
+    assert.ok(createdImages[0]?.texture.startsWith('enemy/pink_star/'));
+    assert.ok(createdImages[1]?.texture.startsWith('dialogue/exclamation'));
+    assert.ok(createdImages[2]?.texture.startsWith('enemy/pink_star/attack_effect'));
+
+    enemy.destroy();
   });
 });

@@ -144,12 +144,20 @@ export class Game extends Phaser.Scene {
     const spawnResult = spawnEntities(
       this.tilemap,
       this.playerEntity,
-      this.particles
+      this.particles,
+      this.sparksEffect
     );
     if (!spawnResult.playerPos) {
       throw new Error('The game map does not contain a player spawner (variant 0).');
     }
     this.enemies = spawnResult.enemies;
+    for (const enemy of this.enemies) {
+      enemy.playSfx = (name: string) => {
+        if (this.sound && this.cache.audio.exists(name)) {
+          this.sound.play(name);
+        }
+      };
+    }
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (
