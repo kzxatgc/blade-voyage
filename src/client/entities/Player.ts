@@ -18,7 +18,8 @@ export interface PlayerSwordsSystem {
 }
 
 export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
-  spawnCooldown?: Record<string, number | null>;
+  spawnCooldown?: Record<string, number | null> | undefined;
+  sfxFlags?: Record<string, boolean> | undefined;
 };
 
 export class Player extends PhysicsEntity {
@@ -86,6 +87,7 @@ export class Player extends PhysicsEntity {
 
   jump() {
     if (!this.dead && this.jumps > 0) {
+      this.playSfx?.('player/jump');
       this.particles?.addParticle(
         'jump_dust',
         [this.pos[0] + 6, this.pos[1] + 13],
@@ -187,6 +189,7 @@ export class Player extends PhysicsEntity {
         swords.splice(i, 1);
         sword.destroy?.();
         this.swordState = true;
+        this.playSfx?.('player/pickup_sword');
         const currentBaseAction = this.action.replace(/^sword\//, '');
         this.action = '';
         this.setAction(`sword/${currentBaseAction}`);
@@ -208,6 +211,7 @@ export class Player extends PhysicsEntity {
       const throwAnim = this.animations?.['player/throw_sword'];
       if (throwAnim) {
         this.throwingAnimation = throwAnim.copy();
+        this.playSfx?.('player/throw_sword');
       }
     }
 
@@ -297,6 +301,11 @@ export class Player extends PhysicsEntity {
 
     this.justLanded = this.wasInAir && this.collision.bottom;
     if (this.justLanded) {
+      if (this.landedOn.palm_tree) {
+        this.playSfx?.('player/land/palm_tree');
+      } else if (this.landedOn.grass) {
+        this.playSfx?.('player/land/grass');
+      }
       const landingKey = `player/${this.swordState ? 'sword/' : ''}land`;
       const landingAnimation = this.animations?.[landingKey];
       if (!landingAnimation) {
@@ -337,6 +346,13 @@ export class Player extends PhysicsEntity {
             [this.pos[0] + (this.flip ? 13 : -3), this.pos[1] + 12],
             this.flip
           );
+          // SFX fires on each footstep frame (Devvit animation-frame cadence),
+          // not on every frame the particle cooldown fires (Python root cadence).
+          if (this.standingOn.palm_tree) {
+            this.playSfx?.('player/run/palm_tree');
+          } else {
+            this.playSfx?.('player/run/grass');
+          }
         }
       } else {
         this.setAction(`${swordPrefix}idle`);

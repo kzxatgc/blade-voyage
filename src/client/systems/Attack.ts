@@ -41,6 +41,7 @@ export interface AttackPlayerTarget {
   pos: EntityPosition;
   animation: Animation | null;
   setAction(action: string): void;
+  playSfx?: ((name: string) => void) | undefined;
 }
 
 export interface AttackRenderImage {
@@ -88,9 +89,11 @@ export class Attack {
     if (effectiveAirTime <= 1) {
       const index = Math.floor(this.random() * ATTACK_TYPES.length);
       this.currentAttackType = ATTACK_TYPES[index] ?? 'attack_1';
+      this.player?.playSfx?.('player/sword/attack');
     } else {
       const index = Math.floor(this.random() * AIR_ATTACK_TYPES.length);
       this.currentAttackType = AIR_ATTACK_TYPES[index] ?? 'air_attack_1';
+      this.player?.playSfx?.('player/sword/air_attack');
     }
 
     const config = ATTACK_EFFECT_ANIMATIONS[this.currentAttackType];

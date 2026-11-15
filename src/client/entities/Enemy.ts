@@ -190,7 +190,6 @@ export class Enemy extends PhysicsEntity {
   contactCollisionDetected = false;
   particles?: EnemyParticleSystem | undefined;
   sparksEffect?: Sparks[] | undefined;
-  playSfx?: ((name: string) => void) | undefined;
   random: () => number = Math.random;
   private image: EnemyRenderImage | null = null;
   private imageTexture: string | null = null;

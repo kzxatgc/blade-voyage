@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { SFX_DEFINITIONS } from '../systems/Audio';
 
 export const PRELOADER_KEY = 'Preloader';
 
@@ -170,6 +171,12 @@ export class Preloader extends Scene {
 
     for (let variant = 0; variant < 4; variant++) {
       this.load.image(`spawner/${variant}`, `img/map/spawner/${variant}.png`);
+    }
+
+    for (const def of Object.values(SFX_DEFINITIONS)) {
+      for (const file of def.files) {
+        this.load.audio(file, file);
+      }
     }
   }
 

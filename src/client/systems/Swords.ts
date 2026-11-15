@@ -3,6 +3,7 @@ import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
+import type { PlaySfxOptions } from './Audio.ts';
 
 export interface SwordEnemyTarget {
   enemyType: string;
@@ -164,6 +165,8 @@ export class SpinningSword extends PhysicsEntity {
   timer = 0;
   sparksTriggered = false;
   spinningSfxIndex = 0;
+  /** Frames remaining where the sword cannot be deflected again (prevents rapid-fire kicks). */
+  deflectionCooldown = 0;
   sparksEffect: Sparks[] | undefined;
   private readonly random: () => number;
   private image: SwordRenderImage | null = null;
@@ -204,6 +207,10 @@ export class SpinningSword extends PhysicsEntity {
     tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
+    if (this.deflectionCooldown > 0) {
+      this.deflectionCooldown -= 1;
+    }
+
     if (this.action === 'spinning') {
       this.velocity[0] = this.flip ? -4 : 4;
       this.velocity[1] = 0;
@@ -228,6 +235,7 @@ export class SpinningSword extends PhysicsEntity {
       this.velocity[1] = 0;
 
       if (!this.sparksTriggered) {
+        this.playSfx?.('sword/strike/stone');
         const sparkPos: [number, number] = [
           this.pos[0] + (this.flip ? 0 : 12),
           this.pos[1],
@@ -311,6 +319,7 @@ export class Swords {
   thrownSwords: SpinningSword[] = [];
   offset: readonly [number, number];
   sparksEffect: Sparks[] | undefined;
+  playSfx?: ((name: string, options?: PlaySfxOptions) => void) | undefined;
   horizontalTileRangeLeft = 7.5;
   horizontalTileRangeRight = 6.5;
   verticalTileRangeTop = 2.5;
@@ -462,6 +471,7 @@ export class Swords {
       this.sparksEffect,
       this.random
     );
+    sword.playSfx = this.playSfx;
     this.thrownSwords.push(sword);
     return sword;
   }
@@ -491,6 +501,13 @@ export class Swords {
     this.thrownSwords = this.thrownSwords.filter((sword) => {
       sword.update(tilemap, movement);
 
+      if (sword.action === 'spinning') {
+        if (sword.indexChanged) {
+          sword.playSfx?.('sword/spinning', { sequenceIndex: sword.spinningSfxIndex });
+          sword.spinningSfxIndex += 1;
+        }
+      }
+
       if (sword.action === 'spinning' && enemies) {
         const sRect = sword.rect();
         for (const enemy of enemies) {
@@ -506,10 +523,14 @@ export class Swords {
 
           if (collides) {
             if (enemy.attackTimer > 0 && enemy.enemyType === 'pink_star') {
-              // Deflection result on Pink Star charging attack
+              // Deflection: only once per collision event (cooldown prevents rapid-fire)
+              if (sword.deflectionCooldown > 0) {
+                continue;
+              }
               sword.flip = !sword.flip;
               sword.velocity[0] = sword.flip ? -7 : 7;
               sword.pos[0] += sword.flip ? -2 : 2;
+              sword.deflectionCooldown = 20; // ~0.33s at 60fps — enough to clear the hitbox
               hitResults.push({ type: 'deflection', enemy, sword });
             } else {
               const damage = 35;

@@ -13,6 +13,7 @@ import type {
 } from '../../shared/types';
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap';
+import type { PlaySfxOptions } from '../systems/Audio';
 
 const createCollisionState = (): EntityCollision => ({
   right: false,
@@ -41,6 +42,7 @@ export class PhysicsEntity {
   deathFlip = false;
   collision = createCollisionState();
   landedOn = { grass: false, palm_tree: false };
+  standingOn = { grass: false, palm_tree: false };
   private skipPalmTreePlatformsOnce = false;
   knockback = false;
   knockbackVelocity: EntityPosition = [0, 0];
@@ -48,6 +50,7 @@ export class PhysicsEntity {
   readonly knockbackDuration = 30;
   knockbackSfxTimer = 0;
   readonly knockbackSfxCooldown = 30;
+  playSfx?: ((name: string, options?: PlaySfxOptions) => void) | undefined;
   private preKnockbackFlip = false;
   health = 100;
   maxHealth = this.health;
@@ -109,7 +112,7 @@ export class PhysicsEntity {
   }
 
   generateDialogue(dialogueType: 'exclamation' | 'dead') {
-    if (!this.dialogueAnimation || dialogueType === 'dead') {
+    if (!this.dialogueAnimation) {
       this.dialogueType = dialogueType;
       this.dialogueAnimation = new Animation(
         `dialogue/${dialogueType}`,
@@ -169,6 +172,14 @@ export class PhysicsEntity {
     this.knockbackTimer = this.knockbackDuration;
     this.knockbackVelocity[0] = direction * power;
     this.knockbackVelocity[1] = 0;
+    if (this.knockbackSfxTimer <= 0) {
+      if (this.health <= 0) {
+        this.playSfx?.('player/dead_hit');
+      } else {
+        this.playSfx?.('player/hit');
+      }
+      this.knockbackSfxTimer = this.knockbackSfxCooldown;
+    }
   }
 
   setAction(action: string) {
@@ -204,6 +215,7 @@ export class PhysicsEntity {
 
     this.collision = createCollisionState();
     this.landedOn = { grass: false, palm_tree: false };
+    this.standingOn = { grass: false, palm_tree: false };
 
     let knockbackX = 0;
     if (this.knockback) {
@@ -218,6 +230,7 @@ export class PhysicsEntity {
         this.knockbackTimer = 0;
         this.knockbackVelocity[0] = 0;
         this.knockbackVelocity[1] = 0;
+        this.knockbackSfxTimer = 0;
       }
     }
     const frameMovementX = this.dead ? 0 : movement[0] + this.velocity[0] + knockbackX;
@@ -296,6 +309,7 @@ export class PhysicsEntity {
         };
         this.collision.bottom = true;
         this.landedOn.grass = true;
+        this.standingOn.grass = true;
       } else if (frameMovementY < 0) {
         entityRect = {
           ...entityRect,
@@ -330,6 +344,7 @@ export class PhysicsEntity {
           };
           this.collision.bottom = true;
           this.landedOn.palm_tree = true;
+          this.standingOn.palm_tree = true;
           this.pos[1] = entityRect.y - this.rectPosAdjustment[1];
         }
       }

@@ -19,6 +19,7 @@ import { Tilemap } from '../systems/Tilemap';
 import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
 import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
+import { SoundSystem } from '../systems/Audio';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -28,7 +29,7 @@ const TILE_ANIMATION_TYPES = [
   'palm_tree/back/regular',
   'palm_tree/back/right',
 ];
-const PLAYER_MOVE_SPEED = 2.2;
+const PLAYER_MOVE_SPEED = 2.25;
 const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
 const CLOUD_RENDER_ZOOM = WINDOW_WIDTH / DISPLAY_WIDTH;
 
@@ -59,6 +60,7 @@ export class Game extends Phaser.Scene {
   private worldScroll: [number, number] = [0, 0];
   private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
+  private soundSystem?: SoundSystem;
 
   constructor() {
     super('Game');
@@ -228,6 +230,33 @@ export class Game extends Phaser.Scene {
     this.playerSprite.setOrigin(0, 0);
     this.sparksGraphics = this.add.graphics().setDepth(10);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
+
+    this.soundSystem = new SoundSystem(this.sound);
+    if (this.playerEntity) {
+      this.playerEntity.playSfx = (name, options) =>
+        this.soundSystem?.play(name, options);
+    }
+    if (this.swords) {
+      this.swords.playSfx = (name, options) =>
+        this.soundSystem?.play(name, options);
+    }
+    for (const enemy of this.enemies) {
+      enemy.playSfx = (name, options) =>
+        this.soundSystem?.play(name, options);
+    }
+
+    if (this.sound.locked) {
+      const unlockAudio = () => {
+        const soundWithContext = this.sound as { context?: AudioContext };
+        if (soundWithContext.context && soundWithContext.context.state === 'suspended') {
+          void soundWithContext.context.resume();
+        }
+        window.removeEventListener('pointerdown', unlockAudio);
+        window.removeEventListener('keydown', unlockAudio);
+      };
+      window.addEventListener('pointerdown', unlockAudio, { once: true });
+      window.addEventListener('keydown', unlockAudio, { once: true });
+    }
   }
 
   override update(_time: number, delta: number) {
@@ -339,6 +368,7 @@ export class Game extends Phaser.Scene {
             )
           );
         } else if (result.type === 'deflection') {
+          this.soundSystem?.play('sword/kicked');
           this.sparksEffect.push(
             new Sparks(
               [
@@ -434,16 +464,6 @@ export class Game extends Phaser.Scene {
             this.playerEntity.landingAnimation ??
             playerAnimation);
       const animationChanged = renderAnimation !== this.playerRenderAnimation;
-      // DEBUG: trace dead_hit activation
-      if (this.playerEntity.dead && this.playerEntity.deadHitAnimation) {
-        console.log('[dead_hit]', {
-          action: this.playerEntity.action,
-          animKey: renderAnimation.img(),
-          animChanged: animationChanged,
-          indexChanged: renderAnimation.indexChanged,
-          deadHitTimer: this.playerEntity.deadHitTimer,
-        });
-      }
       // PhysicsEntity.update() already advances the animation when dead,
       // so only call update() here for living players (avoid double-advance).
       if (
