@@ -293,11 +293,21 @@ export class Swords {
   thrownSwords: SpinningSword[] = [];
   offset: readonly [number, number];
   sparksEffect: Sparks[] | undefined;
-  horizontalTileRange = 9;
+  horizontalTileRangeLeft = 7.5;
+  horizontalTileRangeRight = 6.5;
   verticalTileRangeTop = 2;
-  verticalTileRangeBottom = 6;
+  verticalTileRangeBottom = 3.5;
   private validSpawnPos: readonly [number, number][] | null = null;
   private readonly random: () => number;
+
+  get horizontalTileRange(): number {
+    return Math.max(this.horizontalTileRangeLeft, this.horizontalTileRangeRight);
+  }
+
+  set horizontalTileRange(val: number) {
+    this.horizontalTileRangeLeft = val;
+    this.horizontalTileRangeRight = val;
+  }
 
   constructor(
     offset: readonly [number, number] = [0, 0],
@@ -346,15 +356,17 @@ export class Swords {
       const playerX = playerPos[0];
       const playerY = playerPos[1];
       const playerCx = playerX + 32;
-      const maxHDist = this.horizontalTileRange * tileSize;
+      const maxHDistLeft = this.horizontalTileRangeLeft * tileSize;
+      const maxHDistRight = this.horizontalTileRangeRight * tileSize;
       const maxVTop = this.verticalTileRangeTop * tileSize;
       const maxVBottom = this.verticalTileRangeBottom * tileSize;
 
       filteredPositions = validPositions.filter((pos) => {
-        const hDist = Math.abs(pos[0] - playerCx);
+        const hDist = pos[0] - playerCx;
+        const hValid = hDist >= -maxHDistLeft && hDist <= maxHDistRight;
         const vValid =
           playerY - maxVTop <= pos[1] && pos[1] <= playerY + maxVBottom;
-        return hDist <= maxHDist && vValid;
+        return hValid && vValid;
       });
     }
 

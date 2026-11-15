@@ -410,8 +410,8 @@ void describe('Swords manager', () => {
   void it('filters spawn positions relative to player position', () => {
     const tm = new Tilemap(32);
     // Player at [320, 320] (loc [10, 10]). Player center cx = 352.
-    // Horizontal range = 9 tiles = 288px (abs(pos[0] - 352) <= 288 -> 64 <= pos[0] <= 640)
-    // Vertical range top = 2 tiles = 64px, bottom = 6 tiles = 192px (256 <= pos[1] <= 512)
+    // Horizontal range left = 7.5 tiles = 240px, right = 6.5 tiles = 208px
+    // Vertical range top = 2 tiles = 64px, bottom = 3.5 tiles = 112px (256 <= pos[1] <= 432)
     tm.loadFromData({
       tiles: {
         '10;10': { type: 'grass', variant: 0, loc: [10, 10] }, // pos [320, 320]: valid

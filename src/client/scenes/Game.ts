@@ -12,6 +12,7 @@ import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
 import { Sparks } from '../systems/Sparks';
 import { Tilemap } from '../systems/Tilemap';
+import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
 
 const TILE_ANIMATION_TYPES = [
@@ -43,6 +44,7 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
   private swords?: Swords;
+  private enemies: Enemy[] = [];
   private sparksEffect: Sparks[] = [];
   private sparksGraphics?: Phaser.GameObjects.Graphics;
   private tickAccumulator = 0;
@@ -129,10 +131,6 @@ export class Game extends Phaser.Scene {
 
     this.tilemap = new Tilemap();
     this.tilemap.loadFromData(mapData);
-    const [playerSpawn] = this.tilemap.extract([['spawner', 0]], false);
-    if (!playerSpawn) {
-      throw new Error('The game map does not contain a player spawner (variant 0).');
-    }
 
     this.tileAnimations = Object.fromEntries(
       TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 10)])
@@ -140,15 +138,14 @@ export class Game extends Phaser.Scene {
     this.particles = new Particles();
     this.sparksEffect = [];
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
-    this.playerEntity = new Player(
-      [
-        playerSpawn.loc[0] * this.tilemap.tileSize,
-        playerSpawn.loc[1] * this.tilemap.tileSize,
-      ],
-      this.particles,
-      this.sparksEffect
-    );
+    this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
+
+    const spawnResult = spawnEntities(this.tilemap, this.playerEntity);
+    if (!spawnResult.playerPos) {
+      throw new Error('The game map does not contain a player spawner (variant 0).');
+    }
+    this.enemies = spawnResult.enemies;
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (
@@ -229,6 +226,9 @@ export class Game extends Phaser.Scene {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
       this.swords?.update(this.tilemap, [0, 0], this.playerEntity.pos);
+      for (const enemy of this.enemies) {
+        enemy.update(this.tilemap);
+      }
       for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
         const sparks = this.sparksEffect[i];
         if (!sparks || sparks.update()) {
@@ -346,6 +346,9 @@ export class Game extends Phaser.Scene {
     );
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
     this.swords?.render(this);
+    for (const enemy of this.enemies) {
+      enemy.render(this);
+    }
     this.playerEntity.attackHandler.render(this);
     this.particles?.render(this, [
       renderedPlayerX - this.playerEntity.pos[0],
@@ -353,6 +356,20 @@ export class Game extends Phaser.Scene {
     ]);
     this.sparksGraphics?.clear();
     if (this.sparksGraphics) {
+      // DEBUG: Visual outline of valid sword spawn range around player
+      this.sparksGraphics.lineStyle(2, 0x00ff00, 0.85);
+      const pX = this.playerEntity.pos[0];
+      const pY = this.playerEntity.pos[1];
+      const hRangeLeft = 7.5 * 32;
+      const hRangeRight = 6.5 * 32;
+      const vTop = 2 * 32;
+      const vBottom = 3.5 * 32;
+      const spawnBoxX = pX + 32 - hRangeLeft;
+      const spawnBoxY = pY - vTop;
+      const spawnBoxW = hRangeLeft + hRangeRight + 32;
+      const spawnBoxH = (vTop + vBottom) + 32;
+      this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
+
       for (const sparks of this.sparksEffect) {
         sparks.render(this.sparksGraphics);
       }
