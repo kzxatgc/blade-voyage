@@ -32,9 +32,12 @@ export class Game extends Phaser.Scene {
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
   private downKeys: Phaser.Input.Keyboard.Key[] = [];
-  private shiftKeys: Phaser.Input.Keyboard.Key[] = [];
+  private slowLeftKeys: Phaser.Input.Keyboard.Key[] = [];
+  private slowRightKeys: Phaser.Input.Keyboard.Key[] = [];
   private spaceKey: Phaser.Input.Keyboard.Key | undefined;
+  private kKey: Phaser.Input.Keyboard.Key | undefined;
   private qKey: Phaser.Input.Keyboard.Key | undefined;
+  private lKey: Phaser.Input.Keyboard.Key | undefined;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
@@ -82,16 +85,27 @@ export class Game extends Phaser.Scene {
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
-    this.shiftKeys = [
-      Phaser.Input.Keyboard.KeyCodes.SHIFT,
+    this.slowLeftKeys = [
+      Phaser.Input.Keyboard.KeyCodes.Z,
+    ]
+      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
+      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
+    this.slowRightKeys = [
+      Phaser.Input.Keyboard.KeyCodes.C,
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
     this.spaceKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
+    this.kKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.K
+    );
     this.qKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.Q
+    );
+    this.lKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.L
     );
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.leftButtonDown()) {
@@ -144,7 +158,9 @@ export class Game extends Phaser.Scene {
         event.code === 'KeyA' ||
         event.code === 'ArrowLeft' ||
         event.code === 'KeyD' ||
-        event.code === 'ArrowRight'
+        event.code === 'ArrowRight' ||
+        event.code === 'KeyZ' ||
+        event.code === 'KeyC'
       ) {
         if (this.playerEntity) {
           this.playerEntity.runBoost = 0;
@@ -206,14 +222,16 @@ export class Game extends Phaser.Scene {
       this.swords?.update(this.tilemap);
       this.previousScroll = [...this.scroll];
       this.previousPlayerPosition = [...this.playerEntity.pos];
-      const movingLeft = this.leftKeys.some((key) => key.isDown);
-      const movingRight = this.rightKeys.some((key) => key.isDown);
-      const isShiftDown = this.shiftKeys.some((key) => key.isDown);
+      const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
+      const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
+      const movingLeft = this.leftKeys.some((key) => key.isDown) || slowMovingLeft;
+      const movingRight = this.rightKeys.some((key) => key.isDown) || slowMovingRight;
+      const isSlowDown = slowMovingLeft || slowMovingRight;
       const horizontalDirection = Number(movingRight) - Number(movingLeft);
 
       if (!this.playerEntity.throwingAnimation) {
         if (horizontalDirection !== 0) {
-          this.playerEntity.runBoost = isShiftDown ? SLOW_WALK_RATIO : 1.0;
+          this.playerEntity.runBoost = isSlowDown ? SLOW_WALK_RATIO : 1.0;
         } else {
           this.playerEntity.runBoost = 0;
         }
@@ -234,19 +252,25 @@ export class Game extends Phaser.Scene {
         this.playerEntity.dropThroughPlatform();
       }
 
-      let spacePressed = false;
-      if (this.spaceKey) {
-        spacePressed = Phaser.Input.Keyboard.JustDown(this.spaceKey);
+      let attackPressed = false;
+      if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+        attackPressed = true;
       }
-      if (spacePressed) {
+      if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
+        attackPressed = true;
+      }
+      if (attackPressed) {
         this.triggerAttackOrPickup();
       }
 
-      let qPressed = false;
-      if (this.qKey) {
-        qPressed = Phaser.Input.Keyboard.JustDown(this.qKey);
+      let throwPressed = false;
+      if (this.qKey && Phaser.Input.Keyboard.JustDown(this.qKey)) {
+        throwPressed = true;
       }
-      if (qPressed) {
+      if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
+        throwPressed = true;
+      }
+      if (throwPressed) {
         this.playerEntity.throwSword();
       }
 
