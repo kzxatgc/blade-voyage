@@ -1,4 +1,4 @@
-import type { RgbColor } from '../../shared/constants.ts';
+import { HEART_COLORS, type RgbColor } from '../../shared/constants.ts';
 
 export type SparkShape = 'diamond' | 'heart';
 export type SparkDirection = 'burst' | 'up' | number | null | undefined;
@@ -82,14 +82,38 @@ export class Spark {
   pos: [number, number];
   angle: number;
   speed: number;
+  private velocityX: number;
+  private velocityY: number;
+  private age = 0;
+  private readonly gravity: number;
 
-  constructor(pos: readonly [number, number], angle: number, speed: number) {
+  constructor(
+    pos: readonly [number, number],
+    angle: number,
+    speed: number,
+    gravity = 0
+  ) {
     this.pos = [pos[0], pos[1]];
     this.angle = angle;
     this.speed = speed;
+    this.gravity = gravity;
+    this.velocityX = Math.cos(angle) * speed;
+    this.velocityY = Math.sin(angle) * speed;
   }
 
   update(): boolean {
+    if (this.gravity !== 0) {
+      this.pos[0] += this.velocityX;
+      this.pos[1] += this.velocityY;
+      this.velocityY += this.gravity;
+      this.velocityX *= 0.98;
+      this.velocityY *= 0.98;
+      this.speed = Math.hypot(this.velocityX, this.velocityY);
+      this.angle = Math.atan2(this.velocityY, this.velocityX);
+      this.age++;
+      return this.age >= 36;
+    }
+
     this.pos[0] += Math.cos(this.angle) * this.speed;
     this.pos[1] += Math.sin(this.angle) * this.speed;
 
@@ -146,7 +170,8 @@ export class Sparks {
     direction: SparkDirection = 'burst',
     shape: SparkShape = 'diamond',
     size: number | readonly [number, number] = [3, 0.5],
-    random: () => number = Math.random
+    random: () => number = Math.random,
+    gravity = 0
   ) {
     this.shape = shape;
     this.size = size;
@@ -165,7 +190,7 @@ export class Sparks {
       } else {
         angle = random() + direction + (flip ? Math.PI : 0);
       }
-      this.sparks.push(new Spark(pos, angle, random() * speed));
+      this.sparks.push(new Spark(pos, angle, random() * speed, gravity));
     }
   }
 
@@ -182,5 +207,47 @@ export class Sparks {
       spark.render(this.color, surf, this.shape, offset, this.size);
     }
   }
+}
+
+export function getDamageSparkCount(damage: number): number {
+  return Math.max(1, Math.round(damage / 2.9));
+}
+
+export function createHeartSparkParticles(
+  pos: readonly [number, number],
+  flip: boolean,
+  count: number,
+  options: {
+    direction?: SparkDirection;
+    gravity?: number;
+    randomColor?: () => number;
+  } = {}
+): Sparks[] {
+  const {
+    direction = Math.PI * 0.9,
+    gravity = 0,
+    randomColor = Math.random,
+  } = options;
+
+  return Array.from({ length: count }, () => {
+    const colorIndex = Math.floor(randomColor() * HEART_COLORS.length);
+    const color = HEART_COLORS[colorIndex];
+    if (color === undefined) {
+      throw new RangeError('Random color source returned an out-of-range value.');
+    }
+
+    return new Sparks(
+      pos,
+      flip,
+      3,
+      1,
+      color,
+      direction,
+      'heart',
+      6,
+      Math.random,
+      gravity
+    );
+  });
 }
 

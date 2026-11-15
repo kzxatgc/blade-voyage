@@ -579,7 +579,7 @@ void describe('SpinningSword entity', () => {
     assert.equal(sword.indexChanged, true);
   });
 
-  void it('thrown sword deals 20 damage to normal enemy and is removed', () => {
+  void it('thrown sword deals 35 damage to normal enemy and is removed', () => {
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
     const manager = new Swords([0, 0], () => 0.5);
@@ -604,8 +604,12 @@ void describe('SpinningSword entity', () => {
 
     const results = manager.update(tm, [0, 0], [0, 0], [mockEnemy]);
     assert.equal(results.length, 1);
-    assert.equal(results[0]?.type, 'hit');
-    assert.equal(enemyDamagedAmount, 20);
+    const hitResult = results[0];
+    if (hitResult?.type !== 'hit') {
+      assert.fail('Expected a sword hit result.');
+    }
+    assert.equal(hitResult.damage, 35);
+    assert.equal(enemyDamagedAmount, 35);
     // Sword was removed on hit
     assert.equal(manager.thrownSwords.length, 0);
   });

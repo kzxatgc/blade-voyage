@@ -556,12 +556,12 @@ void describe('Player', () => {
     const player = new Player([100, 100], [20, 28]);
     assert.equal(player.getAttackRangeRect(), null);
 
-    // 1. Ground attack: damage is 10, range expansion [25, 0]
+    // 1. Ground attack: damage is 20, range expansion [25, 0]
     player.swordState = true;
     player.airTime = 0;
     player.attack();
     assert.equal(player.attackHandler.attackState, true);
-    assert.equal(player.getAttackDamage(), 10);
+    assert.equal(player.getAttackDamage(), 20);
 
     const groundRect = player.getAttackRangeRect();
     assert.ok(groundRect !== null);

@@ -5,11 +5,14 @@ import { describe, it } from 'node:test';
 import {
   Spark,
   Sparks,
+  createHeartSparkParticles,
   createDiamondPoints,
   createHeartPoints,
+  getDamageSparkCount,
   rgbToHex,
   type SparksRenderSurface,
 } from './Sparks.ts';
+import { HEART_COLORS } from '../../shared/constants.ts';
 
 void describe('Spark', () => {
   void it('moves in angle direction and decays speed', () => {
@@ -26,6 +29,20 @@ void describe('Spark', () => {
     const killed = spark.update();
     assert.equal(killed, true);
     assert.equal(spark.speed, 0);
+  });
+
+  void it('arcs upward then falls when gravity is enabled', () => {
+    const spark = new Spark([0, 0], -Math.PI / 2, 1.5, 0.16);
+    spark.update();
+    assert.ok(spark.pos[1] < 0);
+
+    let expired = false;
+    for (let frame = 1; frame < 36; frame++) {
+      expired = spark.update();
+    }
+
+    assert.equal(expired, true);
+    assert.ok(spark.pos[1] > 0);
   });
 
   void it('creates 4 diamond polygon points with correct offset', () => {
@@ -66,6 +83,40 @@ void describe('Spark', () => {
 });
 
 void describe('Sparks', () => {
+  void it('creates a heart particle per count with independently selected colors', () => {
+    const colorChoices = [0, 0.3, 0.6, 0.9];
+    let choiceIndex = 0;
+    const heartSparks = createHeartSparkParticles(
+      [100, 100],
+      false,
+      colorChoices.length,
+      {
+        direction: 'up',
+        gravity: 0.16,
+        randomColor: () => colorChoices[choiceIndex++] ?? 0,
+      }
+    );
+
+    assert.deepEqual(
+      heartSparks.map((heartSpark) => heartSpark.color),
+      HEART_COLORS
+    );
+    assert.ok(heartSparks.every((heartSpark) => heartSpark.sparks.length === 1));
+    assert.ok(
+      heartSparks.every((heartSpark) => {
+        const spark = heartSpark.sparks[0];
+        return spark !== undefined && spark.angle < 0;
+      })
+    );
+  });
+
+  void it('scales enemy hit particles with damage, rounded to the nearest count', () => {
+    assert.equal(getDamageSparkCount(1), 1);
+    assert.equal(getDamageSparkCount(20), 7);
+    assert.equal(getDamageSparkCount(30), 10);
+    assert.equal(getDamageSparkCount(35), 12);
+  });
+
   void it('creates correct number of sparks for burst', () => {
     const sparks = new Sparks([100, 100], false, 3, 10, [255, 255, 255], 'burst', 'diamond');
     assert.equal(sparks.sparks.length, 10);

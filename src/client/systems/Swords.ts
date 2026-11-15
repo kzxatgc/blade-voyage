@@ -13,11 +13,14 @@ export interface SwordEnemyTarget {
   takeDamage(amount: number): boolean;
 }
 
-export interface SwordHitResult {
-  type: 'hit' | 'deflection';
-  enemy: SwordEnemyTarget;
-  sword: SpinningSword;
-}
+export type SwordHitResult =
+  | {
+      type: 'hit';
+      enemy: SwordEnemyTarget;
+      sword: SpinningSword;
+      damage: number;
+    }
+  | { type: 'deflection'; enemy: SwordEnemyTarget; sword: SpinningSword };
 
 export interface SwordRenderImage {
   setOrigin(x: number, y: number): void;
@@ -509,9 +512,9 @@ export class Swords {
               sword.pos[0] += sword.flip ? -2 : 2;
               hitResults.push({ type: 'deflection', enemy, sword });
             } else {
-              // Ordinary hit: 35 source damage
-              enemy.takeDamage(35);
-              hitResults.push({ type: 'hit', enemy, sword });
+              const damage = 35;
+              enemy.takeDamage(damage);
+              hitResults.push({ type: 'hit', enemy, sword, damage });
               sword.destroy();
               return false;
             }

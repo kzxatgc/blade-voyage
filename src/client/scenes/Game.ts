@@ -2,7 +2,6 @@ import * as Phaser from 'phaser';
 import {
   CAMERA_SMOOTHING,
   DISPLAY_WIDTH,
-  HEART_COLORS,
   TICK_RATE,
   WINDOW_WIDTH,
 } from '../../shared/constants';
@@ -11,7 +10,11 @@ import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
-import { Sparks } from '../systems/Sparks';
+import {
+  createHeartSparkParticles,
+  getDamageSparkCount,
+  Sparks,
+} from '../systems/Sparks';
 import { Tilemap } from '../systems/Tilemap';
 import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
@@ -262,16 +265,14 @@ export class Game extends Phaser.Scene {
               if (attackLanded) enemy.attackHasHitPlayer = true;
               const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
               this.playerEntity.applyKnockback(knockDir);
-              // Heart sparks at player center
-              for (const color of HEART_COLORS) {
-                this.sparksEffect.push(
-                  new Sparks(
-                    [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
-                    this.playerEntity.flip,
-                    3, 3, color, Math.PI * 0.9, 'heart', 6
-                  )
-                );
-              }
+              this.sparksEffect.push(
+                ...createHeartSparkParticles(
+                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
+                  this.playerEntity.flip,
+                  8,
+                  { direction: 'up', gravity: 0.16 }
+                )
+              );
             }
           }
         }
@@ -306,16 +307,13 @@ export class Game extends Phaser.Scene {
               // Knockback: push enemy away from player
               const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
               enemy.applyKnockback(knockDir, 1);
-              // Heart sparks at enemy center
-              for (const color of HEART_COLORS) {
-                this.sparksEffect.push(
-                  new Sparks(
-                    [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
-                    enemy.flip,
-                    3, damage >= 30 ? 3 : 1, color, Math.PI * 0.9, 'heart', 6
-                  )
-                );
-              }
+              this.sparksEffect.push(
+                ...createHeartSparkParticles(
+                  [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
+                  enemy.flip,
+                  getDamageSparkCount(damage)
+                )
+              );
             }
           }
         }
@@ -333,15 +331,13 @@ export class Game extends Phaser.Scene {
             (result.enemy as Enemy).clearAttack();
           }
           const eRect = result.enemy.rect();
-          for (const color of HEART_COLORS) {
-            this.sparksEffect.push(
-              new Sparks(
-                [eRect.x + eRect.width / 2, result.sword.pos[1]],
-                result.sword.flip,
-                3, 2, color, Math.PI * 0.9, 'heart', 6
-              )
-            );
-          }
+          this.sparksEffect.push(
+            ...createHeartSparkParticles(
+              [eRect.x + eRect.width / 2, result.sword.pos[1]],
+              result.sword.flip,
+              getDamageSparkCount(result.damage)
+            )
+          );
         } else if (result.type === 'deflection') {
           this.sparksEffect.push(
             new Sparks(

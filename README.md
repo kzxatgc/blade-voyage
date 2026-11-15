@@ -30,6 +30,7 @@ A starter to build web applications on Reddit's developer platform
 ## Documentation
 
 - [Enemy Detection AI System](docs/ENEMY_DETECTION.md): Detailed specifications for enemy vision range, Line-of-Sight raycasting, and proximity detection.
+- [Hit Spark Effects](docs/HIT_SPARKS.md): Spark counts and motion for enemy and player hits.
 
 ## Credits
 
