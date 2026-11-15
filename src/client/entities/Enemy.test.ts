@@ -264,7 +264,7 @@ void describe('Enemy entity', () => {
       off_grid_tiles: [],
     });
 
-    // Player is to the left (-50px, enemy is facing right)
+    // Player is to the left (-50px > 36px behind range, enemy is facing right)
     enemy.update(tm, [0, 0], [110, 195]);
     assert.equal(enemy.anticipationState, false);
 
@@ -294,7 +294,9 @@ void describe('Enemy entity', () => {
   });
 
   void it('detects player within tuned 4.5 tiles (144px) and ignores beyond 144px', () => {
-    assert.equal(ENEMY_SIGHT_RANGE_X, 144);
+    assert.equal(ENEMY_SIGHT_RANGE_X.pink_star, 144);
+    assert.equal(ENEMY_SIGHT_RANGE_X.crabby, 80);
+    assert.equal(ENEMY_SIGHT_RANGE_X.fierce_tooth, 80);
     assert.equal(ENEMY_POST_ATTACK_COOLDOWN, 90);
 
     const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
@@ -347,6 +349,23 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.flip, true); // turned around!
     assert.equal(enemy.anticipationState, true);
     assert.equal(enemy.walking, 0);
+
+    // Crabby has 48px rear awareness (1.5 tiles)
+    const crabby = new Enemy('crabby', [160, 195], [32, 26]);
+    crabby.walking = 10;
+    crabby.flip = false;
+    // 35px behind: within 48px -> turns around and triggers anticipation
+    crabby.update(tm, [0, 0], [125, 195]);
+    assert.equal(crabby.flip, true);
+    assert.equal(crabby.anticipationState, true);
+
+    // Crabby: 60px behind (> 48px) -> not detected
+    const crabbyFar = new Enemy('crabby', [160, 195], [32, 26]);
+    crabbyFar.walking = 10;
+    crabbyFar.flip = false;
+    crabbyFar.update(tm, [0, 0], [100, 195]);
+    assert.equal(crabbyFar.flip, false);
+    assert.equal(crabbyFar.anticipationState, false);
   });
 
   void it('resets walking to 0 and sets hit action on knockback', () => {
@@ -678,47 +697,62 @@ void describe('Enemy entity', () => {
   });
 
   void it('computes detection rect and melee attack rect correctly', () => {
-    // 1. Crabby facing right (flip = false)
+    // 1. Crabby facing right (flip = false) - sight range 80px (2.5 tiles), rear awareness 48px
     const crabby = new Enemy('crabby', [200, 200], [32, 26]);
     crabby.flip = false;
+    // Crabby rectPosAdjustment is [20, 3]. pos [200, 200] -> bodyRect x 220, y 203, size [32, 26].
     const detRight = crabby.getDetectionRect();
     assert.deepEqual(detRight, {
-      x: 200 - 24, // 176
-      y: 200 - 24, // 176
-      width: 144 + 32 + 24, // 200
+      x: 220 - 48, // 172 (48px behind Crabby)
+      y: 203 - 24, // 179
+      width: 80 + 32 + 48, // 160 (5 tiles)
       height: 26 + 48, // 74
     });
 
-    const crabbyAtk = crabby.getMeleeAttackRangeRect();
-    assert.ok(crabbyAtk !== null);
-    // Crabby rectPosAdjustment is [20, 3]. pos [200, 200] -> base x 220, base y 203.
-    // facing right (flip = false), expansion [40, 0] -> w = 32 + 40 = 72
-    assert.deepEqual(crabbyAtk, {
-      x: 220,
-      y: 203,
-      width: 72,
-      height: 32,
+    // When facing left (flip = true), Crabby detection rect has the EXACT same 48px behind distance on the right
+    crabby.flip = true;
+    const detLeft = crabby.getDetectionRect();
+    assert.deepEqual(detLeft, {
+      x: 220 - 80, // 140 (80px forward)
+      y: 203 - 24, // 179
+      width: 80 + 32 + 48, // 160 (right edge at 300, exactly 48px behind Crabby body at 252)
+      height: 26 + 48, // 74
     });
 
-    // 2. Fierce Tooth facing left (flip = true)
+    const crabbyAtkRight = crabby.getMeleeAttackRangeRect();
+    assert.ok(crabbyAtkRight !== null);
+    // Symmetrical dual-claw coverage: extends 21px both back and front -> x = 220 - 21 = 199, w = 32 + 42 = 74
+    assert.deepEqual(crabbyAtkRight, {
+      x: 199,
+      y: 203,
+      width: 74,
+      height: 26,
+    });
+
+    // When facing left (flip = true), Crabby attack hitbox is identical (symmetrical front & back)
+    crabby.flip = true;
+    const crabbyAtkLeft = crabby.getMeleeAttackRangeRect();
+    assert.deepEqual(crabbyAtkLeft, crabbyAtkRight);
+
+    // 2. Fierce Tooth facing left (flip = true) - sight range 80px (2.5 tiles), rear awareness 48px
     const fierceTooth = new Enemy('fierce_tooth', [200, 200], [24, 20]);
     fierceTooth.flip = true;
-    const detLeft = fierceTooth.getDetectionRect();
-    assert.deepEqual(detLeft, {
-      x: 200 - 144, // 56
-      y: 200 - 24, // 176
-      width: 144 + 24 + 24, // 192
+    // FT rectPosAdjustment is [5, 8]. pos [200, 200] -> bodyRect x 205, y 208, size [24, 20].
+    const ftDetLeft = fierceTooth.getDetectionRect();
+    assert.deepEqual(ftDetLeft, {
+      x: 205 - 80, // 125 (80px forward)
+      y: 208 - 24, // 184
+      width: 80 + 24 + 48, // 152
       height: 20 + 48, // 68
     });
 
     const ftAtk = fierceTooth.getMeleeAttackRangeRect();
     assert.ok(ftAtk !== null);
-    // FT rectPosAdjustment is [5, 8]. pos [200, 200] -> base x 205, base y 208.
-    // facing left (flip = true), expansion [26, 0] -> x = 205 - 26 = 179, w = 24 + 26 = 50
+    // facing left (flip = true), expansion [31, 0] -> x = 205 - 31 = 174, w = 24 + 31 = 55
     assert.deepEqual(ftAtk, {
-      x: 179,
+      x: 174,
       y: 208,
-      width: 50,
+      width: 55,
       height: 24,
     });
 

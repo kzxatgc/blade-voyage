@@ -14,6 +14,7 @@ import { Sparks } from '../systems/Sparks';
 import { Tilemap } from '../systems/Tilemap';
 import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
+import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -167,6 +168,9 @@ export class Game extends Phaser.Scene {
         event.code === 'ArrowRight'
       ) {
         this.playerEntity?.checkDoubleTap(event.code);
+      }
+      if (event.code === 'F1' || event.code === 'Backquote') {
+        toggleDebugMode();
       }
     });
 
@@ -368,45 +372,58 @@ export class Game extends Phaser.Scene {
     ]);
     this.sparksGraphics?.clear();
     if (this.sparksGraphics) {
-      // DEBUG: Visual outline of valid sword spawn range around player
-      this.sparksGraphics.lineStyle(2, 0x00ff00, 0.85);
-      const pX = this.playerEntity.pos[0];
-      const pY = this.playerEntity.pos[1];
-      const hRangeLeft = 7.5 * 32;
-      const hRangeRight = 6.5 * 32;
-      const vTop = 2.5 * 32;
-      const vBottom = 3.5 * 32;
-      const spawnBoxX = pX + 32 - hRangeLeft;
-      const spawnBoxY = pY - vTop;
-      const spawnBoxW = hRangeLeft + hRangeRight + 32;
-      const spawnBoxH = (vTop + vBottom) + 32;
-      this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
-
-      // DEBUG: Visual outlines for enemy detection range (red) and attack range (rect-in-rect, except pink_star)
-      for (const enemy of this.enemies) {
-        if (enemy.dead) {
-          continue;
+      if (DEBUG_CONFIG.enabled) {
+        if (DEBUG_CONFIG.showSwordSpawnRange) {
+          // DEBUG: Visual outline of valid sword spawn range around player
+          this.sparksGraphics.lineStyle(2, 0x00ff00, 0.85);
+          const pX = this.playerEntity.pos[0];
+          const pY = this.playerEntity.pos[1];
+          const hRangeLeft = 7.5 * 32;
+          const hRangeRight = 6.5 * 32;
+          const vTop = 2.5 * 32;
+          const vBottom = 3.5 * 32;
+          const spawnBoxX = pX + 32 - hRangeLeft;
+          const spawnBoxY = pY - vTop;
+          const spawnBoxW = hRangeLeft + hRangeRight + 32;
+          const spawnBoxH = vTop + vBottom + 32;
+          this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
         }
-        // 1. Detection range in red
-        const detRect = enemy.getDetectionRect();
-        this.sparksGraphics.lineStyle(1.5, 0xff0000, 0.85);
-        this.sparksGraphics.strokeRect(
-          detRect.x,
-          detRect.y,
-          detRect.width,
-          detRect.height
-        );
 
-        // 2. Attack range (except pink_star) - inner rect
-        const atkRect = enemy.getMeleeAttackRangeRect();
-        if (atkRect) {
-          this.sparksGraphics.lineStyle(2, 0xff3333, 0.95);
-          this.sparksGraphics.strokeRect(
-            atkRect.x,
-            atkRect.y,
-            atkRect.width,
-            atkRect.height
-          );
+        if (
+          DEBUG_CONFIG.showEnemyDetectionRange ||
+          DEBUG_CONFIG.showEnemyAttackRange
+        ) {
+          // DEBUG: Visual outlines for enemy detection range (red) and attack range (rect-in-rect, except pink_star)
+          for (const enemy of this.enemies) {
+            if (enemy.dead) {
+              continue;
+            }
+            // 1. Detection range in red
+            if (DEBUG_CONFIG.showEnemyDetectionRange) {
+              const detRect = enemy.getDetectionRect();
+              this.sparksGraphics.lineStyle(1.5, 0xff0000, 0.85);
+              this.sparksGraphics.strokeRect(
+                detRect.x,
+                detRect.y,
+                detRect.width,
+                detRect.height
+              );
+            }
+
+            // 2. Attack range (except pink_star) - inner rect
+            if (DEBUG_CONFIG.showEnemyAttackRange) {
+              const atkRect = enemy.getMeleeAttackRangeRect();
+              if (atkRect) {
+                this.sparksGraphics.lineStyle(2, 0xff3333, 0.95);
+                this.sparksGraphics.strokeRect(
+                  atkRect.x,
+                  atkRect.y,
+                  atkRect.width,
+                  atkRect.height
+                );
+              }
+            }
+          }
         }
       }
 

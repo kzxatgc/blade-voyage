@@ -1,87 +1,31 @@
-# Enemy Player Detection AI System
+# Enemy Player Detection & Combat AI System
 
 ## Overview
-This document details the player detection and vision system for enemies (`Pink Star`, `Crabby`, `Fierce Tooth`) in *Blade Voyage*, implemented in `src/client/entities/Enemy.ts`.
+Details the vision, detection, and attack range systems for enemies (`Pink Star`, `Crabby`, `Fierce Tooth`) in *Blade Voyage*, implemented in `src/client/entities/Enemy.ts`.
 
 ---
 
-## 1. Core Detection Parameters
+## 1. Core Detection & Combat Parameters
 
-All values are scaled to the $32\text{px}$ tile grid and $640 \times 340$ viewport:
+All metrics are scaled to the $32\text{px}$ tile grid:
 
-| Constant | Value | Physical Distance | Design Purpose |
-|---|---|---|---|
-| `ENEMY_SIGHT_RANGE_X` | `4.5 * 32` | $144\text{px}$ ($4.5$ tiles) | Tuned engagement range. Allows the player to see enemies before entering their aggro radius, giving control over when to engage without off-screen blindside triggers. |
-| `ENEMY_SIGHT_RANGE_Y` | `24` | $24\text{px}$ ($0.75$ tile) | Tolerates player jumps and slight elevation changes without causing enemies on different vertical platforms/ledges to aggro. |
-| `ENEMY_BEHIND_TOUCH_DIST` | `24` | $24\text{px}$ ($0.75$ tile) | Melee touch awareness. If the player physically bumps into an enemy from behind, the enemy notices and turns around. |
-| `ENEMY_POST_ATTACK_COOLDOWN` | `90` | $90\text{ frames}$ ($1.5\text{s}$) | Post-attack recovery cooldown. Prevents continuous rapid-fire attacks and stunlock loops, giving the player an opening to punish, reposition, or escape. |
-
----
-
-## 2. Detection Flow & Rules
-
-Detection is evaluated on **every frame** during `Enemy.update(tilemap, movement, playerPos)` when `playerPos` is supplied:
-
-```mermaid
-flowchart TD
-    Start["Tick: checkPlayerDetection()"] --> IsActive{"Enemy alive & not in<br/>attack/hit/anticipation/cooldown?"}
-    IsActive -- No --> Ignore["Ignore detection"]
-    IsActive -- Yes --> VertCheck{"Vertical delta |disY| <= 24px?"}
-    VertCheck -- No --> Ignore
-    VertCheck -- Yes --> BehindCheck{"Player behind enemy<br/>and distance <= 24px?"}
-    BehindCheck -- Yes (Touch) --> TurnAround["Flip enemy direction<br/>Trigger Anticipation"]
-    BehindCheck -- No --> Facing{"Facing player?"}
-    Facing -- No (Far behind) --> Ignore
-    Facing -- Yes --> RangeCheck{"Distance <= 144px (4.5 tiles)?"}
-    RangeCheck -- No --> Ignore
-    RangeCheck -- Yes --> Raycast{"Line of Sight Raycast:<br/>Any solid tile in between?"}
-    Raycast -- Yes (Blocked) --> Ignore
-    Raycast -- No (Clear) --> Trigger["Trigger Anticipation<br/>Stop walking (walking = 0)"]
-```
+| Parameter | Enemy Type | Value | Distance | Purpose |
+|---|---|---|---|---|
+| `ENEMY_SIGHT_RANGE_X` | `pink_star` | `4.5 * 32` | $144\text{px}$ ($4.5$ tiles) | Long-range vision matching its full-speed charging roll. |
+| | `crabby` | `2.5 * 32` | $80\text{px}$ ($2.5$ tiles) | Close melee engagement range. |
+| | `fierce_tooth` | `2.5 * 32` | $80\text{px}$ ($2.5$ tiles) | Close melee engagement range. |
+| `ENEMY_BEHIND_TOUCH_DIST` | `pink_star` | `36` | $36\text{px}$ ($1.125$ tiles) | Tuned rear awareness. |
+| | `crabby` | `48` | $48\text{px}$ ($1.5$ tiles) | Symmetrical rear peripheral awareness across both directions. |
+| | `fierce_tooth` | `48` | $48\text{px}$ ($1.5$ tiles) | Symmetrical rear peripheral awareness across both directions. |
+| `ENEMY_SIGHT_RANGE_Y` | All | `24` | $24\text{px}$ ($0.75$ tile) | Vertical tolerance for jumps/slopes without cross-tier aggro. |
+| `ENEMY_POST_ATTACK_COOLDOWN`| All | `90` | $90\text{ frames}$ ($1.5\text{s}$) | Post-attack recovery window to punish or escape. |
 
 ---
 
-## 3. Subsystems
+## 2. Attack Hitbox Parameters
 
-### A. Continuous Every-Frame Awareness
-- Detection runs continuously during both **idle** and **patrol** states.
-- If the player enters an enemy's line of sight, the enemy instantly cancels its walk (`walking = 0`), halts in place, and enters the **Anticipation State**.
-
-### B. Line-of-Sight (LOS) Raycasting
-- Raycasts from the front edge of the enemy at eye level (`pos[1] + 16`) towards the player in $16\text{px}$ (half-tile) intervals:
-```typescript
-const enemyEyeY = this.pos[1] + 16;
-const dir = this.flip ? -1 : 1;
-const steps = Math.floor(absDistX / 16);
-const startX = this.rect().x + (this.flip ? 0 : this.rect().width);
-
-for (let i = 1; i < steps; i++) {
-  const checkX = startX + dir * (i * 16);
-  if (tilemap.solidCheck([checkX, enemyEyeY])) {
-    return false; // Vision occluded by solid terrain
-  }
-}
-```
-- Solid tiles (`grass`, stone) fully occlude vision, preventing enemies from detecting players through cavern walls or closed corridors.
-
-### C. Rear Touch Awareness vs. Stealth
-- If the player is $> 24\text{px}$ behind an enemy, the enemy remains completely blind. This enables stealth gameplay: sneaking up from behind to throw swords or strike stealth attacks.
-- If the player closes within $\le 24\text{px}$ behind the enemy (physical body overlap), the enemy senses the contact, flips direction, and alerts.
-
----
-
-## 4. State Transitions Post-Detection
-
-1. **Anticipation State (`anticipationState = true`)**:
-   - Action switches to `'anticipation'`.
-   - Exclamation dialogue bubble (`'dialogue/exclamation'`) appears above the enemy's head.
-   - SFX plays on dialogue frame 1 (`12` ticks).
-   - Telegraph duration: $3\text{ frames} \times 12\text{ duration} = 36\text{ ticks}$ ($0.60\text{s}$) across all enemy types (`Pink Star`, `Crabby`, `Fierce Tooth`). Synchronizes with the exclamation dialogue bubble frame duration, providing a crisp, responsive telegraph window.
-2. **Attack State (`attackTimer > 0`)**:
-   - Once anticipation completes (`animation.done`), automatically initiates `attack()`.
-   - **Pink Star**: Charges forward at velocity $\pm 2$ for $120$ frames with grass sparks, bouncing off walls.
-   - **Crabby**: Performs dual-claw melee attack (`attackTimer = 24`, active hit range $40\text{px}$ for frames $\ge 12$).
-   - **Fierce Tooth**: Performs bite attack (`attackTimer = 30`, active hit range $26\text{px}$ for frames $\ge 15$).
-3. **Post-Attack Recovery Cooldown (`attackCooldown`)**:
-   - When an attack concludes (`attackTimer === 0`), `attackCooldown` is set to `90` frames ($1.5\text{s}$).
-   - While in recovery, the enemy cannot re-trigger detection or attack, giving the player a generous punishment window to counter-attack or disengage.
+| Enemy | Attack Style | Reach | Hitbox Dimensions | Active Window |
+|---|---|---|---|---|
+| **Pink Star** | Rolling Charge | Full-body contact | $26 \times 23\text{px}$ (body) | Frames $1\text{--}120$ ($2.0\text{s}$), bounces on walls |
+| **Crabby** | Dual-Claw Sweep | $21\text{px}$ front & $21\text{px}$ back | $74 \times 26\text{px}$ (symmetrical) | Attack timer $\ge 12$ of $24$ frames |
+| **Fierce Tooth** | Directional Jaw Snap | $31\text{px}$ forward | $55 \times 24\text{px}$ (forward only) | Attack timer $\ge 15$ of $30$ frames |

@@ -41,9 +41,17 @@ export const DIALOGUE_POS_ADJUSTMENT: Record<
   fierce_tooth: { exclamation: [7, -11, 0], dead: [-40, 33, 0] },
 };
 
-export const ENEMY_SIGHT_RANGE_X = 4.5 * 32; // 144px (~4.5 tiles, tuned down from 6.5 tiles / 208px for fair engagement)
+export const ENEMY_SIGHT_RANGE_X: Record<EnemyName, number> = {
+  pink_star: 4.5 * 32, // 144px (4.5 tiles - long range charge attack)
+  crabby: 2.5 * 32, // 80px (2.5 tiles - reduced by 1 tile for close melee)
+  fierce_tooth: 2.5 * 32, // 80px (2.5 tiles - reduced by 1 tile for close melee)
+};
 export const ENEMY_SIGHT_RANGE_Y = 24; // 24px (jump/slope tolerance)
-export const ENEMY_BEHIND_TOUCH_DIST = 24; // 24px (turns if bumped into)
+export const ENEMY_BEHIND_TOUCH_DIST: Record<EnemyName, number> = {
+  pink_star: 36, // 36px (tuned rear awareness)
+  crabby: 48, // 48px (1.5 tiles, perfectly symmetrical behind range in both directions)
+  fierce_tooth: 48, // 48px (1.5 tiles, perfectly symmetrical behind range in both directions)
+};
 export const ENEMY_POST_ATTACK_COOLDOWN = 90; // 90 frames = 1.5s post-attack recovery window
 
 export function createDefaultEnemyAnimations(
@@ -247,7 +255,8 @@ export class Enemy extends PhysicsEntity {
 
   checkPlayerDetection(
     tilemap: Tilemap,
-    playerPos: readonly [number, number]
+    playerPos: readonly [number, number],
+    playerTarget?: EnemyPlayerTarget
   ): boolean {
     if (
       this.dead ||
@@ -259,18 +268,29 @@ export class Enemy extends PhysicsEntity {
       return false;
     }
 
-    const disX = playerPos[0] - this.pos[0];
+    const bodyRect = this.rect();
     const disY = playerPos[1] - this.pos[1];
 
     if (Math.abs(disY) > ENEMY_SIGHT_RANGE_Y) {
       return false;
     }
 
+    let disX = playerPos[0] - this.pos[0];
+    let bodyCenterOffset = 0;
+    if (playerTarget) {
+      const pRect = playerTarget.rect();
+      const pCenter = pRect.x + pRect.width / 2;
+      const eCenter = bodyRect.x + bodyRect.width / 2;
+      disX = pCenter - eCenter;
+      bodyCenterOffset = bodyRect.width / 2;
+    }
+
     const facingPlayer = (this.flip && disX < 0) || (!this.flip && disX > 0);
     const absDistX = Math.abs(disX);
 
     // 1. Proximity touch awareness from behind
-    if (!facingPlayer && absDistX <= ENEMY_BEHIND_TOUCH_DIST) {
+    const behindDist = ENEMY_BEHIND_TOUCH_DIST[this.enemyType];
+    if (!facingPlayer && absDistX <= behindDist + bodyCenterOffset) {
       this.flip = !this.flip;
       this.anticipationState = true;
       this.walking = 0;
@@ -278,7 +298,8 @@ export class Enemy extends PhysicsEntity {
     }
 
     // 2. Forward sight range
-    if (!facingPlayer || absDistX > ENEMY_SIGHT_RANGE_X) {
+    const sightRangeX = ENEMY_SIGHT_RANGE_X[this.enemyType];
+    if (!facingPlayer || absDistX > sightRangeX + bodyCenterOffset) {
       return false;
     }
 
@@ -286,7 +307,7 @@ export class Enemy extends PhysicsEntity {
     const enemyEyeY = this.pos[1] + 16;
     const dir = this.flip ? -1 : 1;
     const steps = Math.floor(absDistX / 16);
-    const startX = this.rect().x + (this.flip ? 0 : this.rect().width);
+    const startX = bodyRect.x + (this.flip ? 0 : bodyRect.width);
 
     for (let i = 1; i < steps; i++) {
       const checkX = startX + dir * (i * 16);
@@ -310,21 +331,28 @@ export class Enemy extends PhysicsEntity {
   }
 
   getDetectionRect(): EntityRect {
-    const forward = ENEMY_SIGHT_RANGE_X;
-    const behind = ENEMY_BEHIND_TOUCH_DIST;
-    const x = this.flip ? this.pos[0] - forward : this.pos[0] - behind;
-    const width = forward + this.size[0] + behind;
-    const y = this.pos[1] - ENEMY_SIGHT_RANGE_Y;
-    const height = this.size[1] + ENEMY_SIGHT_RANGE_Y * 2;
+    const forward = ENEMY_SIGHT_RANGE_X[this.enemyType];
+    const behind = ENEMY_BEHIND_TOUCH_DIST[this.enemyType];
+    const bodyRect = this.rect();
+    const x = this.flip ? bodyRect.x - forward : bodyRect.x - behind;
+    const width = forward + bodyRect.width + behind;
+    const y = bodyRect.y - ENEMY_SIGHT_RANGE_Y;
+    const height = bodyRect.height + ENEMY_SIGHT_RANGE_Y * 2;
     return { x, y, width, height };
   }
 
   getMeleeAttackRangeRect(): EntityRect | null {
     if (this.enemyType === 'crabby') {
-      return this.attackRangeRect(this.flip, [40, 0]);
+      const bodyRect = this.rect();
+      return {
+        x: bodyRect.x - 21,
+        y: bodyRect.y,
+        width: bodyRect.width + 42,
+        height: bodyRect.height,
+      };
     }
     if (this.enemyType === 'fierce_tooth') {
-      return this.attackRangeRect(this.flip, [26, 0]);
+      return this.attackRangeRect(this.flip, [31, 0]);
     }
     return null;
   }
@@ -354,7 +382,7 @@ export class Enemy extends PhysicsEntity {
     }
 
     if (playerPos) {
-      this.checkPlayerDetection(tilemap, playerPos);
+      this.checkPlayerDetection(tilemap, playerPos, playerTarget);
     }
 
     let moveX = movement[0];
@@ -409,7 +437,7 @@ export class Enemy extends PhysicsEntity {
 
         if (this.enemyType === 'crabby') {
           if (this.attackTimer >= 12 && playerTarget) {
-            const rangeRect = this.attackRangeRect(this.flip, [40, 0]);
+            const rangeRect = this.getMeleeAttackRangeRect()!;
             if (this.rectIntersects(rangeRect, playerTarget.rect())) {
               this.attackHitDetected = true;
             }
@@ -421,7 +449,7 @@ export class Enemy extends PhysicsEntity {
 
         if (this.enemyType === 'fierce_tooth') {
           if (this.attackTimer >= 15 && playerTarget) {
-            const rangeRect = this.attackRangeRect(this.flip, [26, 0]);
+            const rangeRect = this.getMeleeAttackRangeRect()!;
             if (this.rectIntersects(rangeRect, playerTarget.rect())) {
               this.attackHitDetected = true;
             }
