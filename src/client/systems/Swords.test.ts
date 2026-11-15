@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { Sword, Swords } from './Swords.ts';
+import { Sword, SpinningSword, Swords } from './Swords.ts';
 import { Tilemap } from './Tilemap.ts';
 
 void describe('Sword entity', () => {
@@ -294,5 +294,138 @@ void describe('Swords manager', () => {
 
     manager.destroy();
     assert.equal(manager.swords.length, 0);
+  });
+
+  void it('manages thrown swords lifecycle and rendering', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const manager = new Swords([0, 0], () => 0.5);
+    const thrown = manager.throwSword([100, 100], false);
+    assert.equal(manager.thrownSwords.length, 1);
+    assert.equal(manager.thrownSwords[0], thrown);
+
+    manager.update(tm);
+    assert.equal(thrown.timer, 1);
+
+    let imagesRendered = 0;
+    const mockScene = {
+      add: {
+        image() {
+          imagesRendered++;
+          return {
+            setOrigin() {},
+            setPosition() {},
+            setTexture() {},
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    manager.render(mockScene);
+    assert.equal(imagesRendered, 1);
+
+    thrown.timer = 1198;
+    manager.update(tm);
+    assert.equal(manager.thrownSwords.length, 1);
+    assert.equal(thrown.timer, 1199);
+
+    // Reaching 1200 removes it on update
+    manager.update(tm);
+    assert.equal(manager.thrownSwords.length, 0);
+
+    manager.throwSword([100, 100], false);
+    assert.equal(manager.thrownSwords.length, 1);
+    manager.destroy();
+    assert.equal(manager.thrownSwords.length, 0);
+  });
+});
+
+void describe('SpinningSword entity', () => {
+  void it('initializes with spinning action and horizontal velocity based on flip', () => {
+    const swordRight = new SpinningSword([100, 100], false);
+    assert.equal(swordRight.action, 'spinning');
+    assert.equal(swordRight.flip, false);
+    assert.deepEqual(swordRight.velocity, [4, 0]);
+
+    const swordLeft = new SpinningSword([100, 100], true);
+    assert.equal(swordLeft.action, 'spinning');
+    assert.equal(swordLeft.flip, true);
+    assert.deepEqual(swordLeft.velocity, [-4, 0]);
+  });
+
+  void it('moves horizontally and embeds on wall collision', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '4;3': { type: 'grass', variant: 0, loc: [4, 3] }, // tile at x=128..160, y=96..128
+      },
+      off_grid_tiles: [],
+    });
+
+    const sword = new SpinningSword([100, 100], false);
+    assert.equal(sword.action, 'spinning');
+
+    // Update towards the wall
+    while (sword.action === 'spinning' && sword.timer < 30) {
+      sword.update(tm);
+    }
+
+    assert.equal(sword.action, 'embedded');
+    assert.deepEqual(sword.velocity, [0, 0]);
+
+    // Stays embedded and does not move further
+    const posAfterEmbed = [...sword.pos];
+    sword.update(tm);
+    assert.deepEqual(sword.pos, posAfterEmbed);
+  });
+
+  void it('blinks only when embedded and timer >= 900', () => {
+    const sword = new SpinningSword([100, 100], false);
+    sword.timer = 900;
+    assert.equal(sword.isBlinking(), false); // Not embedded yet
+
+    sword.action = 'embedded';
+    sword.timer = 899;
+    assert.equal(sword.isBlinking(), false);
+
+    sword.timer = 912; // 912 // 12 = 76 (even) -> true
+    assert.equal(sword.isBlinking(), true);
+
+    sword.timer = 1080; // 1080 // 7 = 154 (even) -> true
+    assert.equal(sword.isBlinking(), true);
+  });
+
+  void it('renders with flip and correct offset', () => {
+    const sword = new SpinningSword([100, 100], true);
+    let capturedX = 0;
+    let capturedY = 0;
+    let capturedFlip = false;
+    const mockScene = {
+      add: {
+        image(x: number, y: number) {
+          capturedX = x;
+          capturedY = y;
+          return {
+            setOrigin() {},
+            setPosition() {},
+            setTexture() {},
+            setFlipX(flip: boolean) {
+              capturedFlip = flip;
+            },
+            setVisible() {},
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    sword.render(mockScene, [10, 10]);
+    // pos[0] - offset[0] + (-8 if flip else 7) = 100 - 10 - 8 = 82
+    // pos[1] - offset[1] - 10 = 100 - 10 - 10 = 80
+    assert.equal(capturedX, 82);
+    assert.equal(capturedY, 80);
+    assert.equal(capturedFlip, true);
   });
 });

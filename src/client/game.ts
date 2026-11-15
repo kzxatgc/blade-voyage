@@ -11,6 +11,7 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   type: AUTO,
   parent: 'game-container',
   backgroundColor: '#000000',
+  disableContextMenu: true,
   pixelArt: true,
   antialias: false,
   roundPixels: true,

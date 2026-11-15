@@ -9,6 +9,7 @@ export interface SwordRenderImage {
   setTexture(texture: string): void;
   setAngle?(angle: number): void;
   setRotation?(rotation: number): void;
+  setFlipX?(flip: boolean): void;
   setVisible?(visible: boolean): void;
   destroy(): void;
 }
@@ -125,8 +126,126 @@ export class Sword extends PhysicsEntity {
   }
 }
 
+export class SpinningSword extends PhysicsEntity {
+  timer = 0;
+  sparksTriggered = false;
+  spinningSfxIndex = 0;
+  private image: SwordRenderImage | null = null;
+  private imageTexture: string | null = null;
+
+  constructor(
+    pos: EntityPosition,
+    flip: boolean,
+    size: EntitySize = [19, 5],
+    animations?: Readonly<Record<string, Animation>>
+  ) {
+    super(
+      'sword',
+      pos,
+      size,
+      animations ?? {
+        'sword/idle': new Animation('sword/spinning', 4, 6),
+        'sword/spinning': new Animation('sword/spinning', 4, 6),
+        'sword/embedded': new Animation('sword/embedded', 4, 4, false),
+      }
+    );
+    this.flip = flip;
+    this.timer = 0;
+    this.setAction('spinning');
+    this.velocity[0] = this.flip ? -4 : 4;
+    this.velocity[1] = 0;
+  }
+
+  override update(
+    tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
+    movement: EntityPosition = [0, 0]
+  ) {
+    if (this.action === 'spinning') {
+      this.velocity[0] = this.flip ? -4 : 4;
+      this.velocity[1] = 0;
+    } else {
+      this.velocity[0] = 0;
+      this.velocity[1] = 0;
+    }
+
+    super.update(tilemap, movement);
+
+    if (this.action === 'spinning') {
+      this.velocity[0] = this.flip ? -4 : 4;
+      this.velocity[1] = 0;
+    } else {
+      this.velocity[0] = 0;
+      this.velocity[1] = 0;
+    }
+
+    if (this.collision.right || this.collision.left) {
+      this.setAction('embedded');
+      this.velocity[0] = 0;
+      this.velocity[1] = 0;
+    }
+
+    this.animation?.update();
+    this.timer += 1;
+  }
+
+  isBlinking(): boolean {
+    if (this.action === 'embedded' && this.timer >= 900) {
+      const blinkRate = this.timer >= 1080 ? 7 : 12;
+      return Math.floor(this.timer / blinkRate) % 2 === 0;
+    }
+    return false;
+  }
+
+  get isBlinkHidden(): boolean {
+    return this.isBlinking();
+  }
+
+  get isVisible(): boolean {
+    return !this.isBlinking();
+  }
+
+  render(
+    scene: SwordRenderScene,
+    offset: readonly [number, number] = [0, 0]
+  ) {
+    if (this.isBlinking()) {
+      if (this.image) {
+        this.image.setVisible?.(false);
+      }
+      return;
+    }
+
+    const texture =
+      this.animation?.img() ??
+      (this.action === 'embedded' ? 'sword/embedded/0' : 'sword/spinning/0');
+    const renderX = this.pos[0] - offset[0] + (this.flip ? -8 : 7);
+    const renderY = this.pos[1] - offset[1] - 10;
+
+    if (!this.image) {
+      this.image = scene.add.image(renderX, renderY, texture);
+      this.image.setOrigin(0, 0);
+      this.image.setFlipX?.(this.flip);
+      this.imageTexture = texture;
+    } else {
+      if (this.imageTexture !== texture) {
+        this.image.setTexture(texture);
+        this.imageTexture = texture;
+      }
+      this.image.setPosition(renderX, renderY);
+      this.image.setFlipX?.(this.flip);
+      this.image.setVisible?.(true);
+    }
+  }
+
+  destroy() {
+    this.image?.destroy();
+    this.image = null;
+  }
+}
+
 export class Swords {
   swords: Sword[] = [];
+  thrownSwords: SpinningSword[] = [];
   offset: readonly [number, number];
   private validSpawnPos: readonly [number, number][] | null = null;
   private readonly random: () => number;
@@ -195,6 +314,12 @@ export class Swords {
     return sword;
   }
 
+  throwSword(pos: EntityPosition, flip: boolean): SpinningSword {
+    const sword = new SpinningSword(pos, flip);
+    this.thrownSwords.push(sword);
+    return sword;
+  }
+
   update(tilemap: Tilemap, movement: EntityPosition = [0, 0]) {
     this.spawnSword(tilemap);
 
@@ -209,6 +334,15 @@ export class Swords {
     for (const sword of this.swords) {
       sword.update(tilemap, movement);
     }
+
+    this.thrownSwords = this.thrownSwords.filter((sword) => {
+      sword.update(tilemap, movement);
+      if (sword.timer >= 1200) {
+        sword.destroy();
+        return false;
+      }
+      return true;
+    });
   }
 
   removeSword(sword: Sword): boolean {
@@ -228,6 +362,9 @@ export class Swords {
     for (const sword of this.swords) {
       sword.render(scene, offset);
     }
+    for (const sword of this.thrownSwords) {
+      sword.render(scene, offset);
+    }
   }
 
   destroy() {
@@ -235,6 +372,10 @@ export class Swords {
       sword.destroy();
     }
     this.swords = [];
+    for (const sword of this.thrownSwords) {
+      sword.destroy();
+    }
+    this.thrownSwords = [];
   }
 }
 

@@ -34,6 +34,7 @@ export class Game extends Phaser.Scene {
   private downKeys: Phaser.Input.Keyboard.Key[] = [];
   private shiftKeys: Phaser.Input.Keyboard.Key[] = [];
   private spaceKey: Phaser.Input.Keyboard.Key | undefined;
+  private qKey: Phaser.Input.Keyboard.Key | undefined;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
@@ -55,6 +56,7 @@ export class Game extends Phaser.Scene {
   }
 
   create() {
+    this.input.mouse?.disableContextMenu();
     this.cameras.main.setBackgroundColor(0xe6e6e6);
     this.leftKeys = [
       Phaser.Input.Keyboard.KeyCodes.A,
@@ -88,9 +90,14 @@ export class Game extends Phaser.Scene {
     this.spaceKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE
     );
+    this.qKey = this.input.keyboard?.addKey(
+      Phaser.Input.Keyboard.KeyCodes.Q
+    );
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.leftButtonDown()) {
         this.triggerAttackOrPickup();
+      } else if (pointer.rightButtonDown()) {
+        this.playerEntity?.throwSword();
       }
     });
     this.add
@@ -119,6 +126,7 @@ export class Game extends Phaser.Scene {
       playerSpawn.loc[0] * this.tilemap.tileSize,
       playerSpawn.loc[1] * this.tilemap.tileSize,
     ], this.particles);
+    this.playerEntity.swordsSystem = this.swords;
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
       if (
@@ -203,10 +211,12 @@ export class Game extends Phaser.Scene {
       const isShiftDown = this.shiftKeys.some((key) => key.isDown);
       const horizontalDirection = Number(movingRight) - Number(movingLeft);
 
-      if (horizontalDirection !== 0) {
-        this.playerEntity.runBoost = isShiftDown ? SLOW_WALK_RATIO : 1.0;
-      } else {
-        this.playerEntity.runBoost = 0;
+      if (!this.playerEntity.throwingAnimation) {
+        if (horizontalDirection !== 0) {
+          this.playerEntity.runBoost = isShiftDown ? SLOW_WALK_RATIO : 1.0;
+        } else {
+          this.playerEntity.runBoost = 0;
+        }
       }
       let jumpPressed = false;
       for (const key of this.jumpKeys) {
@@ -232,6 +242,14 @@ export class Game extends Phaser.Scene {
         this.triggerAttackOrPickup();
       }
 
+      let qPressed = false;
+      if (this.qKey) {
+        qPressed = Phaser.Input.Keyboard.JustDown(this.qKey);
+      }
+      if (qPressed) {
+        this.playerEntity.throwSword();
+      }
+
       this.playerEntity.update(this.tilemap, [
         horizontalDirection * PLAYER_MOVE_SPEED,
         0,
@@ -243,9 +261,13 @@ export class Game extends Phaser.Scene {
       }
 
       const renderAnimation =
-        this.playerEntity.landingAnimation ?? playerAnimation;
+        this.playerEntity.throwingAnimation ??
+        this.playerEntity.landingAnimation ??
+        playerAnimation;
       const animationChanged = renderAnimation !== this.playerRenderAnimation;
-      renderAnimation.update();
+      if (renderAnimation !== this.playerEntity.throwingAnimation) {
+        renderAnimation.update();
+      }
       const camera = this.cameras.main;
       const targetX =
         this.playerEntity.pos[0] + 32 - camera.width / 2;

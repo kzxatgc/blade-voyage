@@ -11,6 +11,10 @@ export interface PickupSwordTarget {
   destroy?(): void;
 }
 
+export interface PlayerSwordsSystem {
+  throwSword(pos: EntityPosition, flip: boolean): unknown;
+}
+
 export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
   spawnCooldown?: Record<string, number | null>;
 };
@@ -19,6 +23,11 @@ export class Player extends PhysicsEntity {
   jumps = 2;
   airTime = 0;
   swordState = false;
+  pendingThrow = false;
+  throwingFrameTriggered = false;
+  preRunBoost = 0;
+  throwingAnimation: Animation | null = null;
+  swordsSystem: PlayerSwordsSystem | undefined;
   lastKey: string | null = null;
   lastPressTime = 0;
   runBoost = 0;
@@ -35,6 +44,7 @@ export class Player extends PhysicsEntity {
       'player/jump': new Animation('player/jump', 3, 6),
       'player/fall': new Animation('player/fall', 1, 6),
       'player/land': new Animation('player/land', 2, 6, false),
+      'player/throw_sword': new Animation('player/throw_sword', 3, 10, false),
       'player/sword/idle': new Animation('player/sword/idle', 5, 6),
       'player/sword/run': new Animation('player/sword/run', 6, 7),
       'player/sword/jump': new Animation('player/sword/jump', 3, 6),
@@ -73,15 +83,25 @@ export class Player extends PhysicsEntity {
     }
   }
 
+  throwSword(): boolean {
+    if (this.swordState && !this.pendingThrow) {
+      this.preRunBoost = this.runBoost;
+      this.throwingFrameTriggered = false;
+      this.pendingThrow = true;
+      return true;
+    }
+    return false;
+  }
+
   attack(): boolean {
-    if (this.swordState) {
+    if (this.swordState && !this.pendingThrow && !this.throwingAnimation) {
       return this.attackHandler.triggerAttack(this.airTime);
     }
     return false;
   }
 
   pickupSword(swords: PickupSwordTarget[]): boolean {
-    if (this.swordState) {
+    if (this.swordState || this.pendingThrow || this.throwingAnimation) {
       return false;
     }
 
@@ -146,6 +166,17 @@ export class Player extends PhysicsEntity {
     tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
+    if (this.pendingThrow && !this.throwingAnimation) {
+      const throwAnim = this.animations?.['player/throw_sword'];
+      if (throwAnim) {
+        this.throwingAnimation = throwAnim.copy();
+      }
+    }
+
+    if (this.throwingAnimation) {
+      this.runBoost = 0.2;
+    }
+
     const runAnimation = this.animations?.['player/run'];
     const swordRunAnimation = this.animations?.['player/sword/run'];
 
@@ -182,6 +213,28 @@ export class Player extends PhysicsEntity {
           : movement;
 
     super.update(tilemap, effectiveMovement);
+
+    if (this.throwingAnimation) {
+      this.throwingAnimation.update();
+      if (
+        this.throwingAnimation.frameIndex >= 1 &&
+        !this.throwingFrameTriggered
+      ) {
+        this.throwingFrameTriggered = true;
+        this.swordState = false;
+        this.pendingThrow = false;
+        const throwX = this.pos[0] + (this.flip ? -6 : 24);
+        const throwY = this.pos[1] + 10;
+        this.swordsSystem?.throwSword([throwX, throwY], this.flip);
+      }
+
+      if (this.throwingAnimation.done) {
+        this.throwingAnimation = null;
+        this.runBoost = this.preRunBoost;
+      } else {
+        this.runBoost = 0.2;
+      }
+    }
 
     this.justLanded = this.wasInAir && this.collision.bottom;
     if (this.justLanded) {

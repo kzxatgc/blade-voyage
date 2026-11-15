@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  AIR_ATTACK_TYPES,
   Attack,
   ATTACK_TYPES,
   type AttackPlayerTarget,
@@ -25,6 +26,14 @@ void describe('Attack', () => {
     const firstType = attack.currentAttackType;
     attack.triggerAttack(0);
     assert.equal(attack.currentAttackType, firstType); // unchanged
+  });
+
+  void it('triggers air attack when airTime > 1', () => {
+    const attack = new Attack();
+    attack.triggerAttack(5); // in air
+    assert.ok(
+      (AIR_ATTACK_TYPES as readonly string[]).includes(attack.currentAttackType)
+    );
   });
 
   void it('updates player action and ends attack when animation is done', () => {

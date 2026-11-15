@@ -389,6 +389,86 @@ void describe('Player', () => {
     player.update(tilemap);
     assert.ok(player.action.startsWith('sword/attack_'));
   });
+
+  void it('triggers air attack when player is in the air', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    player.swordState = true;
+    player.airTime = 5;
+    assert.equal(player.attack(), true);
+    assert.ok(
+      player.attackHandler.currentAttackType === 'air_attack_1' ||
+        player.attackHandler.currentAttackType === 'air_attack_2'
+    );
+    player.update(tilemap);
+    assert.ok(player.action.startsWith('sword/air_attack_'));
+  });
+
+  void it('manages sword throw mechanics and projectile spawning', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Cannot throw without sword
+    assert.equal(player.throwSword(), false);
+    assert.equal(player.pendingThrow, false);
+
+    // Equip sword
+    player.swordState = true;
+    player.runBoost = 1.0;
+
+    const thrownCalls: { pos: readonly [number, number]; flip: boolean }[] = [];
+    player.swordsSystem = {
+      throwSword(pos: readonly [number, number], flip: boolean) {
+        thrownCalls.push({ pos, flip });
+      },
+    };
+
+    // Trigger throw
+    assert.equal(player.throwSword(), true);
+    assert.equal(player.pendingThrow, true);
+    assert.equal(player.preRunBoost, 1.0);
+
+    // Cannot trigger second throw while pending
+    assert.equal(player.throwSword(), false);
+
+    // Update 1: starts throwing animation, slows down
+    player.update(tilemap);
+    assert.ok(player.throwingAnimation !== null);
+    assert.equal(player.runBoost, 0.2);
+    assert.equal(thrownCalls.length, 0);
+
+    // Fast-forward throwing animation frames until frameIndex >= 1
+    // Animation has 3 frames, imgDur 10. Frame 10 is frameIndex 1.
+    while (!player.throwingFrameTriggered && player.throwingAnimation) {
+      player.update(tilemap);
+    }
+
+    assert.equal(player.throwingFrameTriggered, true);
+    assert.equal(player.swordState, false);
+    assert.equal(player.pendingThrow, false);
+    assert.equal(thrownCalls.length, 1);
+    // facing right (flip = false) -> pos[0] + 24, pos[1] + 10
+    const firstCall = thrownCalls[0];
+    assert.ok(firstCall !== undefined);
+    assert.equal(firstCall.pos[1], player.pos[1] + 10);
+    assert.equal(firstCall.flip, false);
+
+    // Finish remaining frames of throwing animation
+    while (player.throwingAnimation) {
+      player.update(tilemap);
+    }
+
+    assert.equal(player.throwingAnimation, null);
+    // runBoost restored to preRunBoost (1.0)
+    assert.equal(player.runBoost, 1.0);
+  });
 });
 
 const createParticleRecorder = () => {
