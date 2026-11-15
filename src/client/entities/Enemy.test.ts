@@ -444,7 +444,7 @@ void describe('Enemy entity', () => {
 
     // Crabby: 60px behind (> 48px) -> not detected
     const crabbyFar = new Enemy('crabby', [160, 195], [32, 26]);
-    crabbyFar.walking = 10;
+    crabbyFar.walking = 0;
     crabbyFar.flip = false;
     crabbyFar.update(tm, [0, 0], [100, 195]);
     assert.equal(crabbyFar.flip, false);
@@ -454,7 +454,7 @@ void describe('Enemy entity', () => {
   void it('resets walking to 0 and sets hit action on knockback', () => {
     const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
     enemy.walking = 20;
-    enemy.knockback = true;
+    enemy.applyKnockback(1);
 
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
@@ -519,6 +519,29 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.attackEffect, null);
     assert.deepEqual(enemy.velocity, [0, 0]);
     assert.equal(enemy.attackCooldown, 90);
+  });
+
+  void it('pink_star detects attack hit when charging into player, but not while idle', () => {
+    const enemy = new Enemy('pink_star', [100, 100], [26, 23]);
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const pRect = enemy.rect();
+    const overlappingPlayer = {
+      pos: [pRect.x, pRect.y] as [number, number],
+      rect() {
+        return { x: pRect.x, y: pRect.y, width: 20, height: 28 };
+      },
+    };
+
+    // Idle overlap: attackHitDetected is false (no contact damage)
+    enemy.update(tm, [0, 0], overlappingPlayer);
+    assert.equal(enemy.attackHitDetected, false);
+
+    // Active charge attack overlap: attackHitDetected becomes true
+    enemy.attack();
+    enemy.update(tm, [0, 0], overlappingPlayer);
+    assert.equal(enemy.attackHitDetected, true);
   });
 
   void it('anticipation state sets action, generates exclamation dialogue, triggers SFX on frame 1, and calls attack when done', () => {
@@ -842,5 +865,97 @@ void describe('Enemy entity', () => {
     // 3. Pink Star has no melee swing box
     const pinkStar = new Enemy('pink_star', [200, 200], [26, 23]);
     assert.equal(pinkStar.getMeleeAttackRangeRect(), null);
+  });
+
+  void it('crabby advances toward player when in sight outside melee range and anticipates once in range', () => {
+    const crabby = new Enemy('crabby', [100, 195], [32, 26]);
+    crabby.flip = false; // facing right
+
+    const tm = new Tilemap(32);
+    // Provide floor for 10 tiles (x: 0 to 320) at row 7 (y = 224)
+    const tiles: Record<string, { type: string; variant: number; loc: [number, number] }> = {};
+    for (let c = 0; c < 10; c++) {
+      tiles[`${c};7`] = { type: 'grass', variant: 0, loc: [c, 7] };
+    }
+    tm.loadFromData({ tiles, off_grid_tiles: [] });
+
+    // Player is 60px to the right (within 80px sight, but outside ~25px melee range)
+    const playerTarget = {
+      pos: [160, 195] as [number, number],
+      rect: () => ({ x: 182, y: 199, width: 20, height: 28 }),
+    };
+
+    crabby.update(tm, [0, 0], playerTarget);
+    // Should be advancing (chaseState) and not yet anticipating
+    assert.equal(crabby.chaseState, true);
+    assert.equal(crabby.anticipationState, false);
+    assert.equal(crabby.action, 'run');
+
+    // Now player moves into close melee range (e.g. at x = 120)
+    const closePlayer = {
+      pos: [110, 195] as [number, number],
+      rect: () => ({ x: 132, y: 199, width: 20, height: 28 }),
+    };
+    crabby.update(tm, [0, 0], closePlayer);
+    assert.equal(crabby.chaseState, false);
+    assert.equal(crabby.anticipationState, true);
+    assert.equal(crabby.action, 'anticipation');
+  });
+
+  void it('fierce_tooth advances toward player when in sight outside melee range and anticipates once in range', () => {
+    const fierceTooth = new Enemy('fierce_tooth', [100, 195], [24, 20]);
+    fierceTooth.flip = false; // facing right
+
+    const tm = new Tilemap(32);
+    const tiles: Record<string, { type: string; variant: number; loc: [number, number] }> = {};
+    for (let c = 0; c < 10; c++) {
+      tiles[`${c};7`] = { type: 'grass', variant: 0, loc: [c, 7] };
+    }
+    tm.loadFromData({ tiles, off_grid_tiles: [] });
+
+    // Player is 65px ahead (within 80px sight, outside 31px jaw snap)
+    const playerTarget = {
+      pos: [165, 195] as [number, number],
+      rect: () => ({ x: 187, y: 199, width: 20, height: 28 }),
+    };
+
+    fierceTooth.update(tm, [0, 0], playerTarget);
+    assert.equal(fierceTooth.chaseState, true);
+    assert.equal(fierceTooth.anticipationState, false);
+    assert.equal(fierceTooth.action, 'run');
+
+    // Player enters jaw snap range
+    const closePlayer = {
+      pos: [115, 195] as [number, number],
+      rect: () => ({ x: 125, y: 199, width: 20, height: 28 }),
+    };
+    fierceTooth.update(tm, [0, 0], closePlayer);
+    assert.equal(fierceTooth.chaseState, false);
+    assert.equal(fierceTooth.anticipationState, true);
+    assert.equal(fierceTooth.action, 'anticipation');
+  });
+
+  void it('chasing enemy stops at platform edge and does not walk off cliff', () => {
+    const crabby = new Enemy('crabby', [100, 195], [32, 26]);
+    crabby.flip = false;
+
+    const tm = new Tilemap(32);
+    // Floor ends immediately at column 3 (x: 96-127), no floor ahead at col 4
+    tm.loadFromData({
+      tiles: {
+        '3;7': { type: 'grass', variant: 0, loc: [3, 7] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const playerTarget = {
+      pos: [160, 195] as [number, number],
+      rect: () => ({ x: 182, y: 199, width: 20, height: 28 }),
+    };
+
+    const initialX = crabby.pos[0];
+    crabby.update(tm, [0, 0], playerTarget);
+    // Ledge detected: moveX becomes 0, crabby stops and does not walk off
+    assert.equal(crabby.pos[0], initialX);
   });
 });

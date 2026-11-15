@@ -45,4 +45,20 @@ Defined in `Player.ts` (`getAttackDamage`) and `Swords.ts`. Enemy HP = 100.
 ### Special Rules
 - **Pink Star** is **immune** to player melee and thrown sword while `attackTimer > 0` (actively charging).
 - **Any enemy** hit mid-attack has its `attackEffect` particle and `attackTimer` cleared immediately (interrupted).
-- Enemy knockback power on player hit: `2.3` (attack) — contact damage applies damage only, no knockback.
+- **Attack-only Damage (No Contact Damage)**: Enemies only damage and knock back the player when an active attack lands (Pink Star rolling charge, Crabby claw sweep, Fierce Tooth jaw snap). Touching an enemy while it is idle, walking, chasing, or recovering deals no damage.
+
+---
+
+## 4. Engagement & Approach Behavior
+
+When an enemy detects the player within sight range (`ENEMY_SIGHT_RANGE_X`):
+
+1. **Pink Star (`pink_star`)**:
+   - Because its attack is a rolling charge covering up to $240\text{px}$, it immediately enters `anticipationState` (plays anticipation animation, shows `!` dialogue, triggers exclamation SFX), then launches into its $120\text{-frame}$ charge.
+
+2. **Crabby (`crabby`) & Fierce Tooth (`fierce_tooth`)**:
+   - Because both possess short-range melee attacks ($\sim 25\text{px}$ dual-claw sweep for Crabby, $31\text{px}$ jaw snap for Fierce Tooth), they **advance toward the player** upon detecting them outside melee reach:
+     - Enters `chaseState = true`, faces the player, and moves forward at a steady advance speed ($0.8\text{px/frame}$) using their `run` animation and dust particles.
+     - **Ledge & Wall Safety**: Ledge checks (`solidCheck`) and wall collision checks prevent the advancing enemy from walking off cliffs or walking into walls.
+     - **Strike Trigger**: As soon as the enemy enters actual melee attack range, it stops moving and enters `anticipationState` (wind-up animation, `!` dialogue, and exclamation SFX). Once the wind-up finishes, the melee attack executes directly against the player.
+     - **Flank / Rear Touch**: If touched from behind within rear awareness range ($48\text{px}$), the enemy turns around immediately. If already in melee reach, it immediately begins anticipation without delay.

@@ -3,7 +3,7 @@ import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import type { Particles } from '../systems/Particles.ts';
-import { GRASS_COLORS } from '../../shared/constants.ts';
+import { GRASS_COLORS, RECT_POS_ADJUSTMENT } from '../../shared/constants.ts';
 import { Sparks } from '../systems/Sparks.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
@@ -174,6 +174,8 @@ export class Enemy extends PhysicsEntity {
   readonly enemyType: EnemyName;
   walking = 0;
   anticipationState = false;
+  /** True when advancing toward the player before reaching melee attack range. */
+  chaseState = false;
   attackTimer = 0;
   attackCooldown = 0;
   attackEffect: Animation | null = null;
@@ -261,6 +263,7 @@ export class Enemy extends PhysicsEntity {
     this.attackEffect = null;
     this.attackTimer = 0;
     this.attackHasHitPlayer = false;
+    this.chaseState = false;
     this.velocity[0] = 0;
     this.velocity[1] = 0;
   }
@@ -268,6 +271,7 @@ export class Enemy extends PhysicsEntity {
   override applyKnockback(direction: number, power = 2.3) {
     super.applyKnockback(direction, power);
     this.anticipationState = false;
+    this.chaseState = false;
     this.dialogueExclamationSfxTriggered = false;
 
     if (this.dialogueType === 'exclamation') {
@@ -298,6 +302,7 @@ export class Enemy extends PhysicsEntity {
     const disY = playerPos[1] - this.pos[1];
 
     if (Math.abs(disY) > ENEMY_SIGHT_RANGE_Y) {
+      this.chaseState = false;
       return false;
     }
 
@@ -318,14 +323,24 @@ export class Enemy extends PhysicsEntity {
     const behindDist = ENEMY_BEHIND_TOUCH_DIST[this.enemyType];
     if (!facingPlayer && absDistX <= behindDist + bodyCenterOffset) {
       this.flip = !this.flip;
-      this.anticipationState = true;
-      this.walking = 0;
+      if (
+        this.enemyType === 'pink_star' ||
+        this.isPlayerInMeleeRange(playerPos, playerTarget)
+      ) {
+        this.anticipationState = true;
+        this.chaseState = false;
+        this.walking = 0;
+      } else {
+        this.chaseState = true;
+        this.walking = 0;
+      }
       return true;
     }
 
     // 2. Forward sight range
     const sightRangeX = ENEMY_SIGHT_RANGE_X[this.enemyType];
     if (!facingPlayer || absDistX > sightRangeX + bodyCenterOffset) {
+      this.chaseState = false;
       return false;
     }
 
@@ -338,12 +353,22 @@ export class Enemy extends PhysicsEntity {
     for (let i = 1; i < steps; i++) {
       const checkX = startX + dir * (i * 16);
       if (tilemap.solidCheck([checkX, enemyEyeY])) {
+        this.chaseState = false;
         return false; // Solid wall blocks vision
       }
     }
 
-    this.anticipationState = true;
-    this.walking = 0;
+    if (
+      this.enemyType === 'pink_star' ||
+      this.isPlayerInMeleeRange(playerPos, playerTarget)
+    ) {
+      this.anticipationState = true;
+      this.chaseState = false;
+      this.walking = 0;
+    } else {
+      this.chaseState = true;
+      this.walking = 0;
+    }
     return true;
   }
 
@@ -383,6 +408,39 @@ export class Enemy extends PhysicsEntity {
     return null;
   }
 
+  isPlayerInMeleeRange(
+    playerPos: readonly [number, number],
+    playerTarget?: EnemyPlayerTarget
+  ): boolean {
+    if (this.enemyType === 'pink_star') {
+      return true;
+    }
+    const rangeRect = this.getMeleeAttackRangeRect();
+    if (!rangeRect) {
+      return true;
+    }
+    if (playerTarget) {
+      return this.rectIntersects(rangeRect, playerTarget.rect());
+    }
+    const targetRect: EntityRect = {
+      x: playerPos[0] + RECT_POS_ADJUSTMENT.player[0],
+      y: playerPos[1] + RECT_POS_ADJUSTMENT.player[1],
+      width: 20,
+      height: 28,
+    };
+    if (this.rectIntersects(rangeRect, targetRect)) {
+      return true;
+    }
+    // Also check unadjusted fallback for raw coordinate tests without player entity
+    const rawRect: EntityRect = {
+      x: playerPos[0],
+      y: playerPos[1],
+      width: 20,
+      height: 28,
+    };
+    return this.rectIntersects(rangeRect, rawRect);
+  }
+
   override update(
     tilemap: Tilemap,
     movement: EntityPosition = [0, 0],
@@ -415,6 +473,33 @@ export class Enemy extends PhysicsEntity {
     const moveY = movement[1];
 
     if (
+      this.chaseState &&
+      !this.anticipationState &&
+      !this.attackTimer &&
+      !this.knockback &&
+      !this.dead &&
+      playerPos
+    ) {
+      const enemyCenterX = this.rect().x + this.rect().width / 2;
+      const playerCenterX = playerTarget
+        ? playerTarget.rect().x + playerTarget.rect().width / 2
+        : playerPos[0] + RECT_POS_ADJUSTMENT.player[0] + 10;
+      this.flip = playerCenterX < enemyCenterX;
+
+      const rect = this.rect();
+      const centerX = rect.x + rect.width / 2;
+      const checkX = centerX + (this.flip ? -14 : 14);
+      const checkY = this.pos[1] + 30;
+      const hasFloor = tilemap.solidCheck([checkX, checkY]);
+      const hitWall =
+        (this.flip && this.collision.left) || (!this.flip && this.collision.right);
+
+      if (hasFloor && !hitWall) {
+        moveX = moveX + (this.flip ? -0.8 : 0.8);
+      } else {
+        moveX = 0;
+      }
+    } else if (
       this.walking > 0 &&
       !this.anticipationState &&
       !this.attackTimer &&
@@ -485,12 +570,14 @@ export class Enemy extends PhysicsEntity {
           }
         }
 
-        if (
-          this.enemyType === 'pink_star' &&
-          (this.collision.right || this.collision.left)
-        ) {
-          this.flip = !this.flip;
-          this.velocity[0] = -this.velocity[0];
+        if (this.enemyType === 'pink_star') {
+          if (playerTarget && this.rectIntersects(this.rect(), playerTarget.rect())) {
+            this.attackHitDetected = true;
+          }
+          if (this.collision.right || this.collision.left) {
+            this.flip = !this.flip;
+            this.velocity[0] = -this.velocity[0];
+          }
         }
         this.attackTimer -= 1;
         if (this.attackTimer === 0) {

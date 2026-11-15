@@ -284,14 +284,14 @@ export class Game extends Phaser.Scene {
       for (const enemy of this.enemies) {
         enemy.update(this.tilemap, [0, 0], this.playerEntity);
 
-        // Enemy attack or contact hit resolution against player
+        // Enemy attack hit resolution against player (only active attacks deal damage, no contact damage)
         if (!enemy.dead) {
-          // attackHitDetected: only deal damage once per attack swing
+          // attackHitDetected: only deal damage once per attack swing/charge
           const attackLanded =
             enemy.attackHitDetected && !enemy.attackHasHitPlayer;
-          if (attackLanded || enemy.contactCollisionDetected) {
+          if (attackLanded) {
             if (this.playerEntity.takeDamage(1)) {
-              if (attackLanded) enemy.attackHasHitPlayer = true;
+              enemy.attackHasHitPlayer = true;
               const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
               this.playerEntity.applyKnockback(knockDir);
               this.sparksEffect.push(

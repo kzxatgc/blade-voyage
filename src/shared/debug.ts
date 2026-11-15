@@ -25,8 +25,8 @@ export const DEBUG_CONFIG: DebugConfig = {
   showEntityBodyRects: false,
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,
-  showEnemyDetectionRange: false,
-  showEnemyAttackRange: false,
+  showEnemyDetectionRange: true,
+  showEnemyAttackRange: true,
 };
 
 export function isDebugEnabled(): boolean {

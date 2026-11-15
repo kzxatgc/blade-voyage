@@ -358,6 +358,7 @@ export class PhysicsEntity {
     if (this.dead) {
       if (this.justDied) {
         this.deadHitAnimation = true;
+        this.dialogueAnimation = null;
         this.generateDialogue('dead');
       }
       if (this.deadHitAnimation) {
