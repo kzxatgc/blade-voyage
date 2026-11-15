@@ -29,3 +29,20 @@ All metrics are scaled to the $32\text{px}$ tile grid:
 | **Pink Star** | Rolling Charge | Full-body contact | $26 \times 23\text{px}$ (body) | Frames $1\text{--}120$ ($2.0\text{s}$), bounces on walls |
 | **Crabby** | Dual-Claw Sweep | $21\text{px}$ front & $21\text{px}$ back | $74 \times 26\text{px}$ (symmetrical) | Attack timer $\ge 12$ of $24$ frames |
 | **Fierce Tooth** | Directional Jaw Snap | $31\text{px}$ forward | $55 \times 24\text{px}$ (forward only) | Attack timer $\ge 15$ of $30$ frames |
+
+---
+
+## 3. Player Attack Damage
+
+Defined in `Player.ts` (`getAttackDamage`) and `Swords.ts`. Enemy HP = 100.
+
+| Attack | Damage | Hits to Kill | Notes |
+|---|---|---|---|
+| Ground melee | **20** | 5 | Standard sword swing while grounded |
+| Air melee | **30** | 4 | Jumping sword strike |
+| Thrown sword | **35** | 3 | Spinning sword projectile; deflected by attacking Pink Star |
+
+### Special Rules
+- **Pink Star** is **immune** to player melee and thrown sword while `attackTimer > 0` (actively charging).
+- **Any enemy** hit mid-attack has its `attackEffect` particle and `attackTimer` cleared immediately (interrupted).
+- Enemy knockback power on player hit: `2.3` (attack) — contact damage applies damage only, no knockback.

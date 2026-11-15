@@ -592,6 +592,7 @@ void describe('SpinningSword entity', () => {
       enemyType: 'crabby',
       dead: false,
       attackTimer: 0,
+      pos: [120, 100] as [number, number],
       rect() {
         return { x: 104, y: 98, width: 32, height: 26 };
       },
@@ -622,6 +623,7 @@ void describe('SpinningSword entity', () => {
       enemyType: 'pink_star',
       dead: false,
       attackTimer: 60, // attacking!
+      pos: [120, 100] as [number, number],
       rect() {
         return { x: 104, y: 98, width: 26, height: 23 };
       },
@@ -655,6 +657,7 @@ void describe('SpinningSword entity', () => {
       enemyType: 'crabby',
       dead: true,
       attackTimer: 0,
+      pos: [120, 100] as [number, number],
       rect() {
         return { x: 104, y: 98, width: 32, height: 26 };
       },

@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import {
   CAMERA_SMOOTHING,
   DISPLAY_WIDTH,
+  HEART_COLORS,
   TICK_RATE,
   WINDOW_WIDTH,
 } from '../../shared/constants';
@@ -241,18 +242,32 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
-      this.swords?.update(
-        this.tilemap,
-        [0, 0],
-        this.playerEntity.pos,
-        this.enemies
-      );
+      const swordHits =
+        this.swords?.update(
+          this.tilemap,
+          [0, 0],
+          this.playerEntity.pos,
+          this.enemies
+        ) ?? [];
       for (const enemy of this.enemies) {
         enemy.update(this.tilemap, [0, 0], this.playerEntity);
 
         // Enemy attack or contact hit resolution against player
         if (!enemy.dead && (enemy.attackHitDetected || enemy.contactCollisionDetected)) {
-          this.playerEntity.takeDamage(1);
+          if (this.playerEntity.takeDamage(1)) {
+            const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
+            this.playerEntity.applyKnockback(knockDir);
+            // Heart sparks at player center
+            for (const color of HEART_COLORS) {
+              this.sparksEffect.push(
+                new Sparks(
+                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
+                  this.playerEntity.flip,
+                  3, 3, color, Math.PI * 0.9, 'heart', 6
+                )
+              );
+            }
+          }
         }
       }
 
@@ -264,7 +279,9 @@ export class Game extends Phaser.Scene {
           for (const enemy of this.enemies) {
             if (
               enemy.dead ||
-              this.playerEntity.attackHandler.hitEntities.has(enemy)
+              this.playerEntity.attackHandler.hitEntities.has(enemy) ||
+              // Pink Star is invulnerable while actively attacking
+              (enemy.enemyType === 'pink_star' && enemy.attackTimer > 0)
             ) {
               continue;
             }
@@ -278,8 +295,61 @@ export class Game extends Phaser.Scene {
             if (intersects) {
               this.playerEntity.attackHandler.hitEntities.add(enemy);
               enemy.takeDamage(damage);
+              // Cancel any in-progress attack (clears effect particle)
+              enemy.clearAttack();
+              // Knockback: push enemy away from player
+              const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+              enemy.applyKnockback(knockDir, 1);
+              // Heart sparks at enemy center
+              for (const color of HEART_COLORS) {
+                this.sparksEffect.push(
+                  new Sparks(
+                    [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
+                    enemy.flip,
+                    3, damage >= 30 ? 3 : 1, color, Math.PI * 0.9, 'heart', 6
+                  )
+                );
+              }
             }
           }
+        }
+      }
+
+      // Thrown sword hit results
+      for (const result of swordHits) {
+        if (result.type === 'hit') {
+          const knockDir = result.enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+          if ('applyKnockback' in result.enemy) {
+            (result.enemy as Enemy).applyKnockback(knockDir, 1);
+          }
+          // Cancel in-progress attack (clears effect particle)
+          if ('clearAttack' in result.enemy) {
+            (result.enemy as Enemy).clearAttack();
+          }
+          const eRect = result.enemy.rect();
+          for (const color of HEART_COLORS) {
+            this.sparksEffect.push(
+              new Sparks(
+                [eRect.x + eRect.width / 2, result.sword.pos[1]],
+                result.sword.flip,
+                3, 2, color, Math.PI * 0.9, 'heart', 6
+              )
+            );
+          }
+        } else if (result.type === 'deflection') {
+          this.sparksEffect.push(
+            new Sparks(
+              [
+                result.sword.pos[0] + (result.sword.flip ? 6 : 3),
+                result.sword.pos[1],
+              ],
+              result.sword.flip,
+              4, 7,
+              [255, 255, 255],
+              result.sword.flip ? 0 : -0.5,
+              'diamond'
+            )
+          );
         }
       }
       for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
@@ -352,10 +422,15 @@ export class Game extends Phaser.Scene {
         throw new Error('The player animation is not configured.');
       }
 
+      const isHitAnimation =
+        this.playerEntity.action === 'hit' ||
+        this.playerEntity.action === 'sword/hit';
       const renderAnimation =
-        this.playerEntity.throwingAnimation ??
-        this.playerEntity.landingAnimation ??
-        playerAnimation;
+        isHitAnimation
+          ? playerAnimation
+          : (this.playerEntity.throwingAnimation ??
+            this.playerEntity.landingAnimation ??
+            playerAnimation);
       const animationChanged = renderAnimation !== this.playerRenderAnimation;
       if (renderAnimation !== this.playerEntity.throwingAnimation) {
         renderAnimation.update();
@@ -398,6 +473,11 @@ export class Game extends Phaser.Scene {
       (this.scroll[1] - this.previousScroll[1]) * interpolation
     );
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
+    const shouldBlink =
+      this.playerEntity.invincibleTimer > 0 &&
+      this.playerEntity.invincibleTimer % 8 >= 4;
+    this.playerSprite.setAlpha(shouldBlink ? 0.35 : 1);
+
     this.swords?.render(this);
     for (const enemy of this.enemies) {
       enemy.render(this);
@@ -460,6 +540,29 @@ export class Game extends Phaser.Scene {
                 );
               }
             }
+          }
+        }
+
+        if (DEBUG_CONFIG.showEntityBodyRects) {
+          // Player body rect — yellow
+          const pRect = this.playerEntity.rect();
+          this.sparksGraphics.lineStyle(1.5, 0xffff00, 1);
+          this.sparksGraphics.strokeRect(pRect.x, pRect.y, pRect.width, pRect.height);
+
+          // Enemy body rects — cyan (alive), dark grey (dead)
+          for (const enemy of this.enemies) {
+            const eRect = enemy.rect();
+            this.sparksGraphics.lineStyle(1.5, enemy.dead ? 0x444444 : 0x00ffff, 1);
+            this.sparksGraphics.strokeRect(eRect.x, eRect.y, eRect.width, eRect.height);
+          }
+        }
+
+        if (DEBUG_CONFIG.showPlayerAttackRange) {
+          // Player melee attack range — orange (only visible during attack)
+          const atkRect = this.playerEntity.getAttackRangeRect();
+          if (atkRect) {
+            this.sparksGraphics.lineStyle(2, 0xff8800, 1);
+            this.sparksGraphics.strokeRect(atkRect.x, atkRect.y, atkRect.width, atkRect.height);
           }
         }
       }

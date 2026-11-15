@@ -81,7 +81,7 @@ export class Player extends PhysicsEntity {
   }
 
   jump() {
-    if (this.jumps > 0) {
+    if (!this.dead && this.jumps > 0) {
       this.particles?.addParticle(
         'jump_dust',
         [this.pos[0] + 6, this.pos[1] + 13],
@@ -120,7 +120,7 @@ export class Player extends PhysicsEntity {
   }
 
   getAttackDamage(): number {
-    return this.attackHandler.currentAttackType.includes('air') ? 30 : 10;
+    return this.attackHandler.currentAttackType.includes('air') ? 30 : 20;
   }
 
   pickupSword(swords: PickupSwordTarget[]): boolean {
@@ -189,6 +189,8 @@ export class Player extends PhysicsEntity {
     tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
+    const wasKnockedBack = this.knockback;
+
     if (this.pendingThrow && !this.throwingAnimation) {
       const throwAnim = this.animations?.['player/throw_sword'];
       if (throwAnim) {
@@ -228,8 +230,9 @@ export class Player extends PhysicsEntity {
         this.runBoost >= 1 ? 200 : this.runBoost > 0 ? 300 : 400;
     }
 
-    const effectiveMovement: EntityPosition =
-      this.runBoost > 1
+    const effectiveMovement: EntityPosition = this.knockback
+      ? [0, movement[1]]
+      : this.runBoost > 1
         ? [movement[0] * this.runBoost, movement[1]]
         : this.runBoost > 0 && this.runBoost < 1
           ? [movement[0] * this.runBoost, movement[1]]
@@ -296,10 +299,12 @@ export class Player extends PhysicsEntity {
       this.landingAnimation = null;
     }
 
-    if (this.attackHandler.attackState) {
+    const swordPrefix = this.swordState ? 'sword/' : '';
+    if (wasKnockedBack || this.knockback) {
+      this.setAction(`${swordPrefix}hit`);
+    } else if (this.attackHandler.attackState) {
       this.attackHandler.setAction();
     } else {
-      const swordPrefix = this.swordState ? 'sword/' : '';
       if (this.airTime > 4) {
         this.setAction(`${swordPrefix}${this.velocity[1] > 0 ? 'fall' : 'jump'}`);
       } else if (Math.abs(movement[0]) > 0) {

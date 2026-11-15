@@ -3,6 +3,7 @@ import {
   MAX_FALL_SPEED,
   RECT_POS_ADJUSTMENT,
 } from '../../shared/constants.ts';
+import { DEBUG_CONFIG } from '../../shared/debug.ts';
 import type {
   EntityCollision,
   EntityPosition,
@@ -46,6 +47,7 @@ export class PhysicsEntity {
   readonly knockbackDuration = 30;
   knockbackSfxTimer = 0;
   readonly knockbackSfxCooldown = 30;
+  private preKnockbackFlip = false;
   health = 100;
   maxHealth = this.health;
   dead = false;
@@ -54,7 +56,7 @@ export class PhysicsEntity {
   deadHitAnimation = false;
   deadHitTimer = 0;
   invincibleTimer = 0;
-  readonly invincibleDuration = 90;
+  readonly invincibleDuration = 75;
   dialogueAnimation: Animation | null = null;
   dialogueType = '';
 
@@ -88,6 +90,12 @@ export class PhysicsEntity {
     if (this.type === 'player') {
       if (this.invincibleTimer > 0) {
         return false;
+      }
+      if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.playerInfiniteHealth) {
+        // Infinite health: still trigger invincibility frames so sparks fire,
+        // but skip the actual HP reduction.
+        this.invincibleTimer = this.invincibleDuration;
+        return true;
       }
       this.health = Math.max(0, this.health - 1);
       this.invincibleTimer = this.invincibleDuration;
@@ -153,6 +161,16 @@ export class PhysicsEntity {
     return true;
   }
 
+  applyKnockback(direction: number, power = 2.3): void {
+    if (!this.knockback) {
+      this.preKnockbackFlip = this.flip;
+    }
+    this.knockback = true;
+    this.knockbackTimer = this.knockbackDuration;
+    this.knockbackVelocity[0] = direction * power;
+    this.knockbackVelocity[1] = 0;
+  }
+
   setAction(action: string) {
     if (this.action === action) {
       return;
@@ -178,6 +196,7 @@ export class PhysicsEntity {
     tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
+    const wasKnockedBack = this.knockback;
     this.checkDead();
     if (this.invincibleTimer > 0) {
       this.invincibleTimer -= 1;
@@ -186,7 +205,22 @@ export class PhysicsEntity {
     this.collision = createCollisionState();
     this.landedOn = { grass: false, palm_tree: false };
 
-    const frameMovementX = this.dead ? 0 : movement[0] + this.velocity[0];
+    let knockbackX = 0;
+    if (this.knockback) {
+      if (this.knockbackSfxTimer > 0) {
+        this.knockbackSfxTimer -= 1;
+      }
+      knockbackX =
+        this.knockbackVelocity[0] * (this.knockbackTimer / this.knockbackDuration);
+      this.knockbackTimer -= 1;
+      if (this.knockbackTimer <= 0) {
+        this.knockback = false;
+        this.knockbackTimer = 0;
+        this.knockbackVelocity[0] = 0;
+        this.knockbackVelocity[1] = 0;
+      }
+    }
+    const frameMovementX = this.dead ? 0 : movement[0] + this.velocity[0] + knockbackX;
     this.pos[0] += frameMovementX;
     let entityRect = this.rect();
 
@@ -220,10 +254,21 @@ export class PhysicsEntity {
     }
 
     if (!this.dead) {
-      if (frameMovementX < 0) {
-        this.flip = true;
-      } else if (frameMovementX > 0) {
-        this.flip = false;
+      if (this.knockback) {
+        // During knockback: face toward the attacker (opposite to push direction)
+        // knockbackVelocity[0] > 0 means pushed right → attacker is on the left → face left (flip=true)
+        // knockbackVelocity[0] < 0 means pushed left → attacker is on the right → face right (flip=false)
+        if (this.knockbackVelocity[0] !== 0) {
+          this.flip = this.knockbackVelocity[0] > 0;
+        }
+      } else if (wasKnockedBack) {
+        this.flip = this.preKnockbackFlip;
+      } else {
+        if (frameMovementX < 0) {
+          this.flip = true;
+        } else if (frameMovementX > 0) {
+          this.flip = false;
+        }
       }
     }
 

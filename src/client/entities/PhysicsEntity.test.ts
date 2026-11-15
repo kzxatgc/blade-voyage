@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { DEBUG_CONFIG } from '../../shared/debug.ts';
 
 const physicsEntityUrl = new URL('./PhysicsEntity.ts', import.meta.url).href;
 const animationUrl = new URL('../utils/Animation.ts', import.meta.url).href;
@@ -159,6 +160,29 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.collision.right, true);
     assert.equal(entity.pos[0], 118);
     assert.equal(entity.rect().x + entity.rect().width, 160);
+  });
+
+  void it('restores pre-hit facing after knockback for players and enemies', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    for (const type of ['player', 'enemy/crabby'] as const) {
+      const entity = new PhysicsEntity(type, [100, 100]);
+      entity.flip = false;
+      entity.applyKnockback(1);
+
+      entity.update(tilemap);
+      assert.equal(entity.flip, true);
+
+      for (let frame = 1; frame < entity.knockbackDuration; frame++) {
+        entity.update(tilemap);
+      }
+
+      assert.equal(entity.knockback, false);
+      assert.equal(entity.flip, false);
+    }
   });
 
   void it('lands on a physical tile and records the bottom collision', async () => {
@@ -429,42 +453,45 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.action, 'dead');
   });
 
-  void it('player discrete damage loses 1 heart and grants 90-frame i-frames', async () => {
+  void it('player discrete damage loses 1 heart and grants 75-frame i-frames', async () => {
     const PhysicsEntity = await getPhysicsEntity();
     const Tilemap = await getTilemap();
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
-    const player = new PhysicsEntity('player', [100, 100], [20, 28]);
-    assert.equal(player.health, 3);
-    assert.equal(player.invincibleTimer, 0);
+    const infiniteHealth = DEBUG_CONFIG.playerInfiniteHealth;
+    DEBUG_CONFIG.playerInfiniteHealth = false;
+    try {
+      const player = new PhysicsEntity('player', [100, 100], [20, 28]);
+      assert.equal(player.health, 3);
+      assert.equal(player.invincibleTimer, 0);
 
-    // Hit 1: takes damage, health becomes 2, gets 90 i-frames
-    const hit1 = player.takeDamage(1);
-    assert.equal(hit1, true);
-    assert.equal(player.health, 2);
-    assert.equal(player.invincibleTimer, 90);
+      const hit1 = player.takeDamage(1);
+      assert.equal(hit1, true);
+      assert.equal(player.health, 2);
+      assert.equal(player.invincibleTimer, 75);
 
-    // Immediate second hit while i-frames active: ignored!
-    const hitBlocked = player.takeDamage(1);
-    assert.equal(hitBlocked, false);
-    assert.equal(player.health, 2);
+      const hitBlocked = player.takeDamage(1);
+      assert.equal(hitBlocked, false);
+      assert.equal(player.health, 2);
 
-    // Update decrements invincibleTimer
-    player.update(tm, [0, 0]);
-    assert.equal(player.invincibleTimer, 89);
+      player.update(tm, [0, 0]);
+      assert.equal(player.invincibleTimer, 74);
 
-    // Fast-forward i-frames
-    player.invincibleTimer = 0;
+      for (let frame = 0; frame < 74; frame++) {
+        player.update(tm, [0, 0]);
+      }
+      assert.equal(player.invincibleTimer, 0);
 
-    // Hit 2
-    assert.equal(player.takeDamage(1), true);
-    assert.equal(player.health, 1);
+      assert.equal(player.takeDamage(1), true);
+      assert.equal(player.health, 1);
 
-    // Hit 3: fatal
-    player.invincibleTimer = 0;
-    assert.equal(player.takeDamage(1), true);
-    assert.equal(player.health, 0);
-    assert.equal(player.dead, true);
+      player.invincibleTimer = 0;
+      assert.equal(player.takeDamage(1), true);
+      assert.equal(player.health, 0);
+      assert.equal(player.dead, true);
+    } finally {
+      DEBUG_CONFIG.playerInfiniteHealth = infiniteHealth;
+    }
   });
 });

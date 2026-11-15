@@ -68,6 +68,18 @@ void describe('Player', () => {
     assert.equal(player.velocity[1], -8);
   });
 
+  void it('does not jump after the player is dead', async () => {
+    const Player = await getPlayer();
+    const player = new Player([160, 200]);
+    player.dead = true;
+
+    player.jump();
+
+    assert.equal(player.dead, true);
+    assert.equal(player.velocity[1], 0);
+    assert.equal(player.jumps, 2);
+  });
+
   void it('emits jump dust for each accepted jump', async () => {
     const Player = await getPlayer();
     const particleRecorder = createParticleRecorder();
@@ -292,6 +304,38 @@ void describe('Player', () => {
     player.airTime = 0;
     player.update(tilemap, [2.5, 0]);
     assert.equal(player.animationKey, 'player/sword/run');
+  });
+
+  void it('uses the hit animation for 30 knockback frames while invincibility lasts 75', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    player.takeDamage(1);
+    player.applyKnockback(1);
+    assert.equal(player.invincibleTimer, 75);
+    const initialX = player.pos[0];
+
+    for (let frame = 0; frame < 30; frame++) {
+      player.update(tilemap, [2.5, 0]);
+      assert.equal(player.animationKey, 'player/hit');
+    }
+
+    assert.equal(player.knockback, false);
+    assert.equal(player.invincibleTimer, 45);
+    assert.ok(Math.abs(player.pos[0] - (initialX + 35.65)) < 0.001);
+    player.airTime = 0;
+    player.update(tilemap, [2.5, 0]);
+    assert.equal(player.animationKey, 'player/run');
+    assert.equal(player.invincibleTimer, 44);
+
+    const swordPlayer = new Player([100, 200]);
+    swordPlayer.swordState = true;
+    swordPlayer.applyKnockback(-1);
+    swordPlayer.update(tilemap, [2.5, 0]);
+    assert.equal(swordPlayer.animationKey, 'player/sword/hit');
   });
 
   void it('starts the matching landing animation when landing from the air', async () => {

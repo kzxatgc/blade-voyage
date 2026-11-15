@@ -157,6 +157,8 @@ export interface EnemyRenderImage {
   setOrigin(x: number, y: number): void;
   setPosition(x: number, y: number): void;
   setTexture(texture: string): void;
+  setTint?(tint: number): void;
+  clearTint?(): void;
   setFlipX?(flip: boolean): void;
   setVisible?(visible: boolean): void;
   destroy(): void;
@@ -251,6 +253,14 @@ export class Enemy extends PhysicsEntity {
     if (attackEffectAnim) {
       this.attackEffect = attackEffectAnim.copy();
     }
+  }
+
+  /** Cancel an in-progress attack (clears effect particle + timer). */
+  clearAttack() {
+    this.attackEffect = null;
+    this.attackTimer = 0;
+    this.velocity[0] = 0;
+    this.velocity[1] = 0;
   }
 
   checkPlayerDetection(
@@ -537,6 +547,19 @@ export class Enemy extends PhysicsEntity {
       }
       this.image.setPosition(renderX, renderY);
       this.image.setFlipX?.(flipX);
+    }
+
+    // Hit flash: white on the first frame of invincibility, then blink every 4 frames
+    if (this.invincibleTimer > 0) {
+      const t = this.invincibleTimer;
+      const isWhiteFrame = t > this.invincibleDuration - 2 || t % 8 < 4;
+      if (isWhiteFrame) {
+        this.image.setTint?.(0xffffff);
+      } else {
+        this.image.clearTint?.();
+      }
+    } else {
+      this.image.clearTint?.();
     }
 
     if (this.dialogueAnimation && this.dialogueType) {
