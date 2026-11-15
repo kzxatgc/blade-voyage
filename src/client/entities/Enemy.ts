@@ -1,8 +1,11 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
 import type { EntityPosition, EntitySize } from '../../shared/types.ts';
 import { Animation } from '../utils/Animation.ts';
+import type { Tilemap } from '../systems/Tilemap.ts';
+import type { Particles } from '../systems/Particles.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
+export type EnemyParticleSystem = Pick<Particles, 'addParticle'>;
 
 export const PARTICLE_POS_ADJUSTMENT: Record<
   EnemyName,
@@ -160,6 +163,8 @@ export class Enemy extends PhysicsEntity {
   dialogueAnimation: Animation | null = null;
   dialogueType = '';
   dialogueExclamationSfxTriggered = false;
+  particles?: EnemyParticleSystem | undefined;
+  random: () => number = Math.random;
   private image: EnemyRenderImage | null = null;
   private imageTexture: string | null = null;
 
@@ -167,7 +172,8 @@ export class Enemy extends PhysicsEntity {
     enemyType: EnemyName,
     pos: EntityPosition,
     size: EntitySize,
-    animations?: Readonly<Record<string, Animation>>
+    animations?: Readonly<Record<string, Animation>>,
+    particles?: EnemyParticleSystem
   ) {
     super(
       `enemy/${enemyType}`,
@@ -179,6 +185,79 @@ export class Enemy extends PhysicsEntity {
     this.particlePosAdjustment = PARTICLE_POS_ADJUSTMENT[enemyType];
     this.attackEffectPosAdjustment = ATTACK_EFFECT_POS_ADJUSTMENT[enemyType];
     this.dialoguePosAdjustment = DIALOGUE_POS_ADJUSTMENT[enemyType];
+    this.particles = particles;
+  }
+
+  override update(
+    tilemap: Tilemap,
+    movement: EntityPosition = [0, 0],
+    playerPos?: readonly [number, number]
+  ) {
+    let moveX = movement[0];
+    const moveY = movement[1];
+
+    if (
+      this.walking > 0 &&
+      !this.anticipationState &&
+      !this.attackTimer &&
+      !this.knockback &&
+      !this.dead
+    ) {
+      const rect = this.rect();
+      const centerX = rect.x + rect.width / 2;
+      const checkX = centerX + (this.flip ? -14 : 14);
+      const checkY = this.pos[1] + 30;
+
+      if (tilemap.solidCheck([checkX, checkY])) {
+        if (this.collision.right || this.collision.left) {
+          this.flip = !this.flip;
+        } else {
+          if (this.random() < 0.005) {
+            this.flip = !this.flip;
+          }
+          moveX = moveX + (this.flip ? -0.5 : 0.5);
+        }
+      } else {
+        this.flip = !this.flip;
+      }
+
+      this.walking = Math.max(0, this.walking - 1);
+      if (this.walking === 0 && playerPos) {
+        const disX = playerPos[0] - this.pos[0];
+        const disY = playerPos[1] - this.pos[1];
+        if (Math.abs(disY) < 16) {
+          if ((this.flip && disX < 0) || (!this.flip && disX > 0)) {
+            this.anticipationState = true;
+          }
+        }
+      }
+    } else if (!this.dead && this.random() < 0.01) {
+      this.walking = Math.floor(this.random() * (120 - 30 + 1)) + 30;
+    }
+
+    super.update(tilemap, [moveX, moveY]);
+
+    if (!this.dead) {
+      if (this.knockback) {
+        this.setAction('hit');
+        this.walking = 0;
+      } else if (moveX !== 0) {
+        this.setAction('run');
+        this.particles?.addParticle(
+          'enemy/run_dust',
+          [
+            this.pos[0] +
+              (this.flip
+                ? this.particlePosAdjustment[0][0]
+                : this.particlePosAdjustment[0][1]),
+            this.pos[1] + this.particlePosAdjustment[1],
+          ],
+          this.flip
+        );
+      } else {
+        this.setAction('idle');
+      }
+    }
   }
 
   generateDialogue(dialogueType: 'exclamation' | 'dead') {

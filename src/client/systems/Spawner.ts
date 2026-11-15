@@ -1,8 +1,8 @@
 import type { Tilemap } from './Tilemap.ts';
-import { Enemy, type EnemyName } from '../entities/Enemy.ts';
+import { Enemy, type EnemyName, type EnemyParticleSystem } from '../entities/Enemy.ts';
 import type { EntityPosition, EntitySize } from '../../shared/types.ts';
 
-export { Enemy, type EnemyName };
+export { Enemy, type EnemyName, type EnemyParticleSystem };
 
 export const ENEMY_NAME: Record<number, EnemyName> = {
   1: 'pink_star',
@@ -23,7 +23,8 @@ export interface SpawnEntitiesResult {
 
 export function spawnEntities(
   tilemap: Tilemap,
-  player?: { pos: EntityPosition }
+  player?: { pos: EntityPosition },
+  particles?: EnemyParticleSystem
 ): SpawnEntitiesResult {
   const spawnerTiles = tilemap.extract(
     [
@@ -54,7 +55,9 @@ export function spawnEntities(
       const enemyName = ENEMY_NAME[spawner.variant];
       const enemySize = ENEMY_SIZE[spawner.variant];
       if (enemyName && enemySize) {
-        enemies.push(new Enemy(enemyName, worldPos, enemySize));
+        enemies.push(
+          new Enemy(enemyName, worldPos, enemySize, undefined, particles)
+        );
       }
     }
   }

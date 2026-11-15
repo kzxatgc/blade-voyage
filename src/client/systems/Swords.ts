@@ -295,7 +295,7 @@ export class Swords {
   sparksEffect: Sparks[] | undefined;
   horizontalTileRangeLeft = 7.5;
   horizontalTileRangeRight = 6.5;
-  verticalTileRangeTop = 2;
+  verticalTileRangeTop = 2.5;
   verticalTileRangeBottom = 3.5;
   private validSpawnPos: readonly [number, number][] | null = null;
   private readonly random: () => number;

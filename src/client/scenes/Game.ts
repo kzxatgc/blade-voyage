@@ -141,7 +141,11 @@ export class Game extends Phaser.Scene {
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
 
-    const spawnResult = spawnEntities(this.tilemap, this.playerEntity);
+    const spawnResult = spawnEntities(
+      this.tilemap,
+      this.playerEntity,
+      this.particles
+    );
     if (!spawnResult.playerPos) {
       throw new Error('The game map does not contain a player spawner (variant 0).');
     }
@@ -227,7 +231,7 @@ export class Game extends Phaser.Scene {
       this.particles?.update();
       this.swords?.update(this.tilemap, [0, 0], this.playerEntity.pos);
       for (const enemy of this.enemies) {
-        enemy.update(this.tilemap);
+        enemy.update(this.tilemap, [0, 0], this.playerEntity.pos);
       }
       for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
         const sparks = this.sparksEffect[i];
@@ -362,7 +366,7 @@ export class Game extends Phaser.Scene {
       const pY = this.playerEntity.pos[1];
       const hRangeLeft = 7.5 * 32;
       const hRangeRight = 6.5 * 32;
-      const vTop = 2 * 32;
+      const vTop = 2.5 * 32;
       const vBottom = 3.5 * 32;
       const spawnBoxX = pX + 32 - hRangeLeft;
       const spawnBoxY = pY - vTop;

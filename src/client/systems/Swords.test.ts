@@ -411,7 +411,7 @@ void describe('Swords manager', () => {
     const tm = new Tilemap(32);
     // Player at [320, 320] (loc [10, 10]). Player center cx = 352.
     // Horizontal range left = 7.5 tiles = 240px, right = 6.5 tiles = 208px
-    // Vertical range top = 2 tiles = 64px, bottom = 3.5 tiles = 112px (256 <= pos[1] <= 432)
+    // Vertical range top = 2.5 tiles = 80px, bottom = 3.5 tiles = 112px (240 <= pos[1] <= 432)
     tm.loadFromData({
       tiles: {
         '10;10': { type: 'grass', variant: 0, loc: [10, 10] }, // pos [320, 320]: valid
