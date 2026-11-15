@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import type { Sparks } from '../systems/Sparks.ts';
 
 const playerUrl = new URL('./Player.ts', import.meta.url).href;
 const getPlayer = async () => (await import(playerUrl)).Player;
@@ -468,6 +469,42 @@ void describe('Player', () => {
     assert.equal(player.throwingAnimation, null);
     // runBoost restored to preRunBoost (1.0)
     assert.equal(player.runBoost, 1.0);
+  });
+
+  void it('emits fiery burst sparks when sword is thrown', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const sparksEffect: Sparks[] = [];
+    const player = new Player([100, 200], undefined, sparksEffect);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    player.swordState = true;
+    player.swordsSystem = {
+      throwSword: () => {},
+    };
+
+    player.throwSword();
+    assert.equal(sparksEffect.length, 0);
+
+    // First update starts throwingAnimation from pendingThrow
+    player.update(tilemap);
+    assert.ok(player.throwingAnimation !== null);
+
+    // Update until throwingFrameTriggered
+    while (!player.throwingFrameTriggered && player.throwingAnimation) {
+      player.update(tilemap);
+    }
+
+    assert.equal(player.throwingFrameTriggered, true);
+    // FIERY_BURST_COLORS has 5 colors -> 5 Sparks emitted
+    assert.equal(sparksEffect.length, 5);
+    for (const spark of sparksEffect) {
+      assert.equal(spark.shape, 'diamond');
+      assert.deepEqual(spark.size, [3, 2]);
+      assert.equal(spark.direction, Math.PI * 0.85);
+      assert.equal(spark.sparks.length, 3);
+    }
   });
 });
 

@@ -11,7 +11,11 @@ export interface SparkPoint {
 
 export interface SparksRenderSurface {
   fillStyle?(color: number, alpha?: number): unknown;
-  fillPoints?(points: SparkPoint[]): unknown;
+  fillPoints?(
+    points: SparkPoint[],
+    closeShape?: boolean,
+    closePath?: boolean
+  ): unknown;
   fillPolygon?(points: [number, number][]): unknown;
 }
 
@@ -114,7 +118,11 @@ export class Spark {
     const hexColor = rgbToHex(color);
     surf.fillStyle?.(hexColor, 1);
     if (typeof surf.fillPoints === 'function') {
-      surf.fillPoints(rawPoints.map(([x, y]) => ({ x, y })));
+      surf.fillPoints(
+        rawPoints.map(([x, y]) => ({ x, y })),
+        true,
+        true
+      );
     } else if (typeof surf.fillPolygon === 'function') {
       surf.fillPolygon(rawPoints);
     }
@@ -125,6 +133,8 @@ export class Sparks {
   shape: SparkShape;
   size: number | readonly [number, number];
   color: SparkColor;
+  speed: number;
+  direction: SparkDirection;
   sparks: Spark[] = [];
 
   constructor(
@@ -141,6 +151,8 @@ export class Sparks {
     this.shape = shape;
     this.size = size;
     this.color = color;
+    this.speed = speed;
+    this.direction = direction;
     this.sparks = [];
 
     for (let i = 0; i < density; i++) {

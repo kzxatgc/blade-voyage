@@ -24,13 +24,15 @@ export interface SwordRenderScene {
 export class Sword extends PhysicsEntity {
   timer = 0;
   landed = false;
+  sparksEffect: Sparks[] | undefined;
   private image: SwordRenderImage | null = null;
   private imageTexture: string | null = null;
 
   constructor(
     pos: EntityPosition,
     size: EntitySize = [20, 20],
-    animations?: Readonly<Record<string, Animation>>
+    animations?: Readonly<Record<string, Animation>>,
+    sparksEffect?: Sparks[]
   ) {
     super(
       'sword',
@@ -43,6 +45,7 @@ export class Sword extends PhysicsEntity {
     );
     this.timer = 0;
     this.landed = false;
+    this.sparksEffect = sparksEffect;
     this.setAction('fall');
   }
 
@@ -62,6 +65,18 @@ export class Sword extends PhysicsEntity {
       if (!this.landed) {
         this.landed = true;
         this.setAction('idle');
+        this.sparksEffect?.push(
+          new Sparks(
+            [this.pos[0] + 10, this.pos[1] + 15],
+            false,
+            1.8,
+            10,
+            [255, 235, 170],
+            'up',
+            'diamond',
+            [2, 2]
+          )
+        );
       } else {
         this.setAction('idle');
       }
@@ -278,6 +293,9 @@ export class Swords {
   thrownSwords: SpinningSword[] = [];
   offset: readonly [number, number];
   sparksEffect: Sparks[] | undefined;
+  horizontalTileRange = 9;
+  verticalTileRangeTop = 2;
+  verticalTileRangeBottom = 6;
   private validSpawnPos: readonly [number, number][] | null = null;
   private readonly random: () => number;
 
@@ -308,7 +326,10 @@ export class Swords {
     return this.validSpawnPos;
   }
 
-  spawnSword(tilemap: Tilemap): Sword | null {
+  spawnSword(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number]
+  ): Sword | null {
     const validPositions = this.getValidSpawnPositions(tilemap);
     if (validPositions.length === 0) {
       return null;
@@ -318,13 +339,32 @@ export class Swords {
       return null;
     }
 
-    const availablePos = validPositions.filter(
+    const tileSize = tilemap.tileSize;
+    let filteredPositions = validPositions;
+
+    if (playerPos) {
+      const playerX = playerPos[0];
+      const playerY = playerPos[1];
+      const playerCx = playerX + 32;
+      const maxHDist = this.horizontalTileRange * tileSize;
+      const maxVTop = this.verticalTileRangeTop * tileSize;
+      const maxVBottom = this.verticalTileRangeBottom * tileSize;
+
+      filteredPositions = validPositions.filter((pos) => {
+        const hDist = Math.abs(pos[0] - playerCx);
+        const vValid =
+          playerY - maxVTop <= pos[1] && pos[1] <= playerY + maxVBottom;
+        return hDist <= maxHDist && vValid;
+      });
+    }
+
+    const availablePos = filteredPositions.filter(
       (pos) =>
         !this.swords.some(
           (s) =>
-            Math.abs(s.pos[0] - pos[0]) < tilemap.tileSize &&
+            Math.abs(s.pos[0] - pos[0]) < tileSize &&
             s.pos[1] - pos[1] > -80 &&
-            s.pos[1] - pos[1] < tilemap.tileSize
+            s.pos[1] - pos[1] < tileSize
         )
     );
 
@@ -338,12 +378,48 @@ export class Swords {
       return null;
     }
     const renderPos: [number, number] = [
-      posSelected[0] + tilemap.tileSize * (this.random() * 0.2 + 0.1),
+      posSelected[0] + tileSize * (this.random() * 0.2 + 0.1),
       posSelected[1] - 60,
     ];
 
-    const sword = new Sword(renderPos);
+    const sword = new Sword(
+      renderPos,
+      undefined,
+      undefined,
+      this.sparksEffect
+    );
     this.swords.push(sword);
+
+    // 360-degree celestial starburst: bright white core + golden outer shimmer
+    const centerSpawn: [number, number] = [
+      renderPos[0] + 10,
+      renderPos[1] + 10,
+    ];
+    this.sparksEffect?.push(
+      new Sparks(
+        centerSpawn,
+        false,
+        2.8,
+        14,
+        [255, 255, 255],
+        'burst',
+        'diamond',
+        [3, 3]
+      )
+    );
+    this.sparksEffect?.push(
+      new Sparks(
+        centerSpawn,
+        false,
+        1.8,
+        8,
+        [255, 215, 0],
+        'burst',
+        'diamond',
+        [2, 2]
+      )
+    );
+
     return sword;
   }
 
@@ -360,8 +436,12 @@ export class Swords {
     return sword;
   }
 
-  update(tilemap: Tilemap, movement: EntityPosition = [0, 0]) {
-    this.spawnSword(tilemap);
+  update(
+    tilemap: Tilemap,
+    movement: EntityPosition = [0, 0],
+    playerPos?: readonly [number, number]
+  ) {
+    this.spawnSword(tilemap, playerPos);
 
     this.swords = this.swords.filter((sword) => {
       if (sword.timer >= 1200) {

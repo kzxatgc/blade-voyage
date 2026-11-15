@@ -1,7 +1,9 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
 import type { EntityPosition, EntityRect } from '../../shared/types.ts';
+import { FIERY_BURST_COLORS } from '../../shared/constants.ts';
 import { Attack } from '../systems/Attack.ts';
 import type { Particles } from '../systems/Particles.ts';
+import { Sparks } from '../systems/Sparks.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 
@@ -28,6 +30,7 @@ export class Player extends PhysicsEntity {
   preRunBoost = 0;
   throwingAnimation: Animation | null = null;
   swordsSystem: PlayerSwordsSystem | undefined;
+  sparksEffect: Sparks[] | undefined;
   lastKey: string | null = null;
   lastPressTime = 0;
   runBoost = 0;
@@ -37,7 +40,11 @@ export class Player extends PhysicsEntity {
   readonly attackHandler = new Attack(this);
   private readonly particles: PlayerParticleSystem | undefined;
 
-  constructor(pos: EntityPosition, particles?: PlayerParticleSystem) {
+  constructor(
+    pos: EntityPosition,
+    particles?: PlayerParticleSystem,
+    sparksEffect?: Sparks[]
+  ) {
     super('player', pos, [20, 28], {
       'player/idle': new Animation('player/idle', 5, 6),
       'player/run': new Animation('player/run', 6, 7),
@@ -57,6 +64,7 @@ export class Player extends PhysicsEntity {
       'player/sword/air_attack_2': new Animation('player/sword/air_attack_2', 3, 6, false),
     });
     this.particles = particles;
+    this.sparksEffect = sparksEffect;
     if (this.particles?.spawnCooldown) {
       this.particles.spawnCooldown['player/run_dust'] = 400;
     }
@@ -226,6 +234,20 @@ export class Player extends PhysicsEntity {
         const throwX = this.pos[0] + (this.flip ? -6 : 24);
         const throwY = this.pos[1] + 10;
         this.swordsSystem?.throwSword([throwX, throwY], this.flip);
+        for (const color of FIERY_BURST_COLORS) {
+          this.sparksEffect?.push(
+            new Sparks(
+              [this.pos[0] + (this.flip ? -4 : 44), this.pos[1] + 10],
+              this.flip,
+              Math.random() * 2 + 2,
+              3,
+              color,
+              Math.PI * 0.85,
+              'diamond',
+              [3, 2]
+            )
+          );
+        }
       }
 
       if (this.throwingAnimation.done) {

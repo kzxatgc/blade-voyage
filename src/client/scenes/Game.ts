@@ -140,10 +140,14 @@ export class Game extends Phaser.Scene {
     this.particles = new Particles();
     this.sparksEffect = [];
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
-    this.playerEntity = new Player([
-      playerSpawn.loc[0] * this.tilemap.tileSize,
-      playerSpawn.loc[1] * this.tilemap.tileSize,
-    ], this.particles);
+    this.playerEntity = new Player(
+      [
+        playerSpawn.loc[0] * this.tilemap.tileSize,
+        playerSpawn.loc[1] * this.tilemap.tileSize,
+      ],
+      this.particles,
+      this.sparksEffect
+    );
     this.playerEntity.swordsSystem = this.swords;
 
     this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
@@ -205,7 +209,7 @@ export class Game extends Phaser.Scene {
     );
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
-    this.sparksGraphics = this.add.graphics();
+    this.sparksGraphics = this.add.graphics().setDepth(10);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
   }
 
@@ -224,8 +228,13 @@ export class Game extends Phaser.Scene {
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
-      this.swords?.update(this.tilemap);
-      this.sparksEffect = this.sparksEffect.filter((sparks) => !sparks.update());
+      this.swords?.update(this.tilemap, [0, 0], this.playerEntity.pos);
+      for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
+        const sparks = this.sparksEffect[i];
+        if (!sparks || sparks.update()) {
+          this.sparksEffect.splice(i, 1);
+        }
+      }
       this.previousScroll = [...this.scroll];
       this.previousPlayerPosition = [...this.playerEntity.pos];
       const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);

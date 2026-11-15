@@ -75,6 +75,37 @@ void describe('Sword entity', () => {
     assert.equal(sword.animation?.img(), 'sword/idle/0');
   });
 
+  void it('emits ground impact bounce sparks on first landing', () => {
+    const sparksEffect: Sparks[] = [];
+    const sword = new Sword([100, 100], undefined, undefined, sparksEffect);
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '3;4': { type: 'grass', variant: 0, loc: [3, 4] }, // y = 128
+      },
+      off_grid_tiles: [],
+    });
+
+    sword.timer = 18;
+    while (!sword.landed && sword.timer < 100) {
+      sword.update(tm);
+    }
+
+    assert.equal(sword.landed, true);
+    assert.equal(sparksEffect.length, 1);
+    const spark = sparksEffect[0];
+    assert.ok(spark !== undefined);
+    assert.equal(spark.shape, 'diamond');
+    assert.deepEqual(spark.color, [255, 235, 170]);
+    assert.equal(spark.sparks.length, 10);
+    assert.equal(spark.speed, 1.8);
+    assert.deepEqual(spark.size, [2, 2]);
+
+    // Subsequent updates on the ground do not trigger more bounce sparks
+    sword.update(tm);
+    assert.equal(sparksEffect.length, 1);
+  });
+
   void it('calculates blink visibility after 900 and 1080 frames', () => {
     const sword = new Sword([100, 100]);
 
@@ -340,6 +371,71 @@ void describe('Swords manager', () => {
     assert.equal(manager.thrownSwords.length, 1);
     manager.destroy();
     assert.equal(manager.thrownSwords.length, 0);
+  });
+
+  void it('spawns celestial starburst and golden shimmer VFX on sword spawn', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '5;5': { type: 'grass', variant: 0, loc: [5, 5] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const sparksEffect: Sparks[] = [];
+    const manager = new Swords([0, 0], () => 0.005, sparksEffect); // random < 0.01
+    const spawned = manager.spawnSword(tm);
+    assert.ok(spawned !== null);
+    assert.equal(sparksEffect.length, 2);
+
+    const [starburst, shimmer] = sparksEffect;
+    assert.ok(starburst !== undefined);
+    assert.ok(shimmer !== undefined);
+
+    // Starburst: bright white core
+    assert.deepEqual(starburst.color, [255, 255, 255]);
+    assert.equal(starburst.sparks.length, 14);
+    assert.equal(starburst.speed, 2.8);
+    assert.equal(starburst.shape, 'diamond');
+    assert.deepEqual(starburst.size, [3, 3]);
+
+    // Shimmer: golden outer shimmer
+    assert.deepEqual(shimmer.color, [255, 215, 0]);
+    assert.equal(shimmer.sparks.length, 8);
+    assert.equal(shimmer.speed, 1.8);
+    assert.equal(shimmer.shape, 'diamond');
+    assert.deepEqual(shimmer.size, [2, 2]);
+  });
+
+  void it('filters spawn positions relative to player position', () => {
+    const tm = new Tilemap(32);
+    // Player at [320, 320] (loc [10, 10]). Player center cx = 352.
+    // Horizontal range = 9 tiles = 288px (abs(pos[0] - 352) <= 288 -> 64 <= pos[0] <= 640)
+    // Vertical range top = 2 tiles = 64px, bottom = 6 tiles = 192px (256 <= pos[1] <= 512)
+    tm.loadFromData({
+      tiles: {
+        '10;10': { type: 'grass', variant: 0, loc: [10, 10] }, // pos [320, 320]: valid
+        '1;10': { type: 'grass', variant: 0, loc: [1, 10] }, // pos [32, 320]: too far left
+        '25;10': { type: 'grass', variant: 0, loc: [25, 10] }, // pos [800, 320]: too far right
+        '10;5': { type: 'grass', variant: 0, loc: [10, 5] }, // pos [320, 160]: too far above
+        '10;18': { type: 'grass', variant: 0, loc: [10, 18] }, // pos [320, 576]: too far below
+      },
+      off_grid_tiles: [],
+    });
+
+    const manager = new Swords([0, 0], () => 0.005);
+    const playerPos: readonly [number, number] = [320, 320];
+
+    const sword = manager.spawnSword(tm, playerPos);
+    assert.ok(sword !== null);
+    // Render pos X is based on posSelected[0] (320) + offset, posSelected[1] (320) - 60 = 260
+    assert.ok(sword.pos[0] >= 320 && sword.pos[0] <= 320 + 32);
+    assert.equal(sword.pos[1], 320 - 60);
+
+    // If player is too far away from all grass tiles, no sword spawns
+    const farPlayerPos: readonly [number, number] = [5000, 5000];
+    const farSword = manager.spawnSword(tm, farPlayerPos);
+    assert.equal(farSword, null);
   });
 });
 
