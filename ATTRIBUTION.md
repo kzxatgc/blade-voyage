@@ -32,6 +32,14 @@ This document records credits for assets used in this project.
   - `public/assets/img/map/grass/14.png`
   - `public/assets/img/map/grass/15.png`
   - `public/assets/img/icon.png`
+  - `public/assets/img/entities/player/dead/0.png`
+  - `public/assets/img/entities/player/dead/1.png`
+  - `public/assets/img/entities/player/dead/2.png`
+  - `public/assets/img/entities/player/dead/3.png`
+  - `public/assets/img/entities/player/dead_hit/0.png`
+  - `public/assets/img/entities/player/dead_hit/1.png`
+  - `public/assets/img/entities/player/dead_hit/2.png`
+  - `public/assets/img/entities/player/dead_hit/3.png`
   - `public/assets/img/entities/player/fall/0.png`
   - `public/assets/img/entities/player/hit/0.png`
   - `public/assets/img/entities/player/hit/1.png`
@@ -84,6 +92,14 @@ This document records credits for assets used in this project.
   - `public/assets/img/entities/player/sword/attack_effect/attack_3/0.png`
   - `public/assets/img/entities/player/sword/attack_effect/attack_3/1.png`
   - `public/assets/img/entities/player/sword/attack_effect/attack_3/2.png`
+  - `public/assets/img/entities/player/sword/dead/0.png`
+  - `public/assets/img/entities/player/sword/dead/1.png`
+  - `public/assets/img/entities/player/sword/dead/2.png`
+  - `public/assets/img/entities/player/sword/dead/3.png`
+  - `public/assets/img/entities/player/sword/dead_hit/0.png`
+  - `public/assets/img/entities/player/sword/dead_hit/1.png`
+  - `public/assets/img/entities/player/sword/dead_hit/2.png`
+  - `public/assets/img/entities/player/sword/dead_hit/3.png`
   - `public/assets/img/entities/player/sword/fall/0.png`
   - `public/assets/img/entities/player/sword/hit/0.png`
   - `public/assets/img/entities/player/sword/hit/1.png`

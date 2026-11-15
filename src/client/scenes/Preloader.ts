@@ -68,6 +68,10 @@ export class Preloader extends Scene {
       'sword/jump': ['0.png', '1.png', '2.png'],
       'sword/land': ['0.png', '1.png'],
       'sword/run': ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png'],
+      dead_hit: ['0.png', '1.png', '2.png', '3.png'],
+      dead: ['0.png', '1.png', '2.png', '3.png'],
+      'sword/dead_hit': ['0.png', '1.png', '2.png', '3.png'],
+      'sword/dead': ['0.png', '1.png', '2.png', '3.png'],
     };
 
     for (const [animation, files] of Object.entries(playerAnimationFiles)) {

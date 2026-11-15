@@ -21,7 +21,7 @@ export interface DebugConfig {
 
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
-  playerInfiniteHealth: true,
+  playerInfiniteHealth: false,
   showEntityBodyRects: false,
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,

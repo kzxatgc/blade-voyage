@@ -64,6 +64,10 @@ export class Player extends PhysicsEntity {
       'player/sword/air_attack_2': new Animation('player/sword/air_attack_2', 3, 6, false),
       'player/hit': new Animation('player/hit', 4, 4),
       'player/sword/hit': new Animation('player/sword/hit', 4, 4),
+      'player/dead_hit': new Animation('player/dead_hit', 4, 4),
+      'player/dead': new Animation('player/dead', 4, 8, false),
+      'player/sword/dead_hit': new Animation('player/sword/dead_hit', 4, 4),
+      'player/sword/dead': new Animation('player/sword/dead', 4, 8, false),
     });
     this.particles = particles;
     this.sparksEffect = sparksEffect;
@@ -121,6 +125,15 @@ export class Player extends PhysicsEntity {
 
   getAttackDamage(): number {
     return this.attackHandler.currentAttackType.includes('air') ? 30 : 20;
+  }
+
+  override setAction(action: string) {
+    // When dead, use sword-prefixed animation if holding sword
+    if (this.swordState && (action === 'dead_hit' || action === 'dead')) {
+      super.setAction(`sword/${action}`);
+      return;
+    }
+    super.setAction(action);
   }
 
   pickupSword(swords: PickupSwordTarget[]): boolean {

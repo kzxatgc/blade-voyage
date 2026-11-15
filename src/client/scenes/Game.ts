@@ -253,19 +253,25 @@ export class Game extends Phaser.Scene {
         enemy.update(this.tilemap, [0, 0], this.playerEntity);
 
         // Enemy attack or contact hit resolution against player
-        if (!enemy.dead && (enemy.attackHitDetected || enemy.contactCollisionDetected)) {
-          if (this.playerEntity.takeDamage(1)) {
-            const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
-            this.playerEntity.applyKnockback(knockDir);
-            // Heart sparks at player center
-            for (const color of HEART_COLORS) {
-              this.sparksEffect.push(
-                new Sparks(
-                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
-                  this.playerEntity.flip,
-                  3, 3, color, Math.PI * 0.9, 'heart', 6
-                )
-              );
+        if (!enemy.dead) {
+          // attackHitDetected: only deal damage once per attack swing
+          const attackLanded =
+            enemy.attackHitDetected && !enemy.attackHasHitPlayer;
+          if (attackLanded || enemy.contactCollisionDetected) {
+            if (this.playerEntity.takeDamage(1)) {
+              if (attackLanded) enemy.attackHasHitPlayer = true;
+              const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
+              this.playerEntity.applyKnockback(knockDir);
+              // Heart sparks at player center
+              for (const color of HEART_COLORS) {
+                this.sparksEffect.push(
+                  new Sparks(
+                    [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
+                    this.playerEntity.flip,
+                    3, 3, color, Math.PI * 0.9, 'heart', 6
+                  )
+                );
+              }
             }
           }
         }
@@ -432,7 +438,22 @@ export class Game extends Phaser.Scene {
             this.playerEntity.landingAnimation ??
             playerAnimation);
       const animationChanged = renderAnimation !== this.playerRenderAnimation;
-      if (renderAnimation !== this.playerEntity.throwingAnimation) {
+      // DEBUG: trace dead_hit activation
+      if (this.playerEntity.dead && this.playerEntity.deadHitAnimation) {
+        console.log('[dead_hit]', {
+          action: this.playerEntity.action,
+          animKey: renderAnimation.img(),
+          animChanged: animationChanged,
+          indexChanged: renderAnimation.indexChanged,
+          deadHitTimer: this.playerEntity.deadHitTimer,
+        });
+      }
+      // PhysicsEntity.update() already advances the animation when dead,
+      // so only call update() here for living players (avoid double-advance).
+      if (
+        !this.playerEntity.dead &&
+        renderAnimation !== this.playerEntity.throwingAnimation
+      ) {
         renderAnimation.update();
       }
       const camera = this.cameras.main;
@@ -451,7 +472,8 @@ export class Game extends Phaser.Scene {
       this.renderClouds();
       this.playerSprite.setFlipX(this.playerEntity.flip);
       this.tilemap.updateAnimations(this.tileAnimations);
-      if (animationChanged || renderAnimation.indexChanged) {
+      // When dead: always sync texture (PhysicsEntity advances the frame, indexChanged is reliable but let's be safe)
+      if (this.playerEntity.dead || animationChanged || renderAnimation.indexChanged) {
         this.playerSprite.setTexture(renderAnimation.img());
       }
       this.playerRenderAnimation = renderAnimation;
@@ -473,10 +495,17 @@ export class Game extends Phaser.Scene {
       (this.scroll[1] - this.previousScroll[1]) * interpolation
     );
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
-    const shouldBlink =
-      this.playerEntity.invincibleTimer > 0 &&
-      this.playerEntity.invincibleTimer % 8 >= 4;
-    this.playerSprite.setAlpha(shouldBlink ? 0.35 : 1);
+
+    // Visual state: the dead_hit sprite frames ARE the white art (same as enemies),
+    // so just let the animation play — no tint needed.
+    // Alive: blink (alpha) during invincibility iframes.
+    if (!this.playerEntity.dead && this.playerEntity.invincibleTimer > 0) {
+      const shouldBlink = this.playerEntity.invincibleTimer % 8 >= 4;
+      this.playerSprite.setAlpha(shouldBlink ? 0.3 : 1);
+    } else {
+      this.playerSprite.setAlpha(1);
+    }
+    this.playerSprite.clearTint();
 
     this.swords?.render(this);
     for (const enemy of this.enemies) {

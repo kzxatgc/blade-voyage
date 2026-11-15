@@ -92,8 +92,6 @@ export class PhysicsEntity {
         return false;
       }
       if (DEBUG_CONFIG.enabled && DEBUG_CONFIG.playerInfiniteHealth) {
-        // Infinite health: still trigger invincibility frames so sparks fire,
-        // but skip the actual HP reduction.
         this.invincibleTimer = this.invincibleDuration;
         return true;
       }

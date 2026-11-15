@@ -177,6 +177,8 @@ export class Enemy extends PhysicsEntity {
   attackTimer = 0;
   attackCooldown = 0;
   attackEffect: Animation | null = null;
+  /** True after this attack swing has already dealt damage to the player (reset each swing). */
+  attackHasHitPlayer = false;
   readonly particlePosAdjustment: [[number, number], number];
   readonly attackEffectPosAdjustment: [[number, number], number];
   readonly dialoguePosAdjustment: Record<
@@ -259,6 +261,7 @@ export class Enemy extends PhysicsEntity {
   clearAttack() {
     this.attackEffect = null;
     this.attackTimer = 0;
+    this.attackHasHitPlayer = false;
     this.velocity[0] = 0;
     this.velocity[1] = 0;
   }
@@ -483,6 +486,7 @@ export class Enemy extends PhysicsEntity {
           }
           this.velocity[0] = 0;
           this.velocity[1] = 0;
+          this.attackHasHitPlayer = false;
           this.attackCooldown = ENEMY_POST_ATTACK_COOLDOWN;
         }
       } else if (this.anticipationState) {
