@@ -470,7 +470,11 @@ export class Game extends Phaser.Scene {
       this.worldScroll[0] += (worldTargetX - this.worldScroll[0]) / 20;
       this.worldScroll[1] += (worldTargetY - this.worldScroll[1]) / 20;
       this.renderClouds();
-      this.playerSprite.setFlipX(this.playerEntity.flip);
+      this.playerSprite.setFlipX(
+        this.playerEntity.dead
+          ? this.playerEntity.deathFlip
+          : this.playerEntity.flip
+      );
       this.tilemap.updateAnimations(this.tileAnimations);
       // When dead: always sync texture (PhysicsEntity advances the frame, indexChanged is reliable but let's be safe)
       if (this.playerEntity.dead || animationChanged || renderAnimation.indexChanged) {

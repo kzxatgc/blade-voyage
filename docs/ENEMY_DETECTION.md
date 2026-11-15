@@ -27,7 +27,7 @@ All metrics are scaled to the $32\text{px}$ tile grid:
 | Enemy | Attack Style | Reach | Hitbox Dimensions | Active Window |
 |---|---|---|---|---|
 | **Pink Star** | Rolling Charge | Full-body contact | $26 \times 23\text{px}$ (body) | Frames $1\text{--}120$ ($2.0\text{s}$), bounces on walls |
-| **Crabby** | Dual-Claw Sweep | $21\text{px}$ front & $21\text{px}$ back | $74 \times 26\text{px}$ (symmetrical) | Attack timer $\ge 12$ of $24$ frames |
+| **Crabby** | Dual-Claw Sweep | $25\text{px}$ front & $25\text{px}$ back | $82 \times 26\text{px}$ (symmetrical) | Attack timer $\ge 12$ of $24$ frames |
 | **Fierce Tooth** | Directional Jaw Snap | $31\text{px}$ forward | $55 \times 24\text{px}$ (forward only) | Attack timer $\ge 15$ of $30$ frames |
 
 ---

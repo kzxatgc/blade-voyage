@@ -109,6 +109,89 @@ void describe('Enemy entity', () => {
     enemy.destroy();
   });
 
+  void it('positions dead dialogue beside the head for every enemy facing', () => {
+    const enemyConfigs = [
+      ['pink_star', [26, 23]],
+      ['crabby', [32, 26]],
+      ['fierce_tooth', [24, 20]],
+    ] as const;
+
+    for (const [type, size] of enemyConfigs) {
+      for (const deathFacing of [false, true]) {
+        const enemy = new Enemy(type, [100, 100], [size[0], size[1]]);
+        enemy.flip = deathFacing;
+        enemy.generateDialogue('exclamation');
+        enemy.health = 0;
+        enemy.update(new Tilemap(32));
+
+        const images: { x: number; y: number; flipX?: boolean }[] = [];
+        const mockScene = {
+          add: {
+            image(x: number, y: number) {
+              const image = {
+                x,
+                y,
+                flipX: false,
+                setOrigin() {},
+                setPosition(nextX: number, nextY: number) {
+                  image.x = nextX;
+                  image.y = nextY;
+                },
+                setTexture() {},
+                setFlipX(flipX: boolean) {
+                  image.flipX = flipX;
+                },
+                setVisible() {},
+                destroy() {},
+              };
+              images.push(image);
+              return image;
+            },
+          },
+        };
+
+        enemy.render(mockScene);
+
+        const deadAdjustment = DIALOGUE_POS_ADJUSTMENT[type].dead;
+        const dialogueFacing = !deathFacing;
+        assert.equal(enemy.deathFlip, deathFacing);
+        assert.equal(enemy.dialogueType, 'dead');
+        assert.equal(images[0]?.flipX, !deathFacing);
+        assert.equal(images[1]?.flipX, false);
+        assert.equal(
+          images[1]?.x,
+          100 +
+            (dialogueFacing
+              ? size[0] + deadAdjustment[0]
+              : deadAdjustment[1])
+        );
+        assert.equal(images[1]?.y, 100 + deadAdjustment[2]);
+        enemy.destroy();
+      }
+    }
+  });
+
+  void it('clears an exclamation when hit and does not restore it after knockback', () => {
+    const enemy = new Enemy('pink_star', [100, 100], [26, 23]);
+    enemy.random = () => 1;
+    enemy.anticipationState = true;
+    enemy.generateDialogue('exclamation');
+    enemy.applyKnockback(1);
+
+    assert.equal(enemy.dialogueAnimation, null);
+    assert.equal(enemy.dialogueType, '');
+    assert.equal(enemy.anticipationState, false);
+
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    for (let frame = 0; frame <= enemy.knockbackDuration; frame += 1) {
+      enemy.update(tilemap);
+    }
+
+    assert.equal(enemy.dialogueAnimation, null);
+    enemy.destroy();
+  });
+
   void it('flips at cliff edge when no solid ground ahead', () => {
     const enemy = new Enemy('pink_star', [160, 200], [26, 23]);
     enemy.walking = 10;
@@ -721,11 +804,11 @@ void describe('Enemy entity', () => {
 
     const crabbyAtkRight = crabby.getMeleeAttackRangeRect();
     assert.ok(crabbyAtkRight !== null);
-    // Symmetrical dual-claw coverage: extends 21px both back and front -> x = 220 - 21 = 199, w = 32 + 42 = 74
+    // Symmetrical dual-claw coverage: extends 25px both back and front -> x = 220 - 25 = 195, w = 32 + 50 = 82
     assert.deepEqual(crabbyAtkRight, {
-      x: 199,
+      x: 195,
       y: 203,
-      width: 74,
+      width: 82,
       height: 26,
     });
 

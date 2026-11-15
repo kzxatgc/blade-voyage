@@ -36,9 +36,9 @@ export const DIALOGUE_POS_ADJUSTMENT: Record<
   EnemyName,
   Record<'exclamation' | 'dead', [number, number, number]>
 > = {
-  pink_star: { exclamation: [3, -10, 0], dead: [-33, 28, 0] },
-  crabby: { exclamation: [15, 8, -3], dead: [-23, 48, 0] },
-  fierce_tooth: { exclamation: [7, -11, 0], dead: [-40, 33, 0] },
+  pink_star: { exclamation: [3, -10, 0], dead: [-41, 34, 0] },
+  crabby: { exclamation: [15, 8, -3], dead: [-24, 50, 0] },
+  fierce_tooth: { exclamation: [7, -11, 0], dead: [-36, 31, 0] },
 };
 
 export const ENEMY_SIGHT_RANGE_X: Record<EnemyName, number> = {
@@ -266,6 +266,20 @@ export class Enemy extends PhysicsEntity {
     this.velocity[1] = 0;
   }
 
+  override applyKnockback(direction: number, power = 2.3) {
+    super.applyKnockback(direction, power);
+    this.anticipationState = false;
+    this.dialogueExclamationSfxTriggered = false;
+
+    if (this.dialogueType === 'exclamation') {
+      this.dialogueAnimation = null;
+      this.dialogueType = '';
+      this.dialogueImage?.destroy();
+      this.dialogueImage = null;
+      this.dialogueTexture = null;
+    }
+  }
+
   checkPlayerDetection(
     tilemap: Tilemap,
     playerPos: readonly [number, number],
@@ -358,9 +372,9 @@ export class Enemy extends PhysicsEntity {
     if (this.enemyType === 'crabby') {
       const bodyRect = this.rect();
       return {
-        x: bodyRect.x - 21,
+        x: bodyRect.x - 25,
         y: bodyRect.y,
-        width: bodyRect.width + 42,
+        width: bodyRect.width + 50,
         height: bodyRect.height,
       };
     }
@@ -537,7 +551,7 @@ export class Enemy extends PhysicsEntity {
       this.animation?.img() ?? `enemy/${this.enemyType}/idle/0`;
     const renderX = this.pos[0] - offset[0];
     const renderY = this.pos[1] - offset[1];
-    const flipX = this.dead ? this.flip : !this.flip;
+    const flipX = this.dead ? !this.deathFlip : !this.flip;
 
     if (!this.image) {
       this.image = scene.add.image(renderX, renderY, texture);
@@ -570,8 +584,10 @@ export class Enemy extends PhysicsEntity {
       const dialogueTexture = this.dialogueAnimation.img();
       const dType = this.dialogueType as 'exclamation' | 'dead';
       const adj = this.dialoguePosAdjustment[dType];
+      const dialogueFacing = this.dead ? !this.deathFlip : this.flip;
       const dialogueX =
-        renderX + (this.flip ? this.size[0] + adj[0] : adj[1]);
+        renderX +
+        (dialogueFacing ? this.size[0] + adj[0] : adj[1]);
       const dialogueY = renderY + adj[2];
 
       if (!this.dialogueImage) {
@@ -581,7 +597,7 @@ export class Enemy extends PhysicsEntity {
           dialogueTexture
         );
         this.dialogueImage.setOrigin(0, 0);
-        this.dialogueImage.setFlipX?.(flipX);
+        this.dialogueImage.setFlipX?.(dType === 'dead' ? false : flipX);
         this.dialogueTexture = dialogueTexture;
       } else {
         if (this.dialogueTexture !== dialogueTexture) {
@@ -589,7 +605,7 @@ export class Enemy extends PhysicsEntity {
           this.dialogueTexture = dialogueTexture;
         }
         this.dialogueImage.setPosition(dialogueX, dialogueY);
-        this.dialogueImage.setFlipX?.(flipX);
+        this.dialogueImage.setFlipX?.(dType === 'dead' ? false : flipX);
         this.dialogueImage.setVisible?.(true);
       }
     } else if (this.dialogueImage) {

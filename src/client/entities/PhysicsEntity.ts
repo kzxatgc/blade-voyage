@@ -38,6 +38,7 @@ export class PhysicsEntity {
   animationKey: string;
   action = '';
   flip = false;
+  deathFlip = false;
   collision = createCollisionState();
   landedOn = { grass: false, palm_tree: false };
   private skipPalmTreePlatformsOnce = false;
@@ -78,8 +79,9 @@ export class PhysicsEntity {
   }
 
   checkDead() {
-    if (this.health <= 0) {
+    if (this.health <= 0 && !this.dead) {
       this.dead = true;
+      this.deathFlip = this.flip;
     }
   }
 
@@ -107,7 +109,7 @@ export class PhysicsEntity {
   }
 
   generateDialogue(dialogueType: 'exclamation' | 'dead') {
-    if (!this.dialogueAnimation) {
+    if (!this.dialogueAnimation || dialogueType === 'dead') {
       this.dialogueType = dialogueType;
       this.dialogueAnimation = new Animation(
         `dialogue/${dialogueType}`,
