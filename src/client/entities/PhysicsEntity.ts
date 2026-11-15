@@ -10,7 +10,7 @@ import type {
   EntitySize,
   EntityType,
 } from '../../shared/types';
-import type { Animation } from '../utils/Animation';
+import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap';
 
 const createCollisionState = (): EntityCollision => ({
@@ -53,6 +53,10 @@ export class PhysicsEntity {
   justDied = false;
   deadHitAnimation = false;
   deadHitTimer = 0;
+  invincibleTimer = 0;
+  readonly invincibleDuration = 90;
+  dialogueAnimation: Animation | null = null;
+  dialogueType = '';
 
   constructor(
     type: EntityType,
@@ -66,7 +70,46 @@ export class PhysicsEntity {
     this.rectPosAdjustment = [...RECT_POS_ADJUSTMENT[type]];
     this.animations = animations;
     this.animationKey = `${type}/idle`;
+    this.health = type === 'player' ? 3 : 100;
+    this.maxHealth = this.health;
     this.setAction('idle');
+  }
+
+  checkDead() {
+    if (this.health <= 0) {
+      this.dead = true;
+    }
+  }
+
+  takeDamage(amount: number): boolean {
+    if (this.dead) {
+      return false;
+    }
+    if (this.type === 'player') {
+      if (this.invincibleTimer > 0) {
+        return false;
+      }
+      this.health = Math.max(0, this.health - 1);
+      this.invincibleTimer = this.invincibleDuration;
+      this.checkDead();
+      return true;
+    }
+
+    this.health = Math.max(0, this.health - amount);
+    this.checkDead();
+    return true;
+  }
+
+  generateDialogue(dialogueType: 'exclamation' | 'dead') {
+    if (!this.dialogueAnimation) {
+      this.dialogueType = dialogueType;
+      this.dialogueAnimation = new Animation(
+        `dialogue/${dialogueType}`,
+        dialogueType === 'dead' ? 4 : 3,
+        12,
+        false
+      );
+    }
   }
 
   rect(): EntityRect {
@@ -116,7 +159,12 @@ export class PhysicsEntity {
     }
 
     const animationKey = `${this.type}/${action}`;
-    const sourceAnimation = this.animations?.[animationKey];
+    let sourceAnimation = this.animations?.[animationKey];
+    if (!sourceAnimation && (action === 'dead_hit' || action === 'dead')) {
+      sourceAnimation =
+        this.animations?.[`${this.type}/sword/hit`] ??
+        this.animations?.[`${this.type}/hit`];
+    }
     if (this.animations && !sourceAnimation) {
       throw new Error(`Missing animation "${animationKey}".`);
     }
@@ -130,6 +178,11 @@ export class PhysicsEntity {
     tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>,
     movement: EntityPosition = [0, 0]
   ) {
+    this.checkDead();
+    if (this.invincibleTimer > 0) {
+      this.invincibleTimer -= 1;
+    }
+
     this.collision = createCollisionState();
     this.landedOn = { grass: false, palm_tree: false };
 
@@ -166,13 +219,17 @@ export class PhysicsEntity {
       this.pos[0] = entityRect.x - this.rectPosAdjustment[0];
     }
 
-    if (frameMovementX < 0) {
-      this.flip = true;
-    } else if (frameMovementX > 0) {
-      this.flip = false;
+    if (!this.dead) {
+      if (frameMovementX < 0) {
+        this.flip = true;
+      } else if (frameMovementX > 0) {
+        this.flip = false;
+      }
     }
 
-    const frameMovementY = this.dead ? 0 : movement[1] + this.velocity[1];
+    const frameMovementY = this.dead
+      ? this.velocity[1]
+      : movement[1] + this.velocity[1];
     this.pos[1] += frameMovementY;
     entityRect = this.rect();
 
@@ -234,5 +291,33 @@ export class PhysicsEntity {
     }
 
     this.velocity[1] = Math.min(this.velocity[1] + GRAVITY, MAX_FALL_SPEED);
+
+    this.checkDead();
+    this.justDied = this.wasLiving && this.dead;
+
+    if (this.dead) {
+      if (this.justDied) {
+        this.deadHitAnimation = true;
+        this.generateDialogue('dead');
+      }
+      if (this.deadHitAnimation) {
+        this.setAction('dead_hit');
+        this.deadHitTimer += 1;
+        if (this.deadHitTimer >= 30) {
+          this.deadHitAnimation = false;
+        }
+      } else {
+        this.setAction('dead');
+      }
+      if (this.dialogueAnimation) {
+        this.dialogueAnimation.update();
+        if (this.dialogueAnimation.done) {
+          this.dialogueAnimation = null;
+        }
+      }
+      this.animation?.update();
+    }
+
+    this.wasLiving = !this.dead;
   }
 }

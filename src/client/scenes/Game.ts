@@ -231,7 +231,7 @@ export class Game extends Phaser.Scene {
       return;
     }
 
-    this.tickAccumulator += delta;
+    this.tickAccumulator += Math.min(delta, 100);
     const tickDuration = 1000 / TICK_RATE;
 
     while (this.tickAccumulator >= tickDuration) {
@@ -381,6 +381,34 @@ export class Game extends Phaser.Scene {
       const spawnBoxW = hRangeLeft + hRangeRight + 32;
       const spawnBoxH = (vTop + vBottom) + 32;
       this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
+
+      // DEBUG: Visual outlines for enemy detection range (red) and attack range (rect-in-rect, except pink_star)
+      for (const enemy of this.enemies) {
+        if (enemy.dead) {
+          continue;
+        }
+        // 1. Detection range in red
+        const detRect = enemy.getDetectionRect();
+        this.sparksGraphics.lineStyle(1.5, 0xff0000, 0.85);
+        this.sparksGraphics.strokeRect(
+          detRect.x,
+          detRect.y,
+          detRect.width,
+          detRect.height
+        );
+
+        // 2. Attack range (except pink_star) - inner rect
+        const atkRect = enemy.getMeleeAttackRangeRect();
+        if (atkRect) {
+          this.sparksGraphics.lineStyle(2, 0xff3333, 0.95);
+          this.sparksGraphics.strokeRect(
+            atkRect.x,
+            atkRect.y,
+            atkRect.width,
+            atkRect.height
+          );
+        }
+      }
 
       for (const sparks of this.sparksEffect) {
         sparks.render(this.sparksGraphics);

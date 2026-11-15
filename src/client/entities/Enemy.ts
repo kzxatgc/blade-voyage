@@ -57,7 +57,7 @@ export function createDefaultEnemyAnimations(
         'enemy/pink_star/anticipation': new Animation(
           'enemy/pink_star/anticipation',
           3,
-          20,
+          12,
           false
         ),
         'enemy/pink_star/attack': new Animation('enemy/pink_star/attack', 4, 6),
@@ -86,7 +86,7 @@ export function createDefaultEnemyAnimations(
         'enemy/crabby/anticipation': new Animation(
           'enemy/crabby/anticipation',
           3,
-          20,
+          12,
           false
         ),
         'enemy/crabby/attack': new Animation('enemy/crabby/attack', 4, 6),
@@ -111,7 +111,7 @@ export function createDefaultEnemyAnimations(
         'enemy/fierce_tooth/anticipation': new Animation(
           'enemy/fierce_tooth/anticipation',
           3,
-          20,
+          12,
           false
         ),
         'enemy/fierce_tooth/attack': new Animation(
@@ -173,8 +173,6 @@ export class Enemy extends PhysicsEntity {
     'exclamation' | 'dead',
     [number, number, number]
   >;
-  dialogueAnimation: Animation | null = null;
-  dialogueType = '';
   dialogueExclamationSfxTriggered = false;
   attackHitDetected = false;
   contactCollisionDetected = false;
@@ -309,6 +307,26 @@ export class Enemy extends PhysicsEntity {
       a.y < b.y + b.height &&
       a.y + a.height > b.y
     );
+  }
+
+  getDetectionRect(): EntityRect {
+    const forward = ENEMY_SIGHT_RANGE_X;
+    const behind = ENEMY_BEHIND_TOUCH_DIST;
+    const x = this.flip ? this.pos[0] - forward : this.pos[0] - behind;
+    const width = forward + this.size[0] + behind;
+    const y = this.pos[1] - ENEMY_SIGHT_RANGE_Y;
+    const height = this.size[1] + ENEMY_SIGHT_RANGE_Y * 2;
+    return { x, y, width, height };
+  }
+
+  getMeleeAttackRangeRect(): EntityRect | null {
+    if (this.enemyType === 'crabby') {
+      return this.attackRangeRect(this.flip, [40, 0]);
+    }
+    if (this.enemyType === 'fierce_tooth') {
+      return this.attackRangeRect(this.flip, [26, 0]);
+    }
+    return null;
   }
 
   override update(
@@ -469,18 +487,6 @@ export class Enemy extends PhysicsEntity {
       if (playerTarget && this.rectIntersects(this.rect(), playerTarget.rect())) {
         this.contactCollisionDetected = true;
       }
-    }
-  }
-
-  generateDialogue(dialogueType: 'exclamation' | 'dead') {
-    if (!this.dialogueAnimation) {
-      this.dialogueType = dialogueType;
-      this.dialogueAnimation = new Animation(
-        `dialogue/${dialogueType}`,
-        dialogueType === 'dead' ? 4 : 3,
-        12,
-        false
-      );
     }
   }
 

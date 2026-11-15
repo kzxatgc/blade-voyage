@@ -657,17 +657,73 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.anticipationState, true);
   });
 
-  void it('default anticipation animation duration is 20 (60 ticks telegraph) for crabby and fierce_tooth', () => {
+  void it('default anticipation animation duration is 12 (36 ticks / 0.6s telegraph) for all enemies', () => {
+    const pinkStar = new Enemy('pink_star', [100, 100], [26, 23]);
+    const psAnticipation = pinkStar.animations?.['enemy/pink_star/anticipation'];
+    assert.ok(psAnticipation);
+    assert.equal(psAnticipation.imgDur, 12);
+    assert.equal(psAnticipation.frameCount, 3); // 3 * 12 = 36 ticks (0.6s)
+
     const crabby = new Enemy('crabby', [100, 100], [32, 26]);
     const crabbyAnticipation = crabby.animations?.['enemy/crabby/anticipation'];
     assert.ok(crabbyAnticipation);
-    assert.equal(crabbyAnticipation.imgDur, 20);
-    assert.equal(crabbyAnticipation.frameCount, 3); // 3 * 20 = 60 ticks (1.0s)
+    assert.equal(crabbyAnticipation.imgDur, 12);
+    assert.equal(crabbyAnticipation.frameCount, 3); // 3 * 12 = 36 ticks (0.6s)
 
     const fierceTooth = new Enemy('fierce_tooth', [100, 100], [24, 20]);
     const ftAnticipation = fierceTooth.animations?.['enemy/fierce_tooth/anticipation'];
     assert.ok(ftAnticipation);
-    assert.equal(ftAnticipation.imgDur, 20);
-    assert.equal(ftAnticipation.frameCount, 3); // 3 * 20 = 60 ticks (1.0s)
+    assert.equal(ftAnticipation.imgDur, 12);
+    assert.equal(ftAnticipation.frameCount, 3); // 3 * 12 = 36 ticks (0.6s)
+  });
+
+  void it('computes detection rect and melee attack rect correctly', () => {
+    // 1. Crabby facing right (flip = false)
+    const crabby = new Enemy('crabby', [200, 200], [32, 26]);
+    crabby.flip = false;
+    const detRight = crabby.getDetectionRect();
+    assert.deepEqual(detRight, {
+      x: 200 - 24, // 176
+      y: 200 - 24, // 176
+      width: 144 + 32 + 24, // 200
+      height: 26 + 48, // 74
+    });
+
+    const crabbyAtk = crabby.getMeleeAttackRangeRect();
+    assert.ok(crabbyAtk !== null);
+    // Crabby rectPosAdjustment is [20, 3]. pos [200, 200] -> base x 220, base y 203.
+    // facing right (flip = false), expansion [40, 0] -> w = 32 + 40 = 72
+    assert.deepEqual(crabbyAtk, {
+      x: 220,
+      y: 203,
+      width: 72,
+      height: 32,
+    });
+
+    // 2. Fierce Tooth facing left (flip = true)
+    const fierceTooth = new Enemy('fierce_tooth', [200, 200], [24, 20]);
+    fierceTooth.flip = true;
+    const detLeft = fierceTooth.getDetectionRect();
+    assert.deepEqual(detLeft, {
+      x: 200 - 144, // 56
+      y: 200 - 24, // 176
+      width: 144 + 24 + 24, // 192
+      height: 20 + 48, // 68
+    });
+
+    const ftAtk = fierceTooth.getMeleeAttackRangeRect();
+    assert.ok(ftAtk !== null);
+    // FT rectPosAdjustment is [5, 8]. pos [200, 200] -> base x 205, base y 208.
+    // facing left (flip = true), expansion [26, 0] -> x = 205 - 26 = 179, w = 24 + 26 = 50
+    assert.deepEqual(ftAtk, {
+      x: 179,
+      y: 208,
+      width: 50,
+      height: 24,
+    });
+
+    // 3. Pink Star has no melee swing box
+    const pinkStar = new Enemy('pink_star', [200, 200], [26, 23]);
+    assert.equal(pinkStar.getMeleeAttackRangeRect(), null);
   });
 });

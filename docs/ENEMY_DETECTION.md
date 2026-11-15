@@ -76,7 +76,7 @@ for (let i = 1; i < steps; i++) {
    - Action switches to `'anticipation'`.
    - Exclamation dialogue bubble (`'dialogue/exclamation'`) appears above the enemy's head.
    - SFX plays on dialogue frame 1 (`12` ticks).
-   - Telegraph duration: $3\text{ frames} \times 20\text{ duration} = 60\text{ ticks}$ ($1.0\text{s}$) across all enemy types (`Pink Star`, `Crabby`, `Fierce Tooth`). This consistent telegraph window gives the player ample time to jump, back up, or throw a sword.
+   - Telegraph duration: $3\text{ frames} \times 12\text{ duration} = 36\text{ ticks}$ ($0.60\text{s}$) across all enemy types (`Pink Star`, `Crabby`, `Fierce Tooth`). Synchronizes with the exclamation dialogue bubble frame duration, providing a crisp, responsive telegraph window.
 2. **Attack State (`attackTimer > 0`)**:
    - Once anticipation completes (`animation.done`), automatically initiates `attack()`.
    - **Pink Star**: Charges forward at velocity $\pm 2$ for $120$ frames with grass sparks, bouncing off walls.

@@ -62,6 +62,8 @@ export class Player extends PhysicsEntity {
       'player/sword/attack_3': new Animation('player/sword/attack_3', 3, 6, false),
       'player/sword/air_attack_1': new Animation('player/sword/air_attack_1', 3, 6, false),
       'player/sword/air_attack_2': new Animation('player/sword/air_attack_2', 3, 6, false),
+      'player/hit': new Animation('player/hit', 4, 4),
+      'player/sword/hit': new Animation('player/sword/hit', 4, 4),
     });
     this.particles = particles;
     this.sparksEffect = sparksEffect;
@@ -221,6 +223,12 @@ export class Player extends PhysicsEntity {
           : movement;
 
     super.update(tilemap, effectiveMovement);
+
+    if (this.dead) {
+      this.throwingAnimation = null;
+      this.landingAnimation = null;
+      return;
+    }
 
     if (this.throwingAnimation) {
       this.throwingAnimation.update();

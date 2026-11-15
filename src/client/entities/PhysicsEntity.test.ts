@@ -49,9 +49,13 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.animation, null);
     assert.equal(entity.flip, false);
     assert.equal(entity.knockback, false);
-    assert.equal(entity.health, 100);
-    assert.equal(entity.maxHealth, 100);
+    assert.equal(entity.health, 3);
+    assert.equal(entity.maxHealth, 3);
     assert.equal(entity.dead, false);
+
+    const enemy = new PhysicsEntity('enemy/pink_star', [0, 0]);
+    assert.equal(enemy.health, 100);
+    assert.equal(enemy.maxHealth, 100);
   });
 
   void it('copies position and size and defaults to the source entity size', async () => {
@@ -344,5 +348,123 @@ void describe('PhysicsEntity', () => {
       width: 45,
       height: 20,
     });
+  });
+
+  void it('player and enemy die when health drops to 0', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    for (const type of ['player', 'enemy/pink_star'] as const) {
+      const entity = new PhysicsEntity(type, [100, 100], [20, 28]);
+      entity.health = 0;
+      entity.update(tm, [0, 0]);
+      assert.equal(entity.dead, true);
+    }
+  });
+
+  void it('justDied is true only on the first dead frame', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const entity = new PhysicsEntity('player', [100, 100], [20, 28]);
+    entity.health = 0;
+    entity.update(tm, [0, 0]);
+    assert.equal(entity.justDied, true);
+
+    entity.update(tm, [0, 0]);
+    assert.equal(entity.justDied, false);
+  });
+
+  void it('dead entity does not move horizontally from input but falls with gravity', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const entity = new PhysicsEntity('player', [100, 100], [20, 28]);
+    entity.health = 0;
+    entity.update(tm, [0, 0]);
+    const initialX = entity.pos[0];
+    const initialY = entity.pos[1];
+
+    entity.update(tm, [5, 0]); // attempt horizontal movement
+    assert.equal(entity.pos[0], initialX); // no horizontal movement
+    assert.ok(entity.pos[1] > initialY); // gravity still pulled entity downward
+  });
+
+  void it('transitions through dead_hit for 30 frames and generates dead dialogue', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Animation = await getAnimation();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const entity = new PhysicsEntity('enemy/pink_star', [100, 100], [20, 28], {
+      'enemy/pink_star/idle': new Animation('enemy/pink_star/idle', 5, 6),
+      'enemy/pink_star/dead_hit': new Animation('enemy/pink_star/dead_hit', 4, 4),
+      'enemy/pink_star/dead': new Animation('enemy/pink_star/dead', 4, 20, false),
+    });
+
+    entity.health = 0;
+    // Frame 1: just died, generates dead dialogue, deadHitAnimation starts
+    entity.update(tm, [0, 0]);
+    assert.equal(entity.action, 'dead_hit');
+    assert.equal(entity.deadHitAnimation, true);
+    assert.ok(entity.dialogueAnimation !== null);
+    assert.equal(entity.dialogueType, 'dead');
+
+    // Frames 2-30: stays in dead_hit (30 frames total)
+    for (let f = 2; f <= 30; f++) {
+      entity.update(tm, [0, 0]);
+      assert.equal(entity.action, 'dead_hit');
+    }
+
+    // Frame 31: deadHitAnimation has finished, transitions to dead
+    entity.update(tm, [0, 0]);
+    assert.equal(entity.deadHitAnimation, false);
+    assert.equal(entity.action, 'dead');
+  });
+
+  void it('player discrete damage loses 1 heart and grants 90-frame i-frames', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const player = new PhysicsEntity('player', [100, 100], [20, 28]);
+    assert.equal(player.health, 3);
+    assert.equal(player.invincibleTimer, 0);
+
+    // Hit 1: takes damage, health becomes 2, gets 90 i-frames
+    const hit1 = player.takeDamage(1);
+    assert.equal(hit1, true);
+    assert.equal(player.health, 2);
+    assert.equal(player.invincibleTimer, 90);
+
+    // Immediate second hit while i-frames active: ignored!
+    const hitBlocked = player.takeDamage(1);
+    assert.equal(hitBlocked, false);
+    assert.equal(player.health, 2);
+
+    // Update decrements invincibleTimer
+    player.update(tm, [0, 0]);
+    assert.equal(player.invincibleTimer, 89);
+
+    // Fast-forward i-frames
+    player.invincibleTimer = 0;
+
+    // Hit 2
+    assert.equal(player.takeDamage(1), true);
+    assert.equal(player.health, 1);
+
+    // Hit 3: fatal
+    player.invincibleTimer = 0;
+    assert.equal(player.takeDamage(1), true);
+    assert.equal(player.health, 0);
+    assert.equal(player.dead, true);
   });
 });
