@@ -10,6 +10,7 @@ import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
+import { Sparks } from '../systems/Sparks';
 import { Tilemap } from '../systems/Tilemap';
 import { Animation } from '../utils/Animation';
 
@@ -42,6 +43,8 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
   private swords?: Swords;
+  private sparksEffect: Sparks[] = [];
+  private sparksGraphics?: Phaser.GameObjects.Graphics;
   private tickAccumulator = 0;
   private scroll: [number, number] = [0, 0];
   private previousScroll: [number, number] = [0, 0];
@@ -135,7 +138,8 @@ export class Game extends Phaser.Scene {
       TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 10)])
     );
     this.particles = new Particles();
-    this.swords = new Swords();
+    this.sparksEffect = [];
+    this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
     this.playerEntity = new Player([
       playerSpawn.loc[0] * this.tilemap.tileSize,
       playerSpawn.loc[1] * this.tilemap.tileSize,
@@ -201,6 +205,7 @@ export class Game extends Phaser.Scene {
     );
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
+    this.sparksGraphics = this.add.graphics();
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
   }
 
@@ -220,6 +225,7 @@ export class Game extends Phaser.Scene {
       this.tickAccumulator -= tickDuration;
       this.particles?.update();
       this.swords?.update(this.tilemap);
+      this.sparksEffect = this.sparksEffect.filter((sparks) => !sparks.update());
       this.previousScroll = [...this.scroll];
       this.previousPlayerPosition = [...this.playerEntity.pos];
       const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
@@ -336,6 +342,12 @@ export class Game extends Phaser.Scene {
       renderedPlayerX - this.playerEntity.pos[0],
       renderedPlayerY - this.playerEntity.pos[1],
     ]);
+    this.sparksGraphics?.clear();
+    if (this.sparksGraphics) {
+      for (const sparks of this.sparksEffect) {
+        sparks.render(this.sparksGraphics);
+      }
+    }
   }
 
   private triggerAttackOrPickup() {

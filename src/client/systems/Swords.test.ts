@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Sword, SpinningSword, Swords } from './Swords.ts';
 import { Tilemap } from './Tilemap.ts';
+import type { Sparks } from './Sparks.ts';
 
 void describe('Sword entity', () => {
   void it('hovers for first 18 frames', () => {
@@ -427,5 +428,58 @@ void describe('SpinningSword entity', () => {
     assert.equal(capturedX, 82);
     assert.equal(capturedY, 80);
     assert.equal(capturedFlip, true);
+  });
+
+  void it('creates diamond stone-strike sparks on wall embed and sets sparksTriggered', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '4;3': { type: 'grass', variant: 0, loc: [4, 3] }, // tile at x=128..160, y=96..128
+      },
+      off_grid_tiles: [],
+    });
+
+    const sparksEffect: Sparks[] = [];
+    const sword = new SpinningSword([100, 100], false, [19, 5], undefined, sparksEffect, () => 0.5);
+    assert.equal(sword.sparksTriggered, false);
+    assert.equal(sparksEffect.length, 0);
+
+    // Update towards the wall until embedded
+    while (sword.action === 'spinning' && sword.timer < 30) {
+      sword.update(tm);
+    }
+
+    assert.equal(sword.action, 'embedded');
+    assert.equal(sword.sparksTriggered, true);
+    assert.equal(sparksEffect.length, 1);
+
+    const spark = sparksEffect[0];
+    assert.ok(spark !== undefined);
+    assert.equal(spark.shape, 'diamond');
+    assert.deepEqual(spark.color, [140, 140, 160]);
+    assert.equal(spark.sparks.length, 10);
+
+    // Further updates do not trigger duplicate sparks
+    sword.update(tm);
+    assert.equal(sparksEffect.length, 1);
+  });
+
+  void it('tracks indexChanged state during spinning animation', () => {
+    const sword = new SpinningSword([100, 100], false);
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // sword/spinning animation has 4 frames, imgDur = 6
+    assert.equal(sword.indexChanged, false);
+
+    // Update 5 frames (timer 0..4, frame 0..4) - frameIndex is still 0
+    for (let i = 0; i < 5; i++) {
+      sword.update(tm);
+      assert.equal(sword.indexChanged, false);
+    }
+
+    // 6th update (timer 5 -> frame reaches 6) -> frameIndex becomes 1
+    sword.update(tm);
+    assert.equal(sword.indexChanged, true);
   });
 });

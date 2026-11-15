@@ -2,6 +2,7 @@ import { PhysicsEntity } from '../entities/PhysicsEntity.ts';
 import type { EntityPosition, EntitySize } from '../../shared/types.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
+import { Sparks } from './Sparks.ts';
 
 export interface SwordRenderImage {
   setOrigin(x: number, y: number): void;
@@ -130,6 +131,8 @@ export class SpinningSword extends PhysicsEntity {
   timer = 0;
   sparksTriggered = false;
   spinningSfxIndex = 0;
+  sparksEffect: Sparks[] | undefined;
+  private readonly random: () => number;
   private image: SwordRenderImage | null = null;
   private imageTexture: string | null = null;
 
@@ -137,7 +140,9 @@ export class SpinningSword extends PhysicsEntity {
     pos: EntityPosition,
     flip: boolean,
     size: EntitySize = [19, 5],
-    animations?: Readonly<Record<string, Animation>>
+    animations?: Readonly<Record<string, Animation>>,
+    sparksEffect?: Sparks[],
+    random: () => number = Math.random
   ) {
     super(
       'sword',
@@ -151,9 +156,15 @@ export class SpinningSword extends PhysicsEntity {
     );
     this.flip = flip;
     this.timer = 0;
+    this.sparksEffect = sparksEffect;
+    this.random = random;
     this.setAction('spinning');
     this.velocity[0] = this.flip ? -4 : 4;
     this.velocity[1] = 0;
+  }
+
+  get indexChanged(): boolean {
+    return this.animation?.indexChanged ?? false;
   }
 
   override update(
@@ -182,6 +193,25 @@ export class SpinningSword extends PhysicsEntity {
       this.setAction('embedded');
       this.velocity[0] = 0;
       this.velocity[1] = 0;
+
+      if (!this.sparksTriggered) {
+        const sparkPos: [number, number] = [
+          this.pos[0] + (this.flip ? 0 : 12),
+          this.pos[1],
+        ];
+        const sparkSpeed = this.random() * 1 + 2;
+        const spark = new Sparks(
+          sparkPos,
+          this.flip,
+          sparkSpeed,
+          10,
+          [140, 140, 160],
+          Math.PI * 0.75,
+          'diamond'
+        );
+        this.sparksEffect?.push(spark);
+        this.sparksTriggered = true;
+      }
     }
 
     this.animation?.update();
@@ -247,15 +277,18 @@ export class Swords {
   swords: Sword[] = [];
   thrownSwords: SpinningSword[] = [];
   offset: readonly [number, number];
+  sparksEffect: Sparks[] | undefined;
   private validSpawnPos: readonly [number, number][] | null = null;
   private readonly random: () => number;
 
   constructor(
     offset: readonly [number, number] = [0, 0],
-    random: () => number = Math.random
+    random: () => number = Math.random,
+    sparksEffect?: Sparks[]
   ) {
     this.offset = offset;
     this.random = random;
+    this.sparksEffect = sparksEffect;
   }
 
   getValidSpawnPositions(
@@ -315,7 +348,14 @@ export class Swords {
   }
 
   throwSword(pos: EntityPosition, flip: boolean): SpinningSword {
-    const sword = new SpinningSword(pos, flip);
+    const sword = new SpinningSword(
+      pos,
+      flip,
+      [19, 5],
+      undefined,
+      this.sparksEffect,
+      this.random
+    );
     this.thrownSwords.push(sword);
     return sword;
   }
