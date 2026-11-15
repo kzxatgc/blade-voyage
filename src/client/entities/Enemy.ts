@@ -1,5 +1,5 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
-import type { EntityPosition, EntitySize } from '../../shared/types.ts';
+import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.ts';
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import type { Particles } from '../systems/Particles.ts';
@@ -8,6 +8,11 @@ import { Sparks } from '../systems/Sparks.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
 export type EnemyParticleSystem = Pick<Particles, 'addParticle'>;
+
+export interface EnemyPlayerTarget {
+  pos: EntityPosition;
+  rect(): EntityRect;
+}
 
 export const PARTICLE_POS_ADJUSTMENT: Record<
   EnemyName,
@@ -36,9 +41,10 @@ export const DIALOGUE_POS_ADJUSTMENT: Record<
   fierce_tooth: { exclamation: [7, -11, 0], dead: [-40, 33, 0] },
 };
 
-export const ENEMY_SIGHT_RANGE_X = 6.5 * 32; // 208px (~65% of half-screen)
+export const ENEMY_SIGHT_RANGE_X = 4.5 * 32; // 144px (~4.5 tiles, tuned down from 6.5 tiles / 208px for fair engagement)
 export const ENEMY_SIGHT_RANGE_Y = 24; // 24px (jump/slope tolerance)
 export const ENEMY_BEHIND_TOUCH_DIST = 24; // 24px (turns if bumped into)
+export const ENEMY_POST_ATTACK_COOLDOWN = 90; // 90 frames = 1.5s post-attack recovery window
 
 export function createDefaultEnemyAnimations(
   enemyType: EnemyName
@@ -80,7 +86,7 @@ export function createDefaultEnemyAnimations(
         'enemy/crabby/anticipation': new Animation(
           'enemy/crabby/anticipation',
           3,
-          15,
+          20,
           false
         ),
         'enemy/crabby/attack': new Animation('enemy/crabby/attack', 4, 6),
@@ -105,7 +111,7 @@ export function createDefaultEnemyAnimations(
         'enemy/fierce_tooth/anticipation': new Animation(
           'enemy/fierce_tooth/anticipation',
           3,
-          15,
+          20,
           false
         ),
         'enemy/fierce_tooth/attack': new Animation(
@@ -159,6 +165,7 @@ export class Enemy extends PhysicsEntity {
   walking = 0;
   anticipationState = false;
   attackTimer = 0;
+  attackCooldown = 0;
   attackEffect: Animation | null = null;
   readonly particlePosAdjustment: [[number, number], number];
   readonly attackEffectPosAdjustment: [[number, number], number];
@@ -169,6 +176,8 @@ export class Enemy extends PhysicsEntity {
   dialogueAnimation: Animation | null = null;
   dialogueType = '';
   dialogueExclamationSfxTriggered = false;
+  attackHitDetected = false;
+  contactCollisionDetected = false;
   particles?: EnemyParticleSystem | undefined;
   sparksEffect?: Sparks[] | undefined;
   playSfx?: ((name: string) => void) | undefined;
@@ -225,6 +234,12 @@ export class Enemy extends PhysicsEntity {
         }
       }
     }
+    if (this.enemyType === 'crabby') {
+      this.attackTimer = 24;
+    }
+    if (this.enemyType === 'fierce_tooth') {
+      this.attackTimer = 30;
+    }
     const attackEffectAnim =
       this.animations?.[`enemy/${this.enemyType}/attack_effect`];
     if (attackEffectAnim) {
@@ -240,6 +255,7 @@ export class Enemy extends PhysicsEntity {
       this.dead ||
       this.anticipationState ||
       this.attackTimer > 0 ||
+      this.attackCooldown > 0 ||
       this.knockback
     ) {
       return false;
@@ -286,11 +302,39 @@ export class Enemy extends PhysicsEntity {
     return true;
   }
 
+  rectIntersects(a: EntityRect, b: EntityRect): boolean {
+    return (
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y
+    );
+  }
+
   override update(
     tilemap: Tilemap,
     movement: EntityPosition = [0, 0],
-    playerPos?: readonly [number, number]
+    player?: EnemyPlayerTarget | readonly [number, number]
   ) {
+    this.attackHitDetected = false;
+    this.contactCollisionDetected = false;
+
+    if (this.attackCooldown > 0) {
+      this.attackCooldown -= 1;
+    }
+
+    let playerPos: readonly [number, number] | undefined;
+    let playerTarget: EnemyPlayerTarget | undefined;
+
+    if (player) {
+      if ('pos' in player) {
+        playerPos = player.pos;
+        playerTarget = player;
+      } else {
+        playerPos = player;
+      }
+    }
+
     if (playerPos) {
       this.checkPlayerDetection(tilemap, playerPos);
     }
@@ -345,6 +389,30 @@ export class Enemy extends PhysicsEntity {
         this.setAction('attack');
         this.attackEffect?.update();
 
+        if (this.enemyType === 'crabby') {
+          if (this.attackTimer >= 12 && playerTarget) {
+            const rangeRect = this.attackRangeRect(this.flip, [40, 0]);
+            if (this.rectIntersects(rangeRect, playerTarget.rect())) {
+              this.attackHitDetected = true;
+            }
+          }
+          if (this.attackEffect?.done) {
+            this.attackEffect = null;
+          }
+        }
+
+        if (this.enemyType === 'fierce_tooth') {
+          if (this.attackTimer >= 15 && playerTarget) {
+            const rangeRect = this.attackRangeRect(this.flip, [26, 0]);
+            if (this.rectIntersects(rangeRect, playerTarget.rect())) {
+              this.attackHitDetected = true;
+            }
+          }
+          if (this.attackEffect?.done) {
+            this.attackEffect = null;
+          }
+        }
+
         if (
           this.enemyType === 'pink_star' &&
           (this.collision.right || this.collision.left)
@@ -359,6 +427,7 @@ export class Enemy extends PhysicsEntity {
           }
           this.velocity[0] = 0;
           this.velocity[1] = 0;
+          this.attackCooldown = ENEMY_POST_ATTACK_COOLDOWN;
         }
       } else if (this.anticipationState) {
         this.setAction('anticipation');
@@ -395,6 +464,10 @@ export class Enemy extends PhysicsEntity {
         );
       } else {
         this.setAction('idle');
+      }
+
+      if (playerTarget && this.rectIntersects(this.rect(), playerTarget.rect())) {
+        this.contactCollisionDetected = true;
       }
     }
   }

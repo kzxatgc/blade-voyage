@@ -239,7 +239,7 @@ export class Game extends Phaser.Scene {
       this.particles?.update();
       this.swords?.update(this.tilemap, [0, 0], this.playerEntity.pos);
       for (const enemy of this.enemies) {
-        enemy.update(this.tilemap, [0, 0], this.playerEntity.pos);
+        enemy.update(this.tilemap, [0, 0], this.playerEntity);
       }
       for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
         const sparks = this.sparksEffect[i];

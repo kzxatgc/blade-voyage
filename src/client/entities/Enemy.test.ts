@@ -2,7 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { Enemy, PARTICLE_POS_ADJUSTMENT, ATTACK_EFFECT_POS_ADJUSTMENT, DIALOGUE_POS_ADJUSTMENT } from './Enemy.ts';
+import {
+  Enemy,
+  PARTICLE_POS_ADJUSTMENT,
+  ATTACK_EFFECT_POS_ADJUSTMENT,
+  DIALOGUE_POS_ADJUSTMENT,
+  ENEMY_SIGHT_RANGE_X,
+  ENEMY_POST_ATTACK_COOLDOWN,
+} from './Enemy.ts';
 import { Tilemap } from '../systems/Tilemap.ts';
 import { Sparks } from '../systems/Sparks.ts';
 
@@ -286,7 +293,10 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.walking, 0); // walking cancelled
   });
 
-  void it('ignores player beyond maximum sight range of 6.5 tiles (208px)', () => {
+  void it('detects player within tuned 4.5 tiles (144px) and ignores beyond 144px', () => {
+    assert.equal(ENEMY_SIGHT_RANGE_X, 144);
+    assert.equal(ENEMY_POST_ATTACK_COOLDOWN, 90);
+
     const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
     enemy.walking = 10;
     enemy.flip = false;
@@ -294,9 +304,16 @@ void describe('Enemy entity', () => {
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
-    // Player is 220px to the right (> 208px)
-    enemy.update(tm, [0, 0], [160 + 220, 195]);
-    assert.equal(enemy.anticipationState, false);
+    // Player at 140px to the right (<= 144px): detected!
+    enemy.update(tm, [0, 0], [160 + 140, 195]);
+    assert.equal(enemy.anticipationState, true);
+
+    // Reset and test player at 150px to the right (> 144px): ignored!
+    const enemy2 = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy2.walking = 10;
+    enemy2.flip = false;
+    enemy2.update(tm, [0, 0], [160 + 150, 195]);
+    assert.equal(enemy2.anticipationState, false);
   });
 
   void it('blocks detection if a solid wall is between enemy and player', () => {
@@ -399,6 +416,7 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.attackTimer, 0);
     assert.equal(enemy.attackEffect, null);
     assert.deepEqual(enemy.velocity, [0, 0]);
+    assert.equal(enemy.attackCooldown, 90);
   });
 
   void it('anticipation state sets action, generates exclamation dialogue, triggers SFX on frame 1, and calls attack when done', () => {
@@ -487,5 +505,169 @@ void describe('Enemy entity', () => {
     assert.ok(createdImages[2]?.texture.startsWith('enemy/pink_star/attack_effect'));
 
     enemy.destroy();
+  });
+
+  void it('crabby attack timer is 24', () => {
+    const enemy = new Enemy('crabby', [100, 100], [32, 26]);
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 24);
+  });
+
+  void it('fierce_tooth attack timer is 30', () => {
+    const enemy = new Enemy('fierce_tooth', [100, 100], [24, 20]);
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 30);
+  });
+
+  void it('crabby melee attack detects hits during active frames (>= 12) with range 40', () => {
+    const enemy = new Enemy('crabby', [100, 100], [32, 26]);
+    enemy.flip = false; // facing right
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 24);
+    assert.ok(enemy.attackEffect !== null);
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Range rect: flip=false, expansion [40, 0].
+    // enemy pos: 100, 100. rectPosAdjustment for crabby is [20, 3].
+    // rect.x = 120, width = 32 + 40 = 72. (covers x: 120..192, y: 103..129)
+    // Place mock player at x: 150, y: 105, width: 20, height: 28
+    const mockPlayer = {
+      pos: [150, 105] as [number, number],
+      rect() {
+        return { x: 150, y: 105, width: 20, height: 28 };
+      },
+    };
+
+    // Frame 1 (timer becomes 23 >= 12): hitbox is active and intersects player!
+    enemy.update(tm, [0, 0], mockPlayer);
+    assert.equal(enemy.action, 'attack');
+    assert.equal(enemy.attackTimer, 23);
+    assert.equal(enemy.attackHitDetected, true);
+
+    // When timer drops below 12: hitbox is no longer active
+    enemy.attackTimer = 11;
+    enemy.update(tm, [0, 0], mockPlayer);
+    assert.equal(enemy.attackHitDetected, false);
+
+    // When attackEffect finishes: attackEffect is cleared
+    if (enemy.attackEffect) {
+      enemy.attackEffect.done = true;
+    }
+    enemy.update(tm, [0, 0], mockPlayer);
+    assert.equal(enemy.attackEffect, null);
+  });
+
+  void it('fierce_tooth melee attack detects hits during active frames (>= 15) with range 26', () => {
+    const enemy = new Enemy('fierce_tooth', [100, 100], [24, 20]);
+    enemy.flip = false;
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 30);
+    assert.ok(enemy.attackEffect !== null);
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // fierce_tooth rectPosAdjustment is [5, 8]. rect: x=105, y=108, w=24+26=50.
+    const mockPlayer = {
+      pos: [130, 108] as [number, number],
+      rect() {
+        return { x: 130, y: 108, width: 20, height: 28 };
+      },
+    };
+
+    // Frame 1 (timer becomes 29 >= 15): hitbox is active and intersects player!
+    enemy.update(tm, [0, 0], mockPlayer);
+    assert.equal(enemy.action, 'attack');
+    assert.equal(enemy.attackTimer, 29);
+    assert.equal(enemy.attackHitDetected, true);
+
+    // Below frame 15: hitbox inactive
+    enemy.attackTimer = 14;
+    enemy.update(tm, [0, 0], mockPlayer);
+    assert.equal(enemy.attackHitDetected, false);
+  });
+
+  void it('detects contact collision when player body overlaps enemy body rect', () => {
+    const enemy = new Enemy('crabby', [100, 100], [32, 26]);
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    // Overlapping player rect directly on crabby rect
+    const crabbyRect = enemy.rect();
+    const overlappingPlayer = {
+      pos: [crabbyRect.x, crabbyRect.y] as [number, number],
+      rect() {
+        return { x: crabbyRect.x, y: crabbyRect.y, width: 20, height: 28 };
+      },
+    };
+
+    enemy.update(tm, [0, 0], overlappingPlayer);
+    assert.equal(enemy.contactCollisionDetected, true);
+
+    // Far player: no contact collision
+    const farPlayer = {
+      pos: [500, 500] as [number, number],
+      rect() {
+        return { x: 500, y: 500, width: 20, height: 28 };
+      },
+    };
+    enemy.update(tm, [0, 0], farPlayer);
+    assert.equal(enemy.contactCollisionDetected, false);
+  });
+
+  void it('attackCooldown prevents player detection until 90 frames elapse', () => {
+    const enemy = new Enemy('crabby', [100, 100], [32, 26]);
+    enemy.flip = false;
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const playerNear = {
+      pos: [140, 100] as [number, number],
+      rect() {
+        return { x: 140, y: 100, width: 20, height: 28 };
+      },
+    };
+
+    // Simulate an attack finishing
+    enemy.attack();
+    assert.equal(enemy.attackTimer, 24);
+    enemy.attackTimer = 1;
+    enemy.update(tm, [0, 0], playerNear);
+    assert.equal(enemy.attackTimer, 0);
+    assert.equal(enemy.attackCooldown, 90);
+
+    // Player remains directly in front (40px away, within 144px vision)
+    // While attackCooldown is active (e.g., 89 frames remaining), player is NOT detected
+    enemy.update(tm, [0, 0], playerNear);
+    assert.equal(enemy.attackCooldown, 89);
+    assert.equal(enemy.anticipationState, false);
+
+    // Fast-forward cooldown to 2
+    enemy.attackCooldown = 2;
+    enemy.update(tm, [0, 0], playerNear);
+    // On this tick, attackCooldown decrements to 1 (> 0), so player is still not detected
+    assert.equal(enemy.attackCooldown, 1);
+    assert.equal(enemy.anticipationState, false);
+
+    // Next tick: cooldown decrements to 0, player is immediately detected!
+    enemy.update(tm, [0, 0], playerNear);
+    assert.equal(enemy.attackCooldown, 0);
+    assert.equal(enemy.anticipationState, true);
+  });
+
+  void it('default anticipation animation duration is 20 (60 ticks telegraph) for crabby and fierce_tooth', () => {
+    const crabby = new Enemy('crabby', [100, 100], [32, 26]);
+    const crabbyAnticipation = crabby.animations?.['enemy/crabby/anticipation'];
+    assert.ok(crabbyAnticipation);
+    assert.equal(crabbyAnticipation.imgDur, 20);
+    assert.equal(crabbyAnticipation.frameCount, 3); // 3 * 20 = 60 ticks (1.0s)
+
+    const fierceTooth = new Enemy('fierce_tooth', [100, 100], [24, 20]);
+    const ftAnticipation = fierceTooth.animations?.['enemy/fierce_tooth/anticipation'];
+    assert.ok(ftAnticipation);
+    assert.equal(ftAnticipation.imgDur, 20);
+    assert.equal(ftAnticipation.frameCount, 3); // 3 * 20 = 60 ticks (1.0s)
   });
 });
