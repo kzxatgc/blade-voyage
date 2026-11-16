@@ -7,6 +7,7 @@ import {
   DEFAULT_ZOOM,
   DISPLAY_HEIGHT,
   DISPLAY_WIDTH,
+  MAX_FRAME_DELTA,
   RENDER_DEPTH,
   TICK_RATE,
   WINDOW_HEIGHT,
@@ -65,6 +66,7 @@ export class Game extends Phaser.Scene {
   private scroll: [number, number] = [0, 0];
   private previousScroll: [number, number] = [0, 0];
   private previousPlayerPosition: [number, number] = [0, 0];
+  private previousEnemyPositions: [number, number][] = [];
   private worldScroll: [number, number] = [0, 0];
   private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
@@ -250,6 +252,7 @@ export class Game extends Phaser.Scene {
     ];
     this.previousScroll = [...this.scroll];
     this.previousPlayerPosition = [...this.playerEntity.pos];
+    this.previousEnemyPositions = this.enemies.map((e) => [e.pos[0], e.pos[1]]);
     this.worldScroll = [...this.scroll];
     camera.setRoundPixels(true);
     camera.setZoom(this.currentZoom);
@@ -319,275 +322,295 @@ export class Game extends Phaser.Scene {
       return;
     }
 
-    this.tickAccumulator += Math.min(delta, 100);
+    const clampedDelta = Math.min(delta, MAX_FRAME_DELTA);
+    this.tickAccumulator += clampedDelta;
     const tickDuration = 1000 / TICK_RATE;
 
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
-      if (Math.abs(this.targetZoom - this.currentZoom) > 0.0005) {
-        this.currentZoom +=
-          (this.targetZoom - this.currentZoom) * ZOOM_EASING_SPEED;
-      } else {
-        this.currentZoom = this.targetZoom;
-      }
-      this.displayWidth = WINDOW_WIDTH / this.currentZoom;
-      this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
-      this.particles?.update();
-      const swordHits =
-        this.swords?.update(
-          this.tilemap,
-          [0, 0],
-          this.playerEntity.pos,
-          this.enemies
-        ) ?? [];
-      for (const enemy of this.enemies) {
-        enemy.update(this.tilemap, [0, 0], this.playerEntity);
-
-        // Enemy attack hit resolution against player (only active attacks deal damage, no contact damage)
-        if (!enemy.dead) {
-          // attackHitDetected: only deal damage once per attack swing/charge
-          const attackLanded =
-            enemy.attackHitDetected && !enemy.attackHasHitPlayer;
-          if (attackLanded) {
-            if (this.playerEntity.takeDamage(1)) {
-              enemy.attackHasHitPlayer = true;
-              const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
-              this.playerEntity.applyKnockback(knockDir);
-              this.sparksEffect.push(
-                ...createHeartSparkParticles(
-                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
-                  this.playerEntity.flip,
-                  8,
-                  { direction: 'up', gravity: 0.16 }
-                )
-              );
-            }
-          }
-        }
-      }
-
-      // Player melee attack resolution against enemies
-      if (this.playerEntity.attackHandler.attackState) {
-        const playerAtkRect = this.playerEntity.getAttackRangeRect();
-        if (playerAtkRect) {
-          const damage = this.playerEntity.getAttackDamage();
-          for (const enemy of this.enemies) {
-            if (
-              enemy.dead ||
-              this.playerEntity.attackHandler.hitEntities.has(enemy) ||
-              // Pink Star is invulnerable while actively attacking
-              (enemy.enemyType === 'pink_star' && enemy.attackTimer > 0)
-            ) {
-              continue;
-            }
-            const eRect = enemy.rect();
-            const intersects =
-              playerAtkRect.x < eRect.x + eRect.width &&
-              playerAtkRect.x + playerAtkRect.width > eRect.x &&
-              playerAtkRect.y < eRect.y + eRect.height &&
-              playerAtkRect.y + playerAtkRect.height > eRect.y;
-
-            if (intersects) {
-              this.playerEntity.attackHandler.hitEntities.add(enemy);
-              enemy.takeDamage(damage);
-              // Cancel any in-progress attack (clears effect particle)
-              enemy.clearAttack();
-              // Knockback: push enemy away from player
-              const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
-              enemy.applyKnockback(knockDir, 1);
-              this.sparksEffect.push(
-                ...createHeartSparkParticles(
-                  [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
-                  enemy.flip,
-                  getDamageSparkCount(damage),
-                  { direction: 'up', gravity: 0.16 }
-                )
-              );
-            }
-          }
-        }
-      }
-
-      // Thrown sword hit results
-      for (const result of swordHits) {
-        if (result.type === 'hit') {
-          const knockDir = result.enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
-          if ('applyKnockback' in result.enemy) {
-            (result.enemy as Enemy).applyKnockback(knockDir, 1);
-          }
-          // Cancel in-progress attack (clears effect particle)
-          if ('clearAttack' in result.enemy) {
-            (result.enemy as Enemy).clearAttack();
-          }
-          const eRect = result.enemy.rect();
-          this.sparksEffect.push(
-            ...createHeartSparkParticles(
-              [eRect.x + eRect.width / 2, result.sword.pos[1]],
-              result.sword.flip,
-              getDamageSparkCount(result.damage),
-              { direction: 'up', gravity: 0.16 }
-            )
-          );
-        } else if (result.type === 'deflection') {
-          this.soundSystem?.play('sword/kicked');
-          this.sparksEffect.push(
-            new Sparks(
-              [
-                result.sword.pos[0] + (result.sword.flip ? 6 : 3),
-                result.sword.pos[1],
-              ],
-              result.sword.flip,
-              4, 7,
-              [255, 255, 255],
-              result.sword.flip ? 0 : -0.5,
-              'diamond'
-            )
-          );
-        }
-      }
-      for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
-        const sparks = this.sparksEffect[i];
-        if (!sparks || sparks.update()) {
-          this.sparksEffect.splice(i, 1);
-        }
-      }
-      this.previousScroll = [...this.scroll];
-      this.previousPlayerPosition = [...this.playerEntity.pos];
-      const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
-      const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
-      const movingLeft = this.leftKeys.some((key) => key.isDown) || slowMovingLeft;
-      const movingRight = this.rightKeys.some((key) => key.isDown) || slowMovingRight;
-      const isSlowDown = slowMovingLeft || slowMovingRight;
-      const horizontalDirection = Number(movingRight) - Number(movingLeft);
-
-      if (!this.playerEntity.throwingAnimation) {
-        if (horizontalDirection !== 0) {
-          this.playerEntity.runBoost = isSlowDown ? SLOW_WALK_RATIO : 1.0;
-        } else {
-          this.playerEntity.runBoost = 0;
-        }
-      }
-      let jumpPressed = false;
-      for (const key of this.jumpKeys) {
-        jumpPressed = Phaser.Input.Keyboard.JustDown(key) || jumpPressed;
-      }
-      if (jumpPressed) {
-        this.playerEntity.jump();
-      }
-      let dropThroughPressed = false;
-      for (const key of this.downKeys) {
-        dropThroughPressed =
-          Phaser.Input.Keyboard.JustDown(key) || dropThroughPressed;
-      }
-      if (dropThroughPressed) {
-        this.playerEntity.dropThroughPlatform();
-      }
-
-      let attackPressed = false;
-      if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-        attackPressed = true;
-      }
-      if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
-        attackPressed = true;
-      }
-      if (attackPressed) {
-        this.triggerAttackOrPickup();
-      }
-
-      let throwPressed = false;
-      if (this.qKey && Phaser.Input.Keyboard.JustDown(this.qKey)) {
-        throwPressed = true;
-      }
-      if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
-        throwPressed = true;
-      }
-      if (throwPressed) {
-        this.playerEntity.throwSword();
-      }
-
-      this.playerEntity.update(this.tilemap, [
-        horizontalDirection * PLAYER_MOVE_SPEED,
-        0,
-      ]);
-      this.clouds?.update();
-      const playerAnimation = this.playerEntity.animation;
-      if (!playerAnimation) {
-        throw new Error('The player animation is not configured.');
-      }
-
-      const isHitAnimation =
-        this.playerEntity.action === 'hit' ||
-        this.playerEntity.action === 'sword/hit';
-      const renderAnimation =
-        isHitAnimation
-          ? playerAnimation
-          : (this.playerEntity.throwingAnimation ??
-            this.playerEntity.landingAnimation ??
-            playerAnimation);
-      const animationChanged = renderAnimation !== this.playerRenderAnimation;
-      // PhysicsEntity.update() already advances the animation when dead,
-      // so only call update() here for living players (avoid double-advance).
-      if (
-        !this.playerEntity.dead &&
-        renderAnimation !== this.playerEntity.throwingAnimation
-      ) {
-        renderAnimation.update();
-      }
-      const camera = this.cameras.main;
-      const targetX =
-        this.playerEntity.pos[0] + 32 - camera.width / 2;
-      const targetY =
-        this.playerEntity.pos[1] + 18 - camera.height / 2;
-      this.scroll[0] += (targetX - this.scroll[0]) / CAMERA_SMOOTHING;
-      this.scroll[1] += (targetY - this.scroll[1]) / CAMERA_SMOOTHING;
-      // Clamp scroll to ±9 tiles horizontal, 2 tiles up / 6 tiles down from player center
-      // (matches game.py lines 223-234)
-      const playerCenterX = this.playerEntity.pos[0] + 32;
-      const playerCenterY = this.playerEntity.pos[1] + 18;
-      const displayWidth = camera.width;
-      const displayHeight = camera.height;
-      this.scroll[0] = Math.max(
-        playerCenterX - CAMERA_BOUNDS_X - displayWidth / 2,
-        Math.min(playerCenterX + CAMERA_BOUNDS_X - displayWidth / 2, this.scroll[0])
-      );
-      this.scroll[1] = Math.max(
-        playerCenterY - CAMERA_BOUNDS_Y_UP - displayHeight / 2,
-        Math.min(playerCenterY + CAMERA_BOUNDS_Y_DOWN - displayHeight / 2, this.scroll[1])
-      );
-      const worldTargetX =
-        this.playerEntity.pos[0] + 32 - camera.width / 2;
-      const worldTargetY =
-        this.playerEntity.pos[1] + 18 - camera.height / 2;
-      this.worldScroll[0] += (worldTargetX - this.worldScroll[0]) / 20;
-      this.worldScroll[1] += (worldTargetY - this.worldScroll[1]) / 20;
-      this.renderClouds();
-      this.playerSprite.setFlipX(
-        this.playerEntity.dead
-          ? this.playerEntity.deathFlip
-          : this.playerEntity.flip
-      );
-      this.tilemap.updateAnimations(this.tileAnimations);
-      // When dead: always sync texture (PhysicsEntity advances the frame, indexChanged is reliable but let's be safe)
-      if (this.playerEntity.dead || animationChanged || renderAnimation.indexChanged) {
-        this.playerSprite.setTexture(renderAnimation.img());
-      }
-      this.playerRenderAnimation = renderAnimation;
+      this.fixedTick();
     }
 
-    const interpolation = Math.min(this.tickAccumulator / tickDuration, 1);
+    const alpha = Math.min(this.tickAccumulator / tickDuration, 1.0);
+    this.renderInterpolated(alpha);
+  }
+
+  private fixedTick(): void {
+    if (!this.playerEntity || !this.playerSprite || !this.tilemap) {
+      return;
+    }
+
+    this.previousScroll = [...this.scroll];
+    this.previousPlayerPosition = [...this.playerEntity.pos];
+    this.previousEnemyPositions = this.enemies.map((e) => [e.pos[0], e.pos[1]]);
+
+    if (Math.abs(this.targetZoom - this.currentZoom) > 0.0005) {
+      this.currentZoom +=
+        (this.targetZoom - this.currentZoom) * ZOOM_EASING_SPEED;
+    } else {
+      this.currentZoom = this.targetZoom;
+    }
+    this.displayWidth = WINDOW_WIDTH / this.currentZoom;
+    this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
+    this.particles?.update();
+    const swordHits =
+      this.swords?.update(
+        this.tilemap,
+        [0, 0],
+        this.playerEntity.pos,
+        this.enemies
+      ) ?? [];
+    for (const enemy of this.enemies) {
+      enemy.update(this.tilemap, [0, 0], this.playerEntity);
+
+      // Enemy attack hit resolution against player (only active attacks deal damage, no contact damage)
+      if (!enemy.dead) {
+        // attackHitDetected: only deal damage once per attack swing/charge
+        const attackLanded =
+          enemy.attackHitDetected && !enemy.attackHasHitPlayer;
+        if (attackLanded) {
+          if (this.playerEntity.takeDamage(1)) {
+            enemy.attackHasHitPlayer = true;
+            const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
+            this.playerEntity.applyKnockback(knockDir);
+            this.sparksEffect.push(
+              ...createHeartSparkParticles(
+                [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
+                this.playerEntity.flip,
+                8,
+                { direction: 'up', gravity: 0.16 }
+              )
+            );
+          }
+        }
+      }
+    }
+
+    // Player melee attack resolution against enemies
+    if (this.playerEntity.attackHandler.attackState) {
+      const playerAtkRect = this.playerEntity.getAttackRangeRect();
+      if (playerAtkRect) {
+        const damage = this.playerEntity.getAttackDamage();
+        for (const enemy of this.enemies) {
+          if (
+            enemy.dead ||
+            this.playerEntity.attackHandler.hitEntities.has(enemy) ||
+            // Pink Star is invulnerable while actively attacking
+            (enemy.enemyType === 'pink_star' && enemy.attackTimer > 0)
+          ) {
+            continue;
+          }
+          const eRect = enemy.rect();
+          const intersects =
+            playerAtkRect.x < eRect.x + eRect.width &&
+            playerAtkRect.x + playerAtkRect.width > eRect.x &&
+            playerAtkRect.y < eRect.y + eRect.height &&
+            playerAtkRect.y + playerAtkRect.height > eRect.y;
+
+          if (intersects) {
+            this.playerEntity.attackHandler.hitEntities.add(enemy);
+            enemy.takeDamage(damage);
+            // Cancel any in-progress attack (clears effect particle)
+            enemy.clearAttack();
+            // Knockback: push enemy away from player
+            const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+            enemy.applyKnockback(knockDir, 1);
+            this.sparksEffect.push(
+              ...createHeartSparkParticles(
+                [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
+                enemy.flip,
+                getDamageSparkCount(damage),
+                { direction: 'up', gravity: 0.16 }
+              )
+            );
+          }
+        }
+      }
+    }
+
+    // Thrown sword hit results
+    for (const result of swordHits) {
+      if (result.type === 'hit') {
+        const knockDir = result.enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+        if ('applyKnockback' in result.enemy) {
+          (result.enemy as Enemy).applyKnockback(knockDir, 1);
+        }
+        // Cancel in-progress attack (clears effect particle)
+        if ('clearAttack' in result.enemy) {
+          (result.enemy as Enemy).clearAttack();
+        }
+        const eRect = result.enemy.rect();
+        this.sparksEffect.push(
+          ...createHeartSparkParticles(
+            [eRect.x + eRect.width / 2, result.sword.pos[1]],
+            result.sword.flip,
+            getDamageSparkCount(result.damage),
+            { direction: 'up', gravity: 0.16 }
+          )
+        );
+      } else if (result.type === 'deflection') {
+        this.soundSystem?.play('sword/kicked');
+        this.sparksEffect.push(
+          new Sparks(
+            [
+              result.sword.pos[0] + (result.sword.flip ? 6 : 3),
+              result.sword.pos[1],
+            ],
+            result.sword.flip,
+            4, 7,
+            [255, 255, 255],
+            result.sword.flip ? 0 : -0.5,
+            'diamond'
+          )
+        );
+      }
+    }
+    for (let i = this.sparksEffect.length - 1; i >= 0; i--) {
+      const sparks = this.sparksEffect[i];
+      if (!sparks || sparks.update()) {
+        this.sparksEffect.splice(i, 1);
+      }
+    }
+
+    const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
+    const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
+    const movingLeft = this.leftKeys.some((key) => key.isDown) || slowMovingLeft;
+    const movingRight = this.rightKeys.some((key) => key.isDown) || slowMovingRight;
+    const isSlowDown = slowMovingLeft || slowMovingRight;
+    const horizontalDirection = Number(movingRight) - Number(movingLeft);
+
+    if (!this.playerEntity.throwingAnimation) {
+      if (horizontalDirection !== 0) {
+        this.playerEntity.runBoost = isSlowDown ? SLOW_WALK_RATIO : 1.0;
+      } else {
+        this.playerEntity.runBoost = 0;
+      }
+    }
+    let jumpPressed = false;
+    for (const key of this.jumpKeys) {
+      jumpPressed = Phaser.Input.Keyboard.JustDown(key) || jumpPressed;
+    }
+    if (jumpPressed) {
+      this.playerEntity.jump();
+    }
+    let dropThroughPressed = false;
+    for (const key of this.downKeys) {
+      dropThroughPressed =
+        Phaser.Input.Keyboard.JustDown(key) || dropThroughPressed;
+    }
+    if (dropThroughPressed) {
+      this.playerEntity.dropThroughPlatform();
+    }
+
+    let attackPressed = false;
+    if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      attackPressed = true;
+    }
+    if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
+      attackPressed = true;
+    }
+    if (attackPressed) {
+      this.triggerAttackOrPickup();
+    }
+
+    let throwPressed = false;
+    if (this.qKey && Phaser.Input.Keyboard.JustDown(this.qKey)) {
+      throwPressed = true;
+    }
+    if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
+      throwPressed = true;
+    }
+    if (throwPressed) {
+      this.playerEntity.throwSword();
+    }
+
+    this.playerEntity.update(this.tilemap, [
+      horizontalDirection * PLAYER_MOVE_SPEED,
+      0,
+    ]);
+    this.clouds?.update();
+    const playerAnimation = this.playerEntity.animation;
+    if (!playerAnimation) {
+      throw new Error('The player animation is not configured.');
+    }
+
+    const isHitAnimation =
+      this.playerEntity.action === 'hit' ||
+      this.playerEntity.action === 'sword/hit';
+    const renderAnimation =
+      isHitAnimation
+        ? playerAnimation
+        : (this.playerEntity.throwingAnimation ??
+          this.playerEntity.landingAnimation ??
+          playerAnimation);
+    const animationChanged = renderAnimation !== this.playerRenderAnimation;
+    // PhysicsEntity.update() already advances the animation when dead,
+    // so only call update() here for living players (avoid double-advance).
+    if (
+      !this.playerEntity.dead &&
+      renderAnimation !== this.playerEntity.throwingAnimation
+    ) {
+      renderAnimation.update();
+    }
+    const camera = this.cameras.main;
+    const targetX =
+      this.playerEntity.pos[0] + 32 - camera.width / 2;
+    const targetY =
+      this.playerEntity.pos[1] + 18 - camera.height / 2;
+    this.scroll[0] += (targetX - this.scroll[0]) / CAMERA_SMOOTHING;
+    this.scroll[1] += (targetY - this.scroll[1]) / CAMERA_SMOOTHING;
+    // Clamp scroll to ±9 tiles horizontal, 2 tiles up / 2 tiles down from player center
+    // (matches game.py lines 223-234)
+    const playerCenterX = this.playerEntity.pos[0] + 32;
+    const playerCenterY = this.playerEntity.pos[1] + 18;
+    const displayWidth = camera.width;
+    const displayHeight = camera.height;
+    this.scroll[0] = Math.max(
+      playerCenterX - CAMERA_BOUNDS_X - displayWidth / 2,
+      Math.min(playerCenterX + CAMERA_BOUNDS_X - displayWidth / 2, this.scroll[0])
+    );
+    this.scroll[1] = Math.max(
+      playerCenterY - CAMERA_BOUNDS_Y_UP - displayHeight / 2,
+      Math.min(playerCenterY + CAMERA_BOUNDS_Y_DOWN - displayHeight / 2, this.scroll[1])
+    );
+    const worldTargetX =
+      this.playerEntity.pos[0] + 32 - camera.width / 2;
+    const worldTargetY =
+      this.playerEntity.pos[1] + 18 - camera.height / 2;
+    this.worldScroll[0] += (worldTargetX - this.worldScroll[0]) / 20;
+    this.worldScroll[1] += (worldTargetY - this.worldScroll[1]) / 20;
+
+    this.playerSprite.setFlipX(
+      this.playerEntity.dead
+        ? this.playerEntity.deathFlip
+        : this.playerEntity.flip
+    );
+    this.tilemap.updateAnimations(this.tileAnimations);
+    // When dead: always sync texture (PhysicsEntity advances the frame, indexChanged is reliable but let's be safe)
+    if (this.playerEntity.dead || animationChanged || renderAnimation.indexChanged) {
+      this.playerSprite.setTexture(renderAnimation.img());
+    }
+    this.playerRenderAnimation = renderAnimation;
+  }
+
+  private renderInterpolated(alpha: number): void {
+    if (!this.playerEntity || !this.playerSprite) {
+      return;
+    }
+
     const renderedPlayerX =
       this.previousPlayerPosition[0] +
       (this.playerEntity.pos[0] - this.previousPlayerPosition[0]) *
-      interpolation;
+      alpha;
     const renderedPlayerY =
       this.previousPlayerPosition[1] +
       (this.playerEntity.pos[1] - this.previousPlayerPosition[1]) *
-      interpolation;
+      alpha;
     this.cameras.main.setScroll(
       this.previousScroll[0] +
-      (this.scroll[0] - this.previousScroll[0]) * interpolation,
+      (this.scroll[0] - this.previousScroll[0]) * alpha,
       this.previousScroll[1] +
-      (this.scroll[1] - this.previousScroll[1]) * interpolation
+      (this.scroll[1] - this.previousScroll[1]) * alpha
     );
     this.cameras.main.setZoom(this.currentZoom);
     if (this.backgroundImage) {
@@ -596,6 +619,7 @@ export class Game extends Phaser.Scene {
         this.scale.height / this.currentZoom
       );
     }
+    this.renderClouds();
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
 
     // Visual state: the dead_hit sprite frames ARE the white art (same as enemies),
@@ -610,8 +634,17 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
-    for (const enemy of this.enemies) {
-      enemy.render(this);
+    for (let i = 0; i < this.enemies.length; i++) {
+      const enemy = this.enemies[i];
+      if (!enemy) {
+        continue;
+      }
+      const prevPos = this.previousEnemyPositions[i] ?? enemy.pos;
+      const interpX = prevPos[0] + (enemy.pos[0] - prevPos[0]) * alpha;
+      const interpY = prevPos[1] + (enemy.pos[1] - prevPos[1]) * alpha;
+      const offsetX = enemy.pos[0] - interpX;
+      const offsetY = enemy.pos[1] - interpY;
+      enemy.render(this, [offsetX, offsetY]);
     }
     this.playerEntity.attackHandler.render(this);
     this.particles?.render(this, [
