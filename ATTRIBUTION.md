@@ -309,7 +309,6 @@ This document records credits for assets used in this project.
 ## 2. Player Jump (`player/jump`)
 
 - **SFX Key**: `'player/jump'`
-- **Folder Path**: `public/assets/sfx/player/jump/`
 - **Files**:
   - `public/assets/sfx/player/jump/0.wav`
   - `public/assets/sfx/player/jump/1.wav`
@@ -323,7 +322,6 @@ This document records credits for assets used in this project.
 ## 3. Player Run on Grass (`player/run/grass`)
 
 - **SFX Key**: `'player/run/grass'`
-- **Folder Path**: `public/assets/sfx/player/run/grass/`
 - **Files**:
   - `public/assets/sfx/player/run/grass/0.ogg`
   - `public/assets/sfx/player/run/grass/1.ogg`
@@ -339,7 +337,6 @@ This document records credits for assets used in this project.
 ## 4. Player Land on Grass (`player/land/grass`)
 
 - **SFX Key**: `'player/land/grass'`
-- **Folder Path**: `public/assets/sfx/player/land/grass/`
 - **Files**:
   - `public/assets/sfx/player/land/grass/0.ogg`
   - `public/assets/sfx/player/land/grass/1.ogg`
@@ -353,7 +350,6 @@ This document records credits for assets used in this project.
 ## 5. Player Land on Palm Tree (`player/land/palm_tree`)
 
 - **SFX Key**: `'player/land/palm_tree'`
-- **Folder Path**: `public/assets/sfx/player/land/palm_tree/`
 - **Files**:
   - `public/assets/sfx/player/land/palm_tree/0.ogg`
   - `public/assets/sfx/player/land/palm_tree/1.ogg`
@@ -367,7 +363,6 @@ This document records credits for assets used in this project.
 ## 6. Player Run on Palm Tree (`player/run/palm_tree`)
 
 - **SFX Key**: `'player/run/palm_tree'`
-- **Folder Path**: `public/assets/sfx/player/run/palm_tree/`
 - **Files**:
   - `public/assets/sfx/player/run/palm_tree/0.ogg`
   - `public/assets/sfx/player/run/palm_tree/1.ogg`
@@ -381,7 +376,6 @@ This document records credits for assets used in this project.
 ## 7. Player Pickup Sword (`player/pickup_sword`)
 
 - **SFX Key**: `'player/pickup_sword'`
-- **File Path**: `public/assets/sfx/player/pickup_sword.wav`
 - **Files**:
   - `public/assets/sfx/player/pickup_sword.wav`
 - **Asset Name**: Inventory Sound Effects - Metal Clash
@@ -394,7 +388,6 @@ This document records credits for assets used in this project.
 ## 8. Player Sword Attack (`player/sword/attack`)
 
 - **SFX Key**: `'player/sword/attack'`
-- **Folder Path**: `public/assets/sfx/player/sword/attack/`
 - **Files**:
   - `public/assets/sfx/player/sword/attack/0.wav`
   - `public/assets/sfx/player/sword/attack/1.wav`
@@ -419,7 +412,6 @@ This document records credits for assets used in this project.
 ## 9. Player Sword Air Attack (`player/sword/air_attack`)
 
 - **SFX Key**: `'player/sword/air_attack'`
-- **Folder Path**: `public/assets/sfx/player/sword/air_attack/`
 - **Files**:
   - `public/assets/sfx/player/sword/air_attack/0.wav`
   - `public/assets/sfx/player/sword/air_attack/1.wav`
@@ -434,7 +426,6 @@ This document records credits for assets used in this project.
 ## 10. Player Throw Sword (`player/throw_sword`)
 
 - **SFX Key**: `'player/throw_sword'`
-- **File Path**: `public/assets/sfx/player/throw_sword.wav`
 - **Files**:
   - `public/assets/sfx/player/throw_sword.wav`
 - **Asset Name**: Swinging Staff Whoosh Strong 04 (`422513__nightflame__swinging-staff-whoosh-strong-04`)
@@ -447,7 +438,6 @@ This document records credits for assets used in this project.
 ## 11. Player Hit (`player/hit`)
 
 - **SFX Key**: `'player/hit'`
-- **File Path**: `public/assets/sfx/player/hit.wav`
 - **Files**:
   - `public/assets/sfx/player/hit.wav`
 - **Asset Name**: 512 Sound Effects (8-bit style) — sfx_movement_jump17_landing
@@ -460,7 +450,6 @@ This document records credits for assets used in this project.
 ## 12. Player Last Hit / Death Blow (`player/dead_hit`)
 
 - **SFX Key**: `'player/dead_hit'`
-- **File Path**: `public/assets/sfx/player/dead_hit.wav`
 - **Files**:
   - `public/assets/sfx/player/dead_hit.wav`
 - **Asset Name**: 512 Sound Effects (8-bit style) — sfx_movement_jump19_landing
@@ -473,7 +462,6 @@ This document records credits for assets used in this project.
 ## 13. Sword Strike Stone (`sword/strike/stone`)
 
 - **SFX Key**: `'sword/strike/stone'`
-- **File Path**: `public/assets/sfx/sword/strike/stone.wav`
 - **Files**:
   - `public/assets/sfx/sword/strike/stone.wav`
 - **Asset Name**: Sword Clash Sound Effect (`sword-clash-241729`)
@@ -486,7 +474,6 @@ This document records credits for assets used in this project.
 ## 14. Sword Spinning (`sword/spinning`)
 
 - **SFX Key**: `'sword/spinning'`
-- **Folder Path**: `public/assets/sfx/sword/spinning/`
 - **Files**:
   - `public/assets/sfx/sword/spinning/0.wav`
   - `public/assets/sfx/sword/spinning/1.wav`
@@ -501,7 +488,6 @@ This document records credits for assets used in this project.
 ## 15. Sword Kicked (`sword/kicked`)
 
 - **SFX Key**: `'sword/kicked'`
-- **File Path**: `public/assets/sfx/sword/kicked.wav`
 - **Files**:
   - `public/assets/sfx/sword/kicked.wav`
 - **Asset Name**: Sword Sound Effect (`sword-35999`)
@@ -514,7 +500,6 @@ This document records credits for assets used in this project.
 ## 16. Dialogue Exclamation (`dialogue/exclamation`)
 
 - **SFX Key**: `'dialogue/exclamation'`
-- **File Path**: `public/assets/sfx/dialogue/exclamation.wav`
 - **Files**:
   - `public/assets/sfx/dialogue/exclamation.wav`
 - **Asset Name**: New Notification 040 (`new-notification-040-493469`)
