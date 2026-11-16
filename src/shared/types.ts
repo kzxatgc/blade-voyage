@@ -9,6 +9,9 @@ export type EntityType =
   | 'enemy/crabby'
   | 'enemy/fierce_tooth';
 
+/** Valid discrete zoom steps for the camera (1x, 2x, 3x) */
+export type ZoomLevel = 1.0 | 2.0 | 3.0;
+
 export interface EntityRect {
   x: number;
   y: number;

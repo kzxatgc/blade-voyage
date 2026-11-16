@@ -24,6 +24,9 @@ void describe('Game constants', () => {
     assert.equal(constants.CAMERA_BOUNDS_X, 7 * 32);       // ±224px horizontal
     assert.equal(constants.CAMERA_BOUNDS_Y_UP, 2 * 32);    //  -64px above player center
     assert.equal(constants.CAMERA_BOUNDS_Y_DOWN, 2 * 32);  // +64px below player center
+    assert.deepEqual(constants.ZOOM_LEVELS, [1.0, 2.0, 3.0]);
+    assert.equal(constants.DEFAULT_ZOOM, 2.0);
+    assert.equal(constants.ZOOM_EASING_SPEED, 0.08);
   });
 
   void it('preserves the source particle color palettes', async () => {

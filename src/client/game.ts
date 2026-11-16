@@ -3,7 +3,7 @@ import { Game as MainGame } from './scenes/Game';
 import * as Phaser from 'phaser';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
-import { DISPLAY_HEIGHT, DISPLAY_WIDTH, TARGET_FPS } from '../shared/constants';
+import { TARGET_FPS, WINDOW_HEIGHT, WINDOW_WIDTH } from '../shared/constants';
 
 //  Find out more information about the Game Config at:
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
@@ -24,8 +24,8 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
     // web-view / device while maintaining aspect ratio.
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: DISPLAY_WIDTH,
-    height: DISPLAY_HEIGHT,
+    width: WINDOW_WIDTH,
+    height: WINDOW_HEIGHT,
   },
   scene: [Boot, Preloader, MainGame],
 };

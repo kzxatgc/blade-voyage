@@ -77,18 +77,28 @@ export class Cloud {
   render(
     scene: CloudRenderScene,
     offset: CloudOffset = [0, 0],
-    zoom = 1
+    zoom = 1,
+    cameraZoom = 1
   ) {
     validateZoom(zoom);
+    validateZoom(cameraZoom);
 
     const scaledWidth = this.texture.width * this.scale;
     const scaledHeight = this.texture.height * this.scale;
     const renderX = this.pos[0] - offset[0] * (this.depth * 0.15);
     const renderY = this.pos[1] - offset[1] * (this.depth * 0.05);
-    const x = (modulo(renderX, CLOUD_WRAP_WIDTH) - scaledWidth) / zoom;
-    const y = (CLOUD_SKY_BASE_Y + renderY - scaledHeight) / zoom;
-    const width = Math.max(1, Math.floor(scaledWidth / zoom));
-    const height = Math.max(1, Math.floor(scaledHeight / zoom));
+    const baseX = (modulo(renderX, CLOUD_WRAP_WIDTH) - scaledWidth) / zoom;
+    const baseY = (CLOUD_SKY_BASE_Y + renderY - scaledHeight) / zoom;
+    const baseW = Math.max(1, Math.floor(scaledWidth / zoom));
+    const baseH = Math.max(1, Math.floor(scaledHeight / zoom));
+
+    const cx = scene.scale.width / 2;
+    const cy = scene.scale.height / 2;
+
+    const x = cx + (baseX - cx) / cameraZoom;
+    const y = cy + (baseY - cy) / cameraZoom;
+    const width = Math.max(1, baseW / cameraZoom);
+    const height = Math.max(1, baseH / cameraZoom);
 
     this.image ??= createCloudImage(scene, this.texture.key);
     this.image.setPosition(x, y);
@@ -122,9 +132,11 @@ export class BigCloud {
   render(
     scene: CloudRenderScene,
     offset: CloudOffset = [0, 0],
-    zoom = 1
+    zoom = 1,
+    cameraZoom = 1
   ) {
     validateZoom(zoom);
+    validateZoom(cameraZoom);
 
     const surfaceWidth = scene.scale.width;
     const surfaceHeight = scene.scale.height;
@@ -137,7 +149,7 @@ export class BigCloud {
       1,
       Math.floor((this.texture.height * targetWidth) / this.texture.width)
     );
-    const y = surfaceHeight * BIG_CLOUD_SEA_LEVEL_FRAC - targetHeight;
+    const baseY = surfaceHeight * BIG_CLOUD_SEA_LEVEL_FRAC - targetHeight;
     const drift = (this.scrollX - offset[0] * this.parallax) / zoom;
     const startX = modulo(drift, targetWidth) - targetWidth;
     const imageCount = Math.ceil(
@@ -148,14 +160,23 @@ export class BigCloud {
       this.images.push(createCloudImage(scene, this.texture.key));
     }
 
+    const cx = surfaceWidth / 2;
+    const cy = surfaceHeight / 2;
+
     this.images.forEach((image, index) => {
       image.setVisible(index < imageCount);
       if (index >= imageCount) {
         return;
       }
 
-      image.setPosition(startX + index * targetWidth, y);
-      image.setDisplaySize(targetWidth, targetHeight);
+      const baseX = startX + index * targetWidth;
+      const x = cx + (baseX - cx) / cameraZoom;
+      const y = cy + (baseY - cy) / cameraZoom;
+      const w = Math.max(1, targetWidth / cameraZoom);
+      const h = Math.max(1, targetHeight / cameraZoom);
+
+      image.setPosition(x, y);
+      image.setDisplaySize(w, h);
     });
   }
 }
@@ -217,13 +238,14 @@ export class Clouds {
   render(
     scene: CloudRenderScene,
     offset: CloudOffset = [0, 0],
-    zoom = 1
+    zoom = 1,
+    cameraZoom = 1
   ) {
     for (const cloud of this.clouds) {
-      cloud.render(scene, offset, zoom);
+      cloud.render(scene, offset, zoom, cameraZoom);
     }
     for (const bigCloud of this.bigClouds) {
-      bigCloud.render(scene, offset, zoom);
+      bigCloud.render(scene, offset, zoom, cameraZoom);
     }
   }
 }

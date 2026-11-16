@@ -113,6 +113,44 @@ void describe('Clouds', () => {
     assert.throws(() => cloud.render(new MockCloudScene(), [0, 0], 0), RangeError);
     assert.throws(() => new Clouds([], 1), /At least one small cloud image/);
   });
+
+  void it('keeps cloud on-screen position and display size invariant under camera zoom', () => {
+    const scene1 = new MockCloudScene();
+    const scene2 = new MockCloudScene();
+    const scene3 = new MockCloudScene();
+    const cloud1 = new Cloud({ key: 'background/cloud/0', width: 100, height: 20 }, [100, 50], 0, 0.5, 2);
+    const cloud2 = new Cloud({ key: 'background/cloud/0', width: 100, height: 20 }, [100, 50], 0, 0.5, 2);
+    const cloud3 = new Cloud({ key: 'background/cloud/0', width: 100, height: 20 }, [100, 50], 0, 0.5, 2);
+
+    cloud1.render(scene1, [0, 0], 1, 1);
+    cloud2.render(scene2, [0, 0], 1, 2);
+    cloud3.render(scene3, [0, 0], 1, 3);
+
+    const img1 = scene1.images[0]!;
+    const img2 = scene2.images[0]!;
+    const img3 = scene3.images[0]!;
+
+    const cx = scene1.scale.width / 2;
+    const cy = scene1.scale.height / 2;
+
+    const screenX1 = (img1.x - cx) * 1 + cx;
+    const screenX2 = (img2.x - cx) * 2 + cx;
+    const screenX3 = (img3.x - cx) * 3 + cx;
+    assert.ok(Math.abs(screenX1 - screenX2) < 0.001);
+    assert.ok(Math.abs(screenX1 - screenX3) < 0.001);
+
+    const screenY1 = (img1.y - cy) * 1 + cy;
+    const screenY2 = (img2.y - cy) * 2 + cy;
+    const screenY3 = (img3.y - cy) * 3 + cy;
+    assert.ok(Math.abs(screenY1 - screenY2) < 0.001);
+    assert.ok(Math.abs(screenY1 - screenY3) < 0.001);
+
+    const screenW1 = img1.displaySize[0] * 1;
+    const screenW2 = img2.displaySize[0] * 2;
+    const screenW3 = img3.displaySize[0] * 3;
+    assert.ok(Math.abs(screenW1 - screenW2) <= 1);
+    assert.ok(Math.abs(screenW1 - screenW3) <= 1);
+  });
 });
 
 class MockCloudImage {

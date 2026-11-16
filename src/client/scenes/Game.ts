@@ -4,10 +4,15 @@ import {
   CAMERA_BOUNDS_Y_DOWN,
   CAMERA_BOUNDS_Y_UP,
   CAMERA_SMOOTHING,
+  DEFAULT_ZOOM,
+  DISPLAY_HEIGHT,
   DISPLAY_WIDTH,
   RENDER_DEPTH,
   TICK_RATE,
+  WINDOW_HEIGHT,
   WINDOW_WIDTH,
+  ZOOM_EASING_SPEED,
+  ZOOM_LEVELS,
 } from '../../shared/constants';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
@@ -35,7 +40,6 @@ const TILE_ANIMATION_TYPES = [
 ];
 const PLAYER_MOVE_SPEED = 2.0;
 const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
-const CLOUD_RENDER_ZOOM = WINDOW_WIDTH / DISPLAY_WIDTH;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -65,6 +69,11 @@ export class Game extends Phaser.Scene {
   private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
   private soundSystem?: SoundSystem;
+  private targetZoom: number = DEFAULT_ZOOM;
+  private currentZoom: number = DEFAULT_ZOOM;
+  private displayWidth: number = DISPLAY_WIDTH;
+  private displayHeight: number = DISPLAY_HEIGHT;
+  private backgroundImage?: Phaser.GameObjects.Image;
 
   constructor() {
     super('Game');
@@ -130,7 +139,27 @@ export class Game extends Phaser.Scene {
         this.playerEntity?.throwSword();
       }
     });
-    this.add
+    // Ctrl + Wheel zoom (matches game.py lines 336-348)
+    this.input.on(
+      'wheel',
+      (
+        pointer: Phaser.Input.Pointer,
+        _gameObjects: unknown[],
+        _deltaX: number,
+        deltaY: number
+      ) => {
+        const wheelEvent = pointer.event as WheelEvent | undefined;
+        if (wheelEvent?.ctrlKey) {
+          wheelEvent.preventDefault?.();
+          if (deltaY < 0) {
+            this.zoomIn();
+          } else if (deltaY > 0) {
+            this.zoomOut();
+          }
+        }
+      }
+    );
+    this.backgroundImage = this.add
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
       .setScrollFactor(0)
       .setDisplaySize(this.scale.width, this.scale.height);
@@ -182,6 +211,22 @@ export class Game extends Phaser.Scene {
       if (event.code === 'F1' || event.code === 'Backquote') {
         toggleDebugMode();
       }
+      // Keyboard zoom hotkeys (+/= zoom in, -/_ zoom out)
+      if (
+        event.code === 'NumpadAdd' ||
+        event.code === 'Equal' ||
+        event.key === '=' ||
+        event.key === '+'
+      ) {
+        this.zoomIn();
+      } else if (
+        event.code === 'NumpadSubtract' ||
+        event.code === 'Minus' ||
+        event.key === '-' ||
+        event.key === '_'
+      ) {
+        this.zoomOut();
+      }
     });
 
     this.input.keyboard?.on('keyup', (event: KeyboardEvent) => {
@@ -206,7 +251,8 @@ export class Game extends Phaser.Scene {
     this.previousScroll = [...this.scroll];
     this.previousPlayerPosition = [...this.playerEntity.pos];
     this.worldScroll = [...this.scroll];
-    camera.setRoundPixels(false);
+    camera.setRoundPixels(true);
+    camera.setZoom(this.currentZoom);
     camera.setScroll(this.scroll[0], this.scroll[1]);
 
     const cloudImages = [0, 1, 2].map((frame) =>
@@ -278,6 +324,14 @@ export class Game extends Phaser.Scene {
 
     while (this.tickAccumulator >= tickDuration) {
       this.tickAccumulator -= tickDuration;
+      if (Math.abs(this.targetZoom - this.currentZoom) > 0.0005) {
+        this.currentZoom +=
+          (this.targetZoom - this.currentZoom) * ZOOM_EASING_SPEED;
+      } else {
+        this.currentZoom = this.targetZoom;
+      }
+      this.displayWidth = WINDOW_WIDTH / this.currentZoom;
+      this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
       this.particles?.update();
       const swordHits =
         this.swords?.update(
@@ -535,6 +589,13 @@ export class Game extends Phaser.Scene {
       this.previousScroll[1] +
       (this.scroll[1] - this.previousScroll[1]) * interpolation
     );
+    this.cameras.main.setZoom(this.currentZoom);
+    if (this.backgroundImage) {
+      this.backgroundImage.setDisplaySize(
+        this.scale.width / this.currentZoom,
+        this.scale.height / this.currentZoom
+      );
+    }
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
 
     // Visual state: the dead_hit sprite frames ARE the white art (same as enemies),
@@ -677,7 +738,48 @@ export class Game extends Phaser.Scene {
     this.clouds?.render(
       this,
       [Math.floor(this.worldScroll[0]), Math.floor(this.worldScroll[1])],
-      CLOUD_RENDER_ZOOM
+      1,
+      this.currentZoom
     );
+  }
+
+  public zoomIn(): void {
+    if (this.targetZoom < 2.0) {
+      this.targetZoom = 2.0;
+    } else if (this.targetZoom < 3.0) {
+      this.targetZoom = 3.0;
+    }
+  }
+
+  public zoomOut(): void {
+    if (this.targetZoom > 2.0) {
+      this.targetZoom = 2.0;
+    } else if (this.targetZoom > 1.0) {
+      this.targetZoom = 1.0;
+    }
+  }
+
+  public getTargetZoom(): number {
+    return this.targetZoom;
+  }
+
+  public getCurrentZoom(): number {
+    return this.currentZoom;
+  }
+
+  public setTargetZoom(zoom: number): void {
+    this.targetZoom = zoom;
+  }
+
+  public getDisplayWidth(): number {
+    return this.displayWidth;
+  }
+
+  public getDisplayHeight(): number {
+    return this.displayHeight;
+  }
+
+  public getZoomLevels(): readonly number[] {
+    return ZOOM_LEVELS;
   }
 }
