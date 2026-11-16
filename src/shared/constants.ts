@@ -10,6 +10,10 @@ export const TILE_SIZE = 32;
 export const GRAVITY = 0.5;
 export const MAX_FALL_SPEED = 5;
 export const CAMERA_SMOOTHING = 40;
+// Camera scroll clamp bounds relative to player center (from game.py lines 223-234)
+export const CAMERA_BOUNDS_X = 7 * TILE_SIZE;       // ±224px horizontal
+export const CAMERA_BOUNDS_Y_UP = 2 * TILE_SIZE;    //  -64px above player center
+export const CAMERA_BOUNDS_Y_DOWN = 4 * TILE_SIZE;  // +64px below player center
 export const TICK_RATE = 60;
 export const TARGET_FPS = 144;
 export const PHYSICAL_TILES = new Set(['grass']);

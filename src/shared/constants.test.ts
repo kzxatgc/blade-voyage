@@ -20,6 +20,10 @@ void describe('Game constants', () => {
     assert.equal(constants.CAMERA_SMOOTHING, 40);
     assert.equal(constants.TICK_RATE, 60);
     assert.equal(constants.TARGET_FPS, 144);
+    // Camera bounds clamp constants (from game.py lines 223-234)
+    assert.equal(constants.CAMERA_BOUNDS_X, 7 * 32);       // ±224px horizontal
+    assert.equal(constants.CAMERA_BOUNDS_Y_UP, 2 * 32);    //  -64px above player center
+    assert.equal(constants.CAMERA_BOUNDS_Y_DOWN, 2 * 32);  // +64px below player center
   });
 
   void it('preserves the source particle color palettes', async () => {

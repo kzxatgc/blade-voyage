@@ -17,6 +17,8 @@ export interface DebugConfig {
   showEnemyDetectionRange: boolean;
   /** Show enemy melee attack range (red inner box) */
   showEnemyAttackRange: boolean;
+  /** Show camera scroll clamp boundary box (magenta) around player */
+  showCameraBounds: boolean;
 }
 
 export const DEBUG_CONFIG: DebugConfig = {
@@ -27,6 +29,7 @@ export const DEBUG_CONFIG: DebugConfig = {
   showSwordSpawnRange: false,
   showEnemyDetectionRange: false,
   showEnemyAttackRange: false,
+  showCameraBounds: false,
 };
 
 export function isDebugEnabled(): boolean {

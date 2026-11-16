@@ -1,5 +1,8 @@
 import * as Phaser from 'phaser';
 import {
+  CAMERA_BOUNDS_X,
+  CAMERA_BOUNDS_Y_DOWN,
+  CAMERA_BOUNDS_Y_UP,
   CAMERA_SMOOTHING,
   DISPLAY_WIDTH,
   RENDER_DEPTH,
@@ -483,6 +486,20 @@ export class Game extends Phaser.Scene {
         this.playerEntity.pos[1] + 18 - camera.height / 2;
       this.scroll[0] += (targetX - this.scroll[0]) / CAMERA_SMOOTHING;
       this.scroll[1] += (targetY - this.scroll[1]) / CAMERA_SMOOTHING;
+      // Clamp scroll to ±9 tiles horizontal, 2 tiles up / 6 tiles down from player center
+      // (matches game.py lines 223-234)
+      const playerCenterX = this.playerEntity.pos[0] + 32;
+      const playerCenterY = this.playerEntity.pos[1] + 18;
+      const displayWidth = camera.width;
+      const displayHeight = camera.height;
+      this.scroll[0] = Math.max(
+        playerCenterX - CAMERA_BOUNDS_X - displayWidth / 2,
+        Math.min(playerCenterX + CAMERA_BOUNDS_X - displayWidth / 2, this.scroll[0])
+      );
+      this.scroll[1] = Math.max(
+        playerCenterY - CAMERA_BOUNDS_Y_UP - displayHeight / 2,
+        Math.min(playerCenterY + CAMERA_BOUNDS_Y_DOWN - displayHeight / 2, this.scroll[1])
+      );
       const worldTargetX =
         this.playerEntity.pos[0] + 32 - camera.width / 2;
       const worldTargetY =
@@ -617,6 +634,20 @@ export class Game extends Phaser.Scene {
             this.sparksGraphics.lineStyle(2, 0xff8800, 1);
             this.sparksGraphics.strokeRect(atkRect.x, atkRect.y, atkRect.width, atkRect.height);
           }
+        }
+
+        if (DEBUG_CONFIG.showCameraBounds) {
+          // Camera scroll clamp boundary — magenta box centered on player pivot
+          // Horizontal: ±CAMERA_BOUNDS_X from playerCenterX
+          // Vertical: -CAMERA_BOUNDS_Y_UP above / +CAMERA_BOUNDS_Y_DOWN below playerCenterY
+          const cbCX = this.playerEntity.pos[0] + 32;
+          const cbCY = this.playerEntity.pos[1] + 18;
+          const cbX = cbCX - CAMERA_BOUNDS_X;
+          const cbY = cbCY - CAMERA_BOUNDS_Y_UP;
+          const cbW = CAMERA_BOUNDS_X * 2;
+          const cbH = CAMERA_BOUNDS_Y_UP + CAMERA_BOUNDS_Y_DOWN;
+          this.sparksGraphics.lineStyle(2, 0xff00ff, 0.9);
+          this.sparksGraphics.strokeRect(cbX, cbY, cbW, cbH);
         }
       }
 
