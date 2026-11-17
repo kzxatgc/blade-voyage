@@ -534,7 +534,7 @@ export class Game extends Phaser.Scene {
     if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
       attackPressed = true;
     }
-    if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
+    if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
       attackPressed = true;
     }
     if (attackPressed) {
@@ -545,7 +545,7 @@ export class Game extends Phaser.Scene {
     if (this.qKey && Phaser.Input.Keyboard.JustDown(this.qKey)) {
       throwPressed = true;
     }
-    if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
+    if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
       throwPressed = true;
     }
     if (throwPressed) {
