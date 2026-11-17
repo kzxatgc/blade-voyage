@@ -57,6 +57,7 @@ This document records credits for assets used in this project.
   - `public/assets/img/entities/player/hit/2.png`
   - `public/assets/img/entities/player/hit/3.png`
   - `public/assets/img/entities/player/idle/0.png`
+  - `public/assets/img/ui/title/player-avatar.png`
   - `public/assets/img/entities/player/idle/1.png`
   - `public/assets/img/entities/player/idle/2.png`
   - `public/assets/img/entities/player/idle/3.png`
@@ -320,7 +321,9 @@ This document records credits for assets used in this project.
 - **Source folder**: `full_asset/Pixellab/`
 - **Creator / License**: Created with PixelLab by the project owner. PixelLab's [Terms of Service](https://www.pixellab.ai/termsofservice) state that users own copyrights to their creations and may use them commercially or non-commercially without permission. The terms also require compliance with OpenRAIL-M, prohibit using creations to train other models without PixelLab's permission, and make users responsible for third-party rights. This is PixelLab's output-use grant, not a CC0 declaration.
 - The settings gear states, button backing, speaker and controller toggles, and hint toggles are crops from sheets in this folder.
+- The title-screen Next button uses zero-based row 0, column 0 for its default state and row 2, column 0 for its pressed state from `full_asset/Pixellab/1794918873875.png`.
 - **Files**:
+  - `full_asset/Pixellab/1794918873875.png`
   - `public/assets/img/ui/settings/gear.png`
   - `public/assets/img/ui/settings/gear-open.png`
   - `public/assets/img/ui/settings/button.png`
@@ -330,6 +333,8 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/settings/controls-off.png`
   - `public/assets/img/ui/settings/hint-on.png`
   - `public/assets/img/ui/settings/hint-off.png`
+  - `public/assets/img/ui/title/next-button.png`
+  - `public/assets/img/ui/title/next-button-pressed.png`
 
 ## 3. Kenney UI Audio
 

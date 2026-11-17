@@ -2,6 +2,7 @@ import { Scene } from 'phaser';
 import { SFX_DEFINITIONS } from '../systems/Audio';
 
 export const PRELOADER_KEY = 'Preloader';
+const DEBUG_SKIP_TITLE_SCREEN = false;
 
 export class Preloader extends Scene {
   constructor() {
@@ -26,6 +27,52 @@ export class Preloader extends Scene {
 
   preload() {
     this.load.setPath('../assets');
+
+    this.load.json('game-map', 'maps/0.json');
+    this.load.audio('settings-click', 'sfx/ui/settings-click.wav');
+    this.load.image('title-player-avatar', 'img/ui/title/player-avatar.png');
+    this.load.image('title-next', 'img/ui/title/next-button.png');
+    this.load.image(
+      'title-next-pressed',
+      'img/ui/title/next-button-pressed.png'
+    );
+
+    this.load.image('touch-left', 'img/ui/touch/left.png');
+    this.load.image('touch-right', 'img/ui/touch/right.png');
+    this.load.image('touch-down', 'img/ui/touch/down.png');
+    this.load.image('touch-jump', 'img/ui/touch/jump.png');
+    this.load.image('touch-attack', 'img/ui/touch/attack.png');
+    this.load.image('touch-throw', 'img/ui/touch/throw.png');
+    this.load.image('touch-settings-gear', 'img/ui/settings/gear.png');
+    this.load.image(
+      'touch-settings-gear-open',
+      'img/ui/settings/gear-open.png'
+    );
+    this.load.image(
+      'touch-settings-sound-on',
+      'img/ui/settings/sound-on.png'
+    );
+    this.load.image(
+      'touch-settings-sound-off',
+      'img/ui/settings/sound-off.png'
+    );
+    this.load.image(
+      'touch-settings-controls-on',
+      'img/ui/settings/controls-on.png'
+    );
+    this.load.image(
+      'touch-settings-controls-off',
+      'img/ui/settings/controls-off.png'
+    );
+    this.load.image('touch-settings-hint-on', 'img/ui/settings/hint-on.png');
+    this.load.image('touch-settings-hint-off', 'img/ui/settings/hint-off.png');
+    this.load.image('touch-settings-panel', 'img/ui/settings/panel.png');
+    this.load.image('touch-settings-button', 'img/ui/settings/button.png');
+    this.load.bitmapFont(
+      'touch-settings-font',
+      'img/ui/settings/font.png',
+      'img/ui/settings/font.fnt'
+    );
 
     this.load.image('background/big_cloud', 'img/background/big_cloud.png');
     for (let frame = 0; frame < 3; frame++) {
@@ -181,6 +228,6 @@ export class Preloader extends Scene {
   }
 
   create() {
-    this.scene.start('Game');
+    this.scene.start(DEBUG_SKIP_TITLE_SCREEN ? 'Game' : 'TitleScene');
   }
 }
