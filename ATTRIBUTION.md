@@ -4,7 +4,7 @@ This document records credits for assets used in this project.
 
 ## 1. Treasure Hunters Sprite Pack
 
-- **Asset Type**: Backgrounds, clouds, grass tiles, and icon
+- **Asset Type**: Backgrounds, clouds, grass tiles, icon, and mobile controls
 - **Asset Name**: Treasure Hunters
 - **Author / Creator**: Pixel Frog
 - **Source Link**: https://pixelfrog-assets.itch.io/treasure-hunters
@@ -32,6 +32,12 @@ This document records credits for assets used in this project.
   - `public/assets/img/map/grass/14.png`
   - `public/assets/img/map/grass/15.png`
   - `public/assets/img/icon.png`
+  - `public/assets/img/ui/touch/left.png`
+  - `public/assets/img/ui/touch/right.png`
+  - `public/assets/img/ui/touch/down.png`
+  - `public/assets/img/ui/touch/jump.png`
+  - `public/assets/img/ui/touch/attack.png`
+  - `public/assets/img/ui/touch/throw.png`
   - `public/assets/img/entities/player/dead/0.png`
   - `public/assets/img/entities/player/dead/1.png`
   - `public/assets/img/entities/player/dead/2.png`

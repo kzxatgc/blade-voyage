@@ -30,6 +30,7 @@ import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
 import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
 import { SoundSystem } from '../systems/Audio';
+import { TouchControls } from '../systems/TouchControls';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -71,6 +72,7 @@ export class Game extends Phaser.Scene {
   private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
   private soundSystem?: SoundSystem;
+  private touchControls?: TouchControls;
   private targetZoom: number = DEFAULT_ZOOM;
   private currentZoom: number = DEFAULT_ZOOM;
   private displayWidth: number = DISPLAY_WIDTH;
@@ -83,6 +85,12 @@ export class Game extends Phaser.Scene {
 
   preload() {
     this.load.json('game-map', '/assets/maps/0.json');
+    this.load.image('touch-left', '/assets/img/ui/touch/left.png');
+    this.load.image('touch-right', '/assets/img/ui/touch/right.png');
+    this.load.image('touch-down', '/assets/img/ui/touch/down.png');
+    this.load.image('touch-jump', '/assets/img/ui/touch/jump.png');
+    this.load.image('touch-attack', '/assets/img/ui/touch/attack.png');
+    this.load.image('touch-throw', '/assets/img/ui/touch/throw.png');
   }
 
   create() {
@@ -135,6 +143,12 @@ export class Game extends Phaser.Scene {
       Phaser.Input.Keyboard.KeyCodes.L
     );
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.wasTouch) {
+        return;
+      }
+      if (this.touchControls?.isPointerOnControl(pointer)) {
+        return;
+      }
       if (pointer.leftButtonDown()) {
         this.triggerAttackOrPickup();
       } else if (pointer.rightButtonDown()) {
@@ -182,6 +196,12 @@ export class Game extends Phaser.Scene {
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
+    this.touchControls = new TouchControls(this, {
+      down: () => this.playerEntity?.dropThroughPlatform(),
+      jump: () => this.playerEntity?.jump(),
+      attack: () => this.triggerAttackOrPickup(),
+      throw: () => this.playerEntity?.throwSword(),
+    });
 
     const spawnResult = spawnEntities(
       this.tilemap,
@@ -319,6 +339,7 @@ export class Game extends Phaser.Scene {
       !this.playerEntity ||
       !this.tilemap
     ) {
+      this.touchControls?.update();
       return;
     }
 
@@ -333,6 +354,7 @@ export class Game extends Phaser.Scene {
 
     const alpha = Math.min(this.tickAccumulator / tickDuration, 1.0);
     this.renderInterpolated(alpha);
+    this.touchControls?.update();
   }
 
   private fixedTick(): void {
@@ -474,8 +496,14 @@ export class Game extends Phaser.Scene {
 
     const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
     const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
-    const movingLeft = this.leftKeys.some((key) => key.isDown) || slowMovingLeft;
-    const movingRight = this.rightKeys.some((key) => key.isDown) || slowMovingRight;
+    const movingLeft =
+      this.leftKeys.some((key) => key.isDown) ||
+      slowMovingLeft ||
+      (this.touchControls?.movement.left ?? false);
+    const movingRight =
+      this.rightKeys.some((key) => key.isDown) ||
+      slowMovingRight ||
+      (this.touchControls?.movement.right ?? false);
     const isSlowDown = slowMovingLeft || slowMovingRight;
     const horizontalDirection = Number(movingRight) - Number(movingLeft);
 

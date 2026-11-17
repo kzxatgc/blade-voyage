@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 const debugUrl = new URL('./debug.ts', import.meta.url).href;
 
 void describe('Debug config', () => {
-  void it('initializes with debug mode enabled and all overlays on', async () => {
+  void it('initializes with debug mode enabled and optional overlays off', async () => {
     const debug = await import(debugUrl);
     debug.setDebugMode(true);
     debug.DEBUG_CONFIG.showSwordSpawnRange = true;
@@ -15,6 +15,7 @@ void describe('Debug config', () => {
 
     assert.equal(debug.isDebugEnabled(), true);
     assert.equal(debug.DEBUG_CONFIG.enabled, true);
+    assert.equal(debug.DEBUG_CONFIG.showTouchControlsOnDesktop, false);
     assert.equal(debug.DEBUG_CONFIG.showSwordSpawnRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyDetectionRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyAttackRange, true);

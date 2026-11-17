@@ -5,6 +5,8 @@
 export interface DebugConfig {
   /** Master toggle for all debug overlays */
   enabled: boolean;
+  /** Show virtual touch controls on non-touch devices when debug mode is enabled */
+  showTouchControlsOnDesktop: boolean;
   /** Player health is infinite (cannot die) */
   playerInfiniteHealth: boolean;
   /** Show body hitbox rect for player (yellow) and enemies (cyan) */
@@ -23,6 +25,7 @@ export interface DebugConfig {
 
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
+  showTouchControlsOnDesktop: false,
   playerInfiniteHealth: true,
   showEntityBodyRects: false,
   showPlayerAttackRange: false,
@@ -44,4 +47,3 @@ export function toggleDebugMode(): boolean {
   DEBUG_CONFIG.enabled = !DEBUG_CONFIG.enabled;
   return DEBUG_CONFIG.enabled;
 }
-
