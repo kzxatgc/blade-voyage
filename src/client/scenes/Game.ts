@@ -59,10 +59,12 @@ export class Game extends Phaser.Scene {
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
+  private swordPickupPrompt?: Phaser.GameObjects.BitmapText;
   private swords?: Swords;
   private enemies: Enemy[] = [];
   private sparksEffect: Sparks[] = [];
   private sparksGraphics?: Phaser.GameObjects.Graphics;
+  private pickupHintEnabled = true;
   private tickAccumulator = 0;
   private scroll: [number, number] = [0, 0];
   private previousScroll: [number, number] = [0, 0];
@@ -117,7 +119,14 @@ export class Game extends Phaser.Scene {
       'touch-settings-controls-off',
       '/assets/img/ui/settings/controls-off.png'
     );
-    this.load.image('touch-settings-home', '/assets/img/ui/settings/home.png');
+    this.load.image(
+      'touch-settings-hint-on',
+      '/assets/img/ui/settings/hint-on.png'
+    );
+    this.load.image(
+      'touch-settings-hint-off',
+      '/assets/img/ui/settings/hint-off.png'
+    );
     this.load.image('touch-settings-panel', '/assets/img/ui/settings/panel.png');
     this.load.image('touch-settings-button', '/assets/img/ui/settings/button.png');
     this.load.bitmapFont(
@@ -236,6 +245,9 @@ export class Game extends Phaser.Scene {
       attack: () => this.triggerAttackOrPickup(),
       throw: () => this.playerEntity?.throwSword(),
       setSoundEnabled: (enabled) => this.sound.setMute(!enabled),
+      setPickupHintEnabled: (enabled) => {
+        this.pickupHintEnabled = enabled;
+      },
       setGamePaused: (paused) => {
         this.settingsPaused = paused;
         this.tickAccumulator = 0;
@@ -344,6 +356,13 @@ export class Game extends Phaser.Scene {
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
     this.playerSprite.setDepth(RENDER_DEPTH.ENTITIES);
+    this.swordPickupPrompt = this.add
+      .bitmapText(0, 0, 'touch-settings-font', 'PICK UP', 9)
+      .setOrigin(0.5, 1)
+      .setTint(0xffe6a0)
+      .setDepth(RENDER_DEPTH.PARTICLES + 1)
+      .setVisible(false)
+      .setAlpha(0);
     this.sparksGraphics = this.add.graphics().setDepth(RENDER_DEPTH.DEBUG);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
 
@@ -709,6 +728,7 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
+    this.updateSwordPickupPrompt();
     for (let i = 0; i < this.enemies.length; i++) {
       const enemy = this.enemies[i];
       if (!enemy) {
@@ -835,6 +855,46 @@ export class Game extends Phaser.Scene {
     } else if (this.playerEntity.swordState) {
       this.playerEntity.attack();
     }
+  }
+
+  private updateSwordPickupPrompt(): void {
+    const prompt = this.swordPickupPrompt;
+    const sword = this.pickupHintEnabled
+      ? this.playerEntity?.getPickupableSword(this.swords?.swords ?? [])
+      : undefined;
+    if (!prompt) {
+      return;
+    }
+
+    if (!sword) {
+      if (prompt.visible) {
+        this.tweens.killTweensOf(prompt);
+        prompt.setVisible(false).setAlpha(0).setScale(1);
+      }
+      return;
+    }
+
+    prompt.setPosition(sword.pos[0] + 10, sword.pos[1] - 13);
+    if (prompt.visible) {
+      return;
+    }
+
+    prompt.setVisible(true).setAlpha(0).setScale(1);
+    this.tweens.add({
+      targets: prompt,
+      alpha: 1,
+      duration: 120,
+      ease: 'Sine.Out',
+    });
+    this.tweens.add({
+      targets: prompt,
+      scaleX: 1.0625,
+      scaleY: 1.0625,
+      duration: 480,
+      ease: 'Sine.InOut',
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   private getCloudImageSource(key: string): CloudImageSource {

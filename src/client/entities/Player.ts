@@ -138,13 +138,44 @@ export class Player extends PhysicsEntity {
     super.setAction(action);
   }
 
-  pickupSword(swords: PickupSwordTarget[]): boolean {
+  getPickupableSword(
+    swords: PickupSwordTarget[]
+  ): PickupSwordTarget | undefined {
     if (this.swordState || this.pendingThrow || this.throwingAnimation) {
-      return false;
+      return undefined;
     }
 
     const playerRect = this.rect();
-    const playerBounds: EntityRect = {
+    const playerBounds = this.getPlayerPickupBounds(playerRect);
+    return swords.find((sword) =>
+      this.overlapsSwordPickup(playerRect, playerBounds, sword)
+    );
+  }
+
+  pickupSword(swords: PickupSwordTarget[]): boolean {
+    const sword = this.getPickupableSword(swords);
+    if (!sword) {
+      return false;
+    }
+
+    const swordIndex = swords.indexOf(sword);
+    if (swordIndex < 0) {
+      return false;
+    }
+
+    swords.splice(swordIndex, 1);
+    sword.destroy?.();
+    this.swordState = true;
+    this.playSfx?.('player/pickup_sword');
+    const currentBaseAction = this.action.replace(/^sword\//, '');
+    this.action = '';
+    this.setAction(`sword/${currentBaseAction}`);
+    this.animation?.update();
+    return true;
+  }
+
+  private getPlayerPickupBounds(playerRect: EntityRect): EntityRect {
+    return {
       x: Math.min(playerRect.x, this.pos[0]),
       y: Math.min(playerRect.y, this.pos[1]),
       width:
@@ -156,49 +187,34 @@ export class Player extends PhysicsEntity {
           this.pos[1] + this.size[1]
         ) - Math.min(playerRect.y, this.pos[1]),
     };
+  }
 
-    for (let i = 0; i < swords.length; i++) {
-      const sword = swords[i];
-      if (!sword) {
-        continue;
-      }
+  private overlapsSwordPickup(
+    playerRect: EntityRect,
+    playerBounds: EntityRect,
+    sword: PickupSwordTarget
+  ): boolean {
+    const swordRect: EntityRect =
+      typeof sword.rect === 'function'
+        ? sword.rect()
+        : {
+            x: sword.pos[0],
+            y: sword.pos[1],
+            width: 20,
+            height: 20,
+          };
+    const overlapsPhysical =
+      playerRect.x < swordRect.x + swordRect.width &&
+      playerRect.x + playerRect.width > swordRect.x &&
+      playerRect.y < swordRect.y + swordRect.height &&
+      playerRect.y + playerRect.height > swordRect.y;
+    const overlapsBounds =
+      playerBounds.x < swordRect.x + swordRect.width &&
+      playerBounds.x + playerBounds.width > swordRect.x &&
+      playerBounds.y < swordRect.y + swordRect.height &&
+      playerBounds.y + playerBounds.height > swordRect.y;
 
-      const swordRect: EntityRect =
-        typeof sword.rect === 'function'
-          ? sword.rect()
-          : {
-              x: sword.pos[0],
-              y: sword.pos[1],
-              width: 20,
-              height: 20,
-            };
-
-      const overlapsPhysical =
-        playerRect.x < swordRect.x + swordRect.width &&
-        playerRect.x + playerRect.width > swordRect.x &&
-        playerRect.y < swordRect.y + swordRect.height &&
-        playerRect.y + playerRect.height > swordRect.y;
-
-      const overlapsBounds =
-        playerBounds.x < swordRect.x + swordRect.width &&
-        playerBounds.x + playerBounds.width > swordRect.x &&
-        playerBounds.y < swordRect.y + swordRect.height &&
-        playerBounds.y + playerBounds.height > swordRect.y;
-
-      if (overlapsPhysical || overlapsBounds) {
-        swords.splice(i, 1);
-        sword.destroy?.();
-        this.swordState = true;
-        this.playSfx?.('player/pickup_sword');
-        const currentBaseAction = this.action.replace(/^sword\//, '');
-        this.action = '';
-        this.setAction(`sword/${currentBaseAction}`);
-        this.animation?.update();
-        return true;
-      }
-    }
-
-    return false;
+    return overlapsPhysical || overlapsBounds;
   }
 
   override update(

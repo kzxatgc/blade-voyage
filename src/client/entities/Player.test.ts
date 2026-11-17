@@ -396,11 +396,29 @@ void describe('Player', () => {
   void it('picks up sword when overlapping', async () => {
     const Player = await getPlayer();
     const player = new Player([100, 200]);
-    player.pickupSword([
-      { pos: [100, 200], rect: () => ({ x: 100, y: 200, width: 20, height: 20 }) },
-    ]);
+    const sword = {
+      pos: [100, 200] as [number, number],
+      rect: () => ({ x: 100, y: 200, width: 20, height: 20 }),
+    };
+    const swords = [sword];
+
+    assert.equal(player.getPickupableSword(swords), sword);
+    assert.equal(swords.length, 1);
+    assert.equal(player.pickupSword(swords), true);
     assert.equal(player.swordState, true);
+    assert.equal(swords.length, 0);
     assert.equal(player.animation?.img(), 'player/sword/idle/0');
+  });
+
+  void it('does not report a distant sword as pickupable', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    const sword = {
+      pos: [500, 200] as [number, number],
+      rect: () => ({ x: 500, y: 200, width: 20, height: 20 }),
+    };
+
+    assert.equal(player.getPickupableSword([sword]), undefined);
   });
 
   void it('does not pick up if already has sword', async () => {
