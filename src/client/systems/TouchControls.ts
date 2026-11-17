@@ -10,13 +10,14 @@ export type TouchControlActions = {
   attack: () => void;
   throw: () => void;
   setSoundEnabled: (enabled: boolean) => void;
+  setPickupHintEnabled: (enabled: boolean) => void;
   setGamePaused: (paused: boolean) => void;
   playUiClick: () => void;
 };
 
 type TouchButton = 'left' | 'right' | 'down' | 'jump' | 'attack' | 'throw';
-type SettingsCategory = 'sound' | 'controls';
-type SettingsItem = SettingsCategory | 'home';
+type SettingsCategory = 'sound' | 'controls' | 'hint';
+type SettingsItem = SettingsCategory;
 type TouchSettingsBounds = {
   left: number;
   top: number;
@@ -41,30 +42,34 @@ const BUTTON_WIDTH = 96;
 const BUTTON_HEIGHT = 96;
 const BUTTON_IMAGE_SIZE = 72;
 const BUTTON_IMAGE_RATIO = BUTTON_IMAGE_SIZE / BUTTON_WIDTH;
+const BUTTON_PRESSED_SCALE = 0.9;
+const BUTTON_PRESS_DURATION_MS = 70;
+const BUTTON_RELEASE_DURATION_MS = 140;
 const MIN_HIT_TARGET_CSS_SIZE = 48;
 const BUTTON_MARGIN = 24;
 const BUTTON_GAP = 12;
 const SETTINGS_STORAGE_KEY = 'blade-voyage:touch-controls-mode';
 const SOUND_STORAGE_KEY = 'blade-voyage:sound-enabled';
+const PICKUP_HINT_STORAGE_KEY = 'blade-voyage:pickup-hint-enabled';
 const SETTINGS_BUTTON_SIZE_CSS = 56;
 const SETTINGS_PANEL_WIDTH_CSS = 250;
 const SETTINGS_PANEL_HEIGHT_CSS = 182;
 const SETTINGS_PANEL_SAFE_MARGIN_CSS = 24;
 const SETTINGS_TOGGLE_HIT_HEIGHT_CSS = 54;
-const SETTINGS_HOME_OPTICAL_OFFSET_CSS = 1.25;
+const SETTINGS_CENTER_ITEM_OPTICAL_OFFSET_CSS = 1.25;
 const SETTINGS_ITEM_X_CSS: Record<SettingsItem, number> = {
   sound: -56,
-  home: SETTINGS_HOME_OPTICAL_OFFSET_CSS,
+  hint: SETTINGS_CENTER_ITEM_OPTICAL_OFFSET_CSS,
   controls: 56,
 };
 const SETTINGS_ITEM_Y_CSS = 12;
 const SETTINGS_ITEM_ICON_SIZE_CSS: Record<SettingsItem, number> = {
   sound: 64,
   controls: 52,
-  home: 64,
+  hint: 64,
 };
-const SETTINGS_CATEGORIES: SettingsCategory[] = ['sound', 'controls'];
-const SETTINGS_ITEMS: SettingsItem[] = ['sound', 'home', 'controls'];
+const SETTINGS_CATEGORIES: SettingsCategory[] = ['sound', 'hint', 'controls'];
+const SETTINGS_ITEMS: SettingsItem[] = ['sound', 'hint', 'controls'];
 
 export class TouchControls {
   readonly movement: TouchMovementInput = { left: false, right: false };
@@ -78,6 +83,7 @@ export class TouchControls {
     TouchButton,
     Phaser.GameObjects.Image
   >();
+  private readonly buttonImageScales = new Map<TouchButton, [number, number]>();
   private readonly buttonPositions = new Map<TouchButton, [number, number]>();
   private readonly activePointers = new Map<number, TouchButton>();
   private readonly pointersDown = new Set<number>();
@@ -124,6 +130,7 @@ export class TouchControls {
   };
   private mode: TouchControlsMode = 'off';
   private soundEnabled = true;
+  private pickupHintEnabled = true;
   private hasManualPreference = false;
   private settingsOpen = false;
   private persistenceUnavailable = false;
@@ -151,6 +158,8 @@ export class TouchControls {
     this.mode = savedMode ?? this.detectMode(this.getCanvasWidth());
     this.soundEnabled = this.readSavedSoundPreference() ?? true;
     this.actions.setSoundEnabled(this.soundEnabled);
+    this.pickupHintEnabled = this.readSavedPickupHintPreference() ?? true;
+    this.actions.setPickupHintEnabled(this.pickupHintEnabled);
     this.touchPrimaryInputQuery.addEventListener(
       'change',
       this.handleInputModeChange
@@ -198,12 +207,16 @@ export class TouchControls {
     this.scene.scale.off('resize', this.handleResize, this);
     this.scene.tweens.killTweensOf(this.settingsButtonIcon);
     this.scene.tweens.killTweensOf(this.settingsButtonBackground);
+    for (const image of this.buttonImages.values()) {
+      this.scene.tweens.killTweensOf(image);
+    }
     for (const button of this.buttons.values()) {
       button.destroy();
     }
     this.settingsRoot.destroy();
     this.buttons.clear();
     this.buttonImages.clear();
+    this.buttonImageScales.clear();
     this.buttonPositions.clear();
     this.activePointers.clear();
     this.pointersDown.clear();
@@ -328,6 +341,13 @@ export class TouchControls {
             buttonSize * BUTTON_IMAGE_RATIO,
             buttonSize * BUTTON_IMAGE_RATIO
           );
+        this.buttonImageScales.set(kind, [image.scaleX, image.scaleY]);
+        if ([...this.activePointers.values()].includes(kind)) {
+          image.setScale(
+            image.scaleX * BUTTON_PRESSED_SCALE,
+            image.scaleY * BUTTON_PRESSED_SCALE
+          );
+        }
       }
       this.lastButtonSize = buttonSize;
     }
@@ -431,7 +451,7 @@ export class TouchControls {
           ? 'touch-settings-sound-on'
           : item === 'controls'
             ? 'touch-settings-controls-on'
-            : 'touch-settings-home'
+            : 'touch-settings-hint-on'
       );
       this.settingsToggleIcons.set(item, icon);
       menuChildren.push(icon);
@@ -595,6 +615,24 @@ export class TouchControls {
     return undefined;
   }
 
+  private readSavedPickupHintPreference(): boolean | undefined {
+    try {
+      const savedPreference = this.browserWindow.localStorage.getItem(
+        PICKUP_HINT_STORAGE_KEY
+      );
+      if (savedPreference === 'on') {
+        return true;
+      }
+      if (savedPreference === 'off') {
+        return false;
+      }
+    } catch (error) {
+      this.persistenceUnavailable = true;
+      console.warn('Unable to read pickup-hint preference.', error);
+    }
+    return undefined;
+  }
+
   private detectMode(canvasWidth: number): TouchControlsMode {
     return shouldShowTouchControls(
       canvasWidth,
@@ -636,6 +674,22 @@ export class TouchControls {
     this.updateSettingsUI();
   }
 
+  private setPickupHintEnabled(enabled: boolean): void {
+    this.pickupHintEnabled = enabled;
+    this.actions.setPickupHintEnabled(enabled);
+    try {
+      this.browserWindow.localStorage.setItem(
+        PICKUP_HINT_STORAGE_KEY,
+        enabled ? 'on' : 'off'
+      );
+      this.persistenceUnavailable = false;
+    } catch (error) {
+      this.persistenceUnavailable = true;
+      console.error('Unable to save pickup-hint preference.', error);
+    }
+    this.updateSettingsUI();
+  }
+
   private updateSettingsUI(): void {
     for (const category of SETTINGS_CATEGORIES) {
       const icon = this.settingsToggleIcons.get(category);
@@ -648,9 +702,13 @@ export class TouchControls {
             ? this.soundEnabled
               ? 'touch-settings-sound-on'
               : 'touch-settings-sound-off'
-            : this.mode === 'on'
-              ? 'touch-settings-controls-on'
-              : 'touch-settings-controls-off'
+            : category === 'controls'
+              ? this.mode === 'on'
+                ? 'touch-settings-controls-on'
+                : 'touch-settings-controls-off'
+              : this.pickupHintEnabled
+                ? 'touch-settings-hint-on'
+                : 'touch-settings-hint-off'
         )
         .setAlpha(1);
       const displaySize = this.settingsToggleDisplaySizes.get(category);
@@ -759,6 +817,8 @@ export class TouchControls {
           this.setSoundEnabled(!this.soundEnabled);
         } else if (item === 'controls') {
           this.setMode(this.mode === 'on' ? 'off' : 'on');
+        } else {
+          this.setPickupHintEnabled(!this.pickupHintEnabled);
         }
         this.animateSettingsToggle(item);
         return true;
@@ -825,6 +885,22 @@ export class TouchControls {
     for (const [kind, button] of this.buttons) {
       const isPressed = [...this.activePointers.values()].includes(kind);
       button.setAlpha(isPressed ? 1 : 0.78);
+      const image = this.buttonImages.get(kind);
+      const baseScales = this.buttonImageScales.get(kind);
+      if (!image || !baseScales) {
+        continue;
+      }
+
+      this.scene.tweens.killTweensOf(image);
+      this.scene.tweens.add({
+        targets: image,
+        scaleX: baseScales[0] * (isPressed ? BUTTON_PRESSED_SCALE : 1),
+        scaleY: baseScales[1] * (isPressed ? BUTTON_PRESSED_SCALE : 1),
+        duration: isPressed
+          ? BUTTON_PRESS_DURATION_MS
+          : BUTTON_RELEASE_DURATION_MS,
+        ease: isPressed ? 'Sine.Out' : 'Back.Out',
+      });
     }
   }
 }

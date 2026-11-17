@@ -8,7 +8,9 @@ The breakpoint is a heuristic: Reddit exposes no app-facing Mobile/Desktop flag 
 
 On a fresh visit, the game detects visibility from the device and viewport. Until you choose a setting, detection responds to canvas resize and input-mode changes. Hiding the controls clears held movement. The controls stay fixed during camera zoom and target at least 48 CSS pixels.
 
-Open the gear to access two icon-only toggles and a home icon. The speaker switches game audio on or off, and the controller switches the touch overlay on or off. The home button is a visual placeholder and currently only plays the settings click and bounce animation. Settings interactions play a short click sound; each button bounces when tapped. Both preferences are saved in this browser; the Controls setting overrides device detection on later visits.
+Open the gear to access three icon-only toggles. The speaker switches game audio, the lightbulb switches the dropped-sword pickup hint, and the controller switches the touch overlay. Each setting is saved in this browser; the pickup hint is enabled by default, and the Controls setting overrides device detection on later visits. Settings interactions play a short click sound, and each button bounces when tapped.
+
+In the main game, touch controls scale down slightly while held and spring back on release. Movement controls stay pressed for as long as the pointer is held. When the pickup hint is enabled and the player can collect a dropped sword, a pulsing `PICK UP` prompt appears above it; press the attack control, Space/L, or click to collect it.
 
 ## Layout and actions
 
