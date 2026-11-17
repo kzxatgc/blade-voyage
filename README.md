@@ -31,6 +31,7 @@ A starter to build web applications on Reddit's developer platform
 
 - [Enemy Detection AI System](docs/ENEMY_DETECTION.md): Detailed specifications for enemy vision range, Line-of-Sight raycasting, and proximity detection.
 - [Hit Spark Effects](docs/HIT_SPARKS.md): Spark counts and motion for enemy and player hits.
+- [Virtual Touch Controls](docs/TOUCH_CONTROLS.md): Viewport-based visibility, touch behavior, and debug testing.
 
 ## Credits
 

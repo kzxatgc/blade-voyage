@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { RENDER_DEPTH } from '../../shared/constants';
 import { DEBUG_CONFIG } from '../../shared/debug';
 import type { TouchMovementInput } from '../../shared/types';
+import { shouldShowTouchControls } from './TouchControlsVisibility';
 
 export type TouchControlActions = {
   down: () => void;
@@ -43,6 +44,8 @@ export class TouchControls {
   private readonly buttonPositions = new Map<TouchButton, [number, number]>();
   private readonly activePointers = new Map<number, TouchButton>();
   private readonly pointersDown = new Set<number>();
+  private readonly touchPrimaryInputQuery: MediaQueryList;
+  private readonly handleInputModeChange = (): void => this.handleResize();
   private enabled = false;
   private lastZoom = 0;
   private lastWidth = 0;
@@ -54,42 +57,52 @@ export class TouchControls {
     private readonly scene: Phaser.Scene,
     private readonly actions: TouchControlActions
   ) {
-    this.enabled =
-      scene.sys.game.device.input.touch ||
-      (DEBUG_CONFIG.enabled && DEBUG_CONFIG.showTouchControlsOnDesktop);
-    if (this.enabled) {
-      this.enable();
+    const browserWindow = scene.game.canvas.ownerDocument.defaultView;
+    if (!browserWindow) {
+      throw new Error('Touch controls require a browser window.');
     }
-
+    this.touchPrimaryInputQuery = browserWindow.matchMedia(
+      '(pointer: coarse) and (hover: none)'
+    );
+    this.touchPrimaryInputQuery.addEventListener(
+      'change',
+      this.handleInputModeChange
+    );
     scene.input.on('pointerdown', this.handlePointerDown, this);
     scene.input.on('pointermove', this.handlePointerMove, this);
     scene.input.on('pointerup', this.handlePointerUp, this);
     scene.input.on('pointerupoutside', this.handlePointerUp, this);
     scene.input.on('pointerout', this.handlePointerUp, this);
-    scene.scale.on('resize', this.layout, this);
+    scene.scale.on('resize', this.handleResize, this);
     scene.events.once('shutdown', this.destroy, this);
+    this.updateVisibility(this.getCanvasWidth());
   }
 
   update(): void {
+    const canvasWidth = this.getCanvasWidth();
+    this.updateVisibility(canvasWidth);
     if (
       this.enabled &&
       (this.lastZoom !== this.scene.cameras.main.zoom ||
         this.lastWidth !== this.scene.scale.width ||
         this.lastHeight !== this.scene.scale.height ||
-        this.lastCanvasWidth !==
-          this.scene.game.canvas.getBoundingClientRect().width)
+        this.lastCanvasWidth !== canvasWidth)
     ) {
-      this.layout();
+      this.layout(canvasWidth);
     }
   }
 
   destroy(): void {
+    this.touchPrimaryInputQuery.removeEventListener(
+      'change',
+      this.handleInputModeChange
+    );
     this.scene.input.off('pointerdown', this.handlePointerDown, this);
     this.scene.input.off('pointermove', this.handlePointerMove, this);
     this.scene.input.off('pointerup', this.handlePointerUp, this);
     this.scene.input.off('pointerupoutside', this.handlePointerUp, this);
     this.scene.input.off('pointerout', this.handlePointerUp, this);
-    this.scene.scale.off('resize', this.layout, this);
+    this.scene.scale.off('resize', this.handleResize, this);
     for (const button of this.buttons.values()) {
       button.destroy();
     }
@@ -103,11 +116,15 @@ export class TouchControls {
   }
 
   private enable(): void {
+    this.enabled = true;
     if (this.buttons.size > 0) {
+      for (const button of this.buttons.values()) {
+        button.setVisible(true);
+      }
+      this.layout();
       return;
     }
 
-    this.enabled = true;
     this.scene.input.addPointer(4);
     for (const [kind, texture] of Object.entries(BUTTON_TEXTURES) as [
       TouchButton,
@@ -130,11 +147,51 @@ export class TouchControls {
     this.layout();
   }
 
-  private layout(): void {
+  private disable(): void {
+    this.enabled = false;
+    this.activePointers.clear();
+    this.pointersDown.clear();
+    this.movement.left = false;
+    this.movement.right = false;
+    this.updateButtonStates();
+    for (const button of this.buttons.values()) {
+      button.setVisible(false);
+    }
+  }
+
+  private getCanvasWidth(): number {
+    return this.scene.game.canvas.getBoundingClientRect().width;
+  }
+
+  private updateVisibility(canvasWidth: number): void {
+    const shouldBeVisible = shouldShowTouchControls(
+      canvasWidth,
+      this.touchPrimaryInputQuery.matches,
+      DEBUG_CONFIG.enabled,
+      DEBUG_CONFIG.showTouchControlsOnDesktop
+    );
+    if (shouldBeVisible === this.enabled) {
+      return;
+    }
+    if (shouldBeVisible) {
+      this.enable();
+    } else {
+      this.disable();
+    }
+  }
+
+  private handleResize(): void {
+    const canvasWidth = this.getCanvasWidth();
+    this.updateVisibility(canvasWidth);
+    if (this.enabled) {
+      this.layout(canvasWidth);
+    }
+  }
+
+  private layout(canvasWidth = this.getCanvasWidth()): void {
     const width = this.scene.scale.width;
     const height = this.scene.scale.height;
     const zoom = this.scene.cameras.main.zoom;
-    const canvasWidth = this.scene.game.canvas.getBoundingClientRect().width;
     const buttonSize =
       canvasWidth > 0
         ? (MIN_HIT_TARGET_CSS_SIZE * width) / canvasWidth
@@ -192,6 +249,10 @@ export class TouchControls {
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    this.updateVisibility(this.getCanvasWidth());
+    if (!this.enabled) {
+      return;
+    }
     const allowDesktopInput =
       DEBUG_CONFIG.enabled && DEBUG_CONFIG.showTouchControlsOnDesktop;
     const isOverControl = this.getButtonAt(pointer) !== undefined;
@@ -199,9 +260,6 @@ export class TouchControls {
       return;
     }
 
-    if (!this.enabled) {
-      this.enable();
-    }
     this.pointersDown.add(pointer.id);
     this.setPointerButton(pointer.id, this.getButtonAt(pointer));
   }
