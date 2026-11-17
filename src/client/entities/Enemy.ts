@@ -48,7 +48,7 @@ export const ENEMY_SIGHT_RANGE_X: Record<EnemyName, number> = {
 };
 export const ENEMY_SIGHT_RANGE_Y = 24; // 24px (jump/slope tolerance)
 export const ENEMY_BEHIND_TOUCH_DIST: Record<EnemyName, number> = {
-  pink_star: 36, // 36px (tuned rear awareness)
+  pink_star: 32, // 32px (1 tile)
   crabby: 48, // 48px (1.5 tiles, perfectly symmetrical behind range in both directions)
   fierce_tooth: 48, // 48px (1.5 tiles, perfectly symmetrical behind range in both directions)
 };

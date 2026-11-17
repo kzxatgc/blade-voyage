@@ -6,7 +6,9 @@ Controls show when the game canvas is at most 768 CSS pixels wide, or the primar
 
 The breakpoint is a heuristic: Reddit exposes no app-facing Mobile/Desktop flag or exact simulator widths. Narrow desktop windows may show controls, and touch-primary desktops may be classified as touch-first. Verify Mobile and Desktop in Reddit's UI Simulator.
 
-Visibility responds to canvas resize and input-mode changes. Hiding the controls clears held movement. The controls stay fixed during camera zoom and target at least 48 CSS pixels.
+On a fresh visit, the game detects visibility from the device and viewport. Until you choose a setting, detection responds to canvas resize and input-mode changes. Hiding the controls clears held movement. The controls stay fixed during camera zoom and target at least 48 CSS pixels.
+
+Open the gear to access two icon-only toggles and a home icon. The speaker switches game audio on or off, and the controller switches the touch overlay on or off. The home button is a visual placeholder and currently only plays the settings click and bounce animation. Settings interactions play a short click sound; each button bounces when tapped. Both preferences are saved in this browser; the Controls setting overrides device detection on later visits.
 
 ## Layout and actions
 

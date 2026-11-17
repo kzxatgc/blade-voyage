@@ -7,6 +7,7 @@ import {
   PARTICLE_POS_ADJUSTMENT,
   ATTACK_EFFECT_POS_ADJUSTMENT,
   DIALOGUE_POS_ADJUSTMENT,
+  ENEMY_BEHIND_TOUCH_DIST,
   ENEMY_SIGHT_RANGE_X,
   ENEMY_POST_ATTACK_COOLDOWN,
 } from './Enemy.ts';
@@ -347,7 +348,7 @@ void describe('Enemy entity', () => {
       off_grid_tiles: [],
     });
 
-    // Player is to the left (-50px > 36px behind range, enemy is facing right)
+    // Player is to the left (-50px > 48px behind range, enemy is facing right)
     enemy.update(tm, [0, 0], [110, 195]);
     assert.equal(enemy.anticipationState, false);
 
@@ -427,7 +428,7 @@ void describe('Enemy entity', () => {
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
-    // Player touches from behind (15px to the left <= 24px)
+    // Player touches from behind (15px to the left <= 1.5-tile range)
     enemy.update(tm, [0, 0], [145, 195]);
     assert.equal(enemy.flip, true); // turned around!
     assert.equal(enemy.anticipationState, true);
@@ -449,6 +450,33 @@ void describe('Enemy entity', () => {
     crabbyFar.update(tm, [0, 0], [100, 195]);
     assert.equal(crabbyFar.flip, false);
     assert.equal(crabbyFar.anticipationState, false);
+  });
+
+  void it('uses 1 tile for Pink Star rear awareness', () => {
+    assert.equal(ENEMY_BEHIND_TOUCH_DIST.pink_star, 32);
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const withinRange = new Enemy('pink_star', [160, 195], [26, 23]);
+    withinRange.flip = false;
+    const detectedWithinRange = withinRange.checkPlayerDetection(
+      tm,
+      [160 - 32, 195]
+    );
+    assert.equal(detectedWithinRange, true);
+    assert.equal(withinRange.flip, true);
+    assert.equal(withinRange.anticipationState, true);
+
+    const outsideRange = new Enemy('pink_star', [160, 195], [26, 23]);
+    outsideRange.flip = false;
+    const detectedOutsideRange = outsideRange.checkPlayerDetection(
+      tm,
+      [160 - 33, 195]
+    );
+    assert.equal(detectedOutsideRange, false);
+    assert.equal(outsideRange.flip, false);
+    assert.equal(outsideRange.anticipationState, false);
   });
 
   void it('resets walking to 0 and sets hit action on knockback', () => {

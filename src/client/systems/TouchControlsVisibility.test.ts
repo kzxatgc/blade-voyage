@@ -42,4 +42,12 @@ void describe('touch control viewport visibility', () => {
     assert.equal(shouldShowTouchControls(1024, false, true, true), true);
     assert.equal(shouldShowTouchControls(1024, false, false, true), false);
   });
+
+  void it('lets On and Off override automatic and debug visibility', () => {
+    assert.equal(
+      shouldShowTouchControls(1024, false, false, false, 'on'),
+      true
+    );
+    assert.equal(shouldShowTouchControls(390, true, true, true, 'off'), false);
+  });
 });

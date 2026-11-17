@@ -68,6 +68,7 @@ export class Game extends Phaser.Scene {
   private previousScroll: [number, number] = [0, 0];
   private previousPlayerPosition: [number, number] = [0, 0];
   private previousEnemyPositions: [number, number][] = [];
+  private settingsPaused = false;
   private worldScroll: [number, number] = [0, 0];
   private clouds?: Clouds;
   private playerRenderAnimation: Animation | null = null;
@@ -85,12 +86,45 @@ export class Game extends Phaser.Scene {
 
   preload() {
     this.load.json('game-map', '/assets/maps/0.json');
+    this.load.audio(
+      'settings-click',
+      '/assets/sfx/ui/settings-click.wav'
+    );
     this.load.image('touch-left', '/assets/img/ui/touch/left.png');
     this.load.image('touch-right', '/assets/img/ui/touch/right.png');
     this.load.image('touch-down', '/assets/img/ui/touch/down.png');
     this.load.image('touch-jump', '/assets/img/ui/touch/jump.png');
     this.load.image('touch-attack', '/assets/img/ui/touch/attack.png');
     this.load.image('touch-throw', '/assets/img/ui/touch/throw.png');
+    this.load.image('touch-settings-gear', '/assets/img/ui/settings/gear.png');
+    this.load.image(
+      'touch-settings-gear-open',
+      '/assets/img/ui/settings/gear-open.png'
+    );
+    this.load.image(
+      'touch-settings-sound-on',
+      '/assets/img/ui/settings/sound-on.png'
+    );
+    this.load.image(
+      'touch-settings-sound-off',
+      '/assets/img/ui/settings/sound-off.png'
+    );
+    this.load.image(
+      'touch-settings-controls-on',
+      '/assets/img/ui/settings/controls-on.png'
+    );
+    this.load.image(
+      'touch-settings-controls-off',
+      '/assets/img/ui/settings/controls-off.png'
+    );
+    this.load.image('touch-settings-home', '/assets/img/ui/settings/home.png');
+    this.load.image('touch-settings-panel', '/assets/img/ui/settings/panel.png');
+    this.load.image('touch-settings-button', '/assets/img/ui/settings/button.png');
+    this.load.bitmapFont(
+      'touch-settings-font',
+      '/assets/img/ui/settings/font.png',
+      '/assets/img/ui/settings/font.fnt'
+    );
   }
 
   create() {
@@ -201,6 +235,14 @@ export class Game extends Phaser.Scene {
       jump: () => this.playerEntity?.jump(),
       attack: () => this.triggerAttackOrPickup(),
       throw: () => this.playerEntity?.throwSword(),
+      setSoundEnabled: (enabled) => this.sound.setMute(!enabled),
+      setGamePaused: (paused) => {
+        this.settingsPaused = paused;
+        this.tickAccumulator = 0;
+      },
+      playUiClick: () => {
+        this.sound.play('settings-click', { volume: 0.45 });
+      },
     });
 
     const spawnResult = spawnEntities(
@@ -334,6 +376,11 @@ export class Game extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number) {
+    if (this.settingsPaused) {
+      this.touchControls?.update();
+      return;
+    }
+
     if (
       !this.playerSprite ||
       !this.playerEntity ||

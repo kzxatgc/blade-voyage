@@ -3,6 +3,7 @@ export type TileLocation = [number, number];
 export type EntityPosition = [number, number];
 export type EntitySize = [number, number];
 export type TouchMovementInput = { left: boolean; right: boolean };
+export type TouchControlsMode = 'on' | 'off';
 export type EntityType =
   | 'player'
   | 'sword'

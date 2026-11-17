@@ -14,7 +14,7 @@ All metrics are scaled to the $32\text{px}$ tile grid:
 | `ENEMY_SIGHT_RANGE_X` | `pink_star` | `4.5 * 32` | $144\text{px}$ ($4.5$ tiles) | Long-range vision matching its full-speed charging roll. |
 | | `crabby` | `2.5 * 32` | $80\text{px}$ ($2.5$ tiles) | Close melee engagement range. |
 | | `fierce_tooth` | `2.5 * 32` | $80\text{px}$ ($2.5$ tiles) | Close melee engagement range. |
-| `ENEMY_BEHIND_TOUCH_DIST` | `pink_star` | `36` | $36\text{px}$ ($1.125$ tiles) | Tuned rear awareness. |
+| `ENEMY_BEHIND_TOUCH_DIST` | `pink_star` | `32` | $32\text{px}$ ($1$ tile) | Tuned rear awareness. |
 | | `crabby` | `48` | $48\text{px}$ ($1.5$ tiles) | Symmetrical rear peripheral awareness across both directions. |
 | | `fierce_tooth` | `48` | $48\text{px}$ ($1.5$ tiles) | Symmetrical rear peripheral awareness across both directions. |
 | `ENEMY_SIGHT_RANGE_Y` | All | `24` | $24\text{px}$ ($0.75$ tile) | Vertical tolerance for jumps/slopes without cross-tier aggro. |
