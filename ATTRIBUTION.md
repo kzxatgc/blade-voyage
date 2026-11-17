@@ -11,8 +11,22 @@ This document records credits for assets used in this project.
 - **License**: CC0 1.0 Universal (Public Domain) / Free for Personal & Commercial Use
 - The settings bitmap font uses the pack's Big Text sprite.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
+- The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - **Files**:
   - `public/assets/img/background/background.png`
+  - `public/assets/img/background/water/base.png`
+  - `public/assets/img/background/water/small/0.png`
+  - `public/assets/img/background/water/small/1.png`
+  - `public/assets/img/background/water/small/2.png`
+  - `public/assets/img/background/water/small/3.png`
+  - `public/assets/img/background/water/medium/0.png`
+  - `public/assets/img/background/water/medium/1.png`
+  - `public/assets/img/background/water/medium/2.png`
+  - `public/assets/img/background/water/medium/3.png`
+  - `public/assets/img/background/water/big/0.png`
+  - `public/assets/img/background/water/big/1.png`
+  - `public/assets/img/background/water/big/2.png`
+  - `public/assets/img/background/water/big/3.png`
   - `public/assets/img/background/big_cloud.png`
   - `public/assets/img/background/cloud/0.png`
   - `public/assets/img/background/cloud/1.png`

@@ -49,6 +49,8 @@ export const GRASS_COLORS: RgbColor[] = [
 
 export const RENDER_DEPTH = {
   BACKGROUND: 0,
+  WATER: 0.5,
+  WATER_REFLECTIONS: 0.75,
   BACK_TILES: 1,
   EMBEDDED_SWORD: 2,
   FRONT_TILES: 4,

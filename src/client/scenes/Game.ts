@@ -40,6 +40,18 @@ const TILE_ANIMATION_TYPES = [
   'palm_tree/back/regular',
   'palm_tree/back/right',
 ];
+type WaterReflectionSize = 'small' | 'medium' | 'big';
+
+const WATER_SURFACE_RATIO = 0.67;
+const WATER_REFLECTION_SURFACE_OFFSET = 6;
+const WATER_REFLECTION_SIZES: readonly WaterReflectionSize[] = [
+  'big',
+  'big',
+  'big',
+];
+const WATER_REFLECTION_FRAME_DURATION = TICK_RATE / 10;
+const WATER_REFLECTION_SCALE = 3;
+const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
 
@@ -81,6 +93,13 @@ export class Game extends Phaser.Scene {
   private displayWidth: number = DISPLAY_WIDTH;
   private displayHeight: number = DISPLAY_HEIGHT;
   private backgroundImage?: Phaser.GameObjects.Image;
+  private waterSurface?: Phaser.GameObjects.TileSprite;
+  private waterReflections: {
+    image: Phaser.GameObjects.Image;
+    animation: Animation;
+    width: number;
+    height: number;
+  }[] = [];
 
   constructor() {
     super('Game');
@@ -172,6 +191,7 @@ export class Game extends Phaser.Scene {
       .image(this.scale.width / 2, this.scale.height / 2, 'background')
       .setScrollFactor(0)
       .setDisplaySize(this.scale.width, this.scale.height);
+    this.createWaterBackground();
 
     const mapData: unknown = this.cache.json.get('game-map');
     if (!isMapData(mapData)) {
@@ -182,7 +202,16 @@ export class Game extends Phaser.Scene {
     this.tilemap.loadFromData(mapData);
 
     this.tileAnimations = Object.fromEntries(
-      TILE_ANIMATION_TYPES.map((type) => [type, new Animation(type, 4, 10)])
+      TILE_ANIMATION_TYPES.map((type) => [
+        type,
+        new Animation(
+          type,
+          4,
+          type.startsWith('water_reflect/')
+            ? WATER_REFLECTION_FRAME_DURATION
+            : 10
+        ),
+      ])
     );
     this.particles = new Particles();
     this.sparksEffect = [];
@@ -630,6 +659,12 @@ export class Game extends Phaser.Scene {
         : this.playerEntity.flip
     );
     this.tilemap.updateAnimations(this.tileAnimations);
+    for (const reflection of this.waterReflections) {
+      reflection.animation.update();
+      if (reflection.animation.indexChanged) {
+        reflection.image.setTexture(reflection.animation.img());
+      }
+    }
     // When dead: always sync texture (PhysicsEntity advances the frame, indexChanged is reliable but let's be safe)
     if (this.playerEntity.dead || animationChanged || renderAnimation.indexChanged) {
       this.playerSprite.setTexture(renderAnimation.img());
@@ -663,6 +698,7 @@ export class Game extends Phaser.Scene {
         this.scale.height / this.currentZoom
       );
     }
+    this.renderWaterBackground();
     this.renderClouds();
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
 
@@ -859,6 +895,85 @@ export class Game extends Phaser.Scene {
       1,
       this.currentZoom
     );
+  }
+
+  private createWaterBackground(): void {
+    this.waterSurface = this.add
+      .tileSprite(0, 0, 1, 1, 'background/water')
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(RENDER_DEPTH.WATER);
+
+    this.waterReflections = WATER_REFLECTION_SIZES.map((size, index) => {
+      const animation = new Animation(
+        `water_reflect/${size}`,
+        4,
+        WATER_REFLECTION_FRAME_DURATION
+      );
+      animation.frame =
+        (index % animation.frameCount) * animation.imgDur;
+      const source = this.textures.get(animation.img()).getSourceImage();
+      const image = this.add
+        .image(0, 0, animation.img())
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(RENDER_DEPTH.WATER_REFLECTIONS);
+
+      return {
+        image,
+        animation,
+        width: source.width,
+        height: source.height,
+      };
+    });
+
+    this.renderWaterBackground();
+  }
+
+  private renderWaterBackground(): void {
+    const waterSurface = this.waterSurface;
+    if (!waterSurface) {
+      return;
+    }
+
+    const { width, height } = this.scale;
+    const zoom = this.currentZoom;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const surfaceY = height * WATER_SURFACE_RATIO;
+    const sceneX = (screenX: number) =>
+      centerX + (screenX - centerX) / zoom;
+    const sceneY = (screenY: number) =>
+      centerY + (screenY - centerY) / zoom;
+    const reflectionWidths = this.waterReflections.map((reflection) =>
+      Math.min(
+        reflection.width * WATER_REFLECTION_SCALE,
+        width * WATER_REFLECTION_MAX_WIDTH_RATIO
+      )
+    );
+    waterSurface
+      .setPosition(sceneX(0), sceneY(surfaceY))
+      .setDisplaySize(width / zoom, (height - surfaceY) / zoom)
+      .setTileScale(1 / zoom);
+
+    this.waterReflections.forEach((reflection, index) => {
+      const reflectionWidth = reflectionWidths[index];
+      if (reflectionWidth === undefined) {
+        throw new Error('Unable to calculate a water reflection width.');
+      }
+      const reflectionScale = reflectionWidth / reflection.width;
+      const reflectionCenterX =
+        (width * index) / (this.waterReflections.length - 1);
+      reflection.image
+        .setPosition(
+          sceneX(reflectionCenterX - reflectionWidth / 2),
+          sceneY(surfaceY + WATER_REFLECTION_SURFACE_OFFSET)
+        )
+        .setDisplaySize(
+          reflectionWidth / zoom,
+          (reflection.height * reflectionScale) / zoom
+        );
+    });
   }
 
   public zoomIn(): void {

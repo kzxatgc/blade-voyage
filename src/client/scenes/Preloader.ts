@@ -75,6 +75,16 @@ export class Preloader extends Scene {
     );
 
     this.load.image('background/big_cloud', 'img/background/big_cloud.png');
+    this.load.image('background/water', 'img/background/water/base.png');
+    for (const size of ['small', 'medium', 'big']) {
+      for (let frame = 0; frame < 4; frame++) {
+        this.load.image(
+          `water_reflect/${size}/${frame}`,
+          `img/background/water/${size}/${frame}.png`
+        );
+      }
+    }
+
     for (let frame = 0; frame < 3; frame++) {
       this.load.image(
         `background/cloud/${frame}`,
