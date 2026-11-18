@@ -70,8 +70,8 @@ export class Preloader extends Scene {
     this.load.image('touch-settings-button', 'img/ui/settings/button.png');
     this.load.bitmapFont(
       'touch-settings-font',
-      'img/ui/settings/font.png',
-      'img/ui/settings/font.fnt'
+      'img/font/font.png',
+      'img/font/font.fnt'
     );
 
     this.load.image('background/big_cloud', 'img/background/big_cloud.png');

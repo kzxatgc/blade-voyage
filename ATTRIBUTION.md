@@ -9,7 +9,7 @@ This document records credits for assets used in this project.
 - **Author / Creator**: Pixel Frog
 - **Source Link**: https://pixelfrog-assets.itch.io/treasure-hunters
 - **License**: CC0 1.0 Universal (Public Domain) / Free for Personal & Commercial Use
-- The settings bitmap font uses the pack's Big Text sprite.
+- The inline splash prompt displays `OPEN` using the shared Big Text bitmap font in `public/assets/img/font/`, also used by the settings UI and in-game `PICK UP` sword hint. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - **Files**:
@@ -31,6 +31,15 @@ This document records credits for assets used in this project.
   - `public/assets/img/background/cloud/0.png`
   - `public/assets/img/background/cloud/1.png`
   - `public/assets/img/background/cloud/2.png`
+  - `public/assets/img/ui/splash/chest/idle.png`
+  - `public/assets/img/ui/splash/chest/open-1.png`
+  - `public/assets/img/ui/splash/chest/open-2.png`
+  - `public/assets/img/ui/splash/chest/open-3.png`
+  - `public/assets/img/ui/splash/chest/open-4.png`
+  - `public/assets/img/ui/splash/chest/open-5.png`
+  - `public/assets/img/ui/splash/chest/open-6.png`
+  - `public/assets/img/ui/splash/chest/open-7.png`
+  - `public/assets/img/ui/splash/chest/open-8.png`
   - `public/assets/img/map/grass/00.png`
   - `public/assets/img/map/grass/01.png`
   - `public/assets/img/map/grass/02.png`
@@ -55,8 +64,8 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/touch/attack.png`
   - `public/assets/img/ui/touch/throw.png`
   - `public/assets/img/ui/settings/panel.png`
-  - `public/assets/img/ui/settings/font.png`
-  - `public/assets/img/ui/settings/font.fnt`
+  - `public/assets/img/font/font.png`
+  - `public/assets/img/font/font.fnt`
   - `public/assets/img/entities/player/dead/0.png`
   - `public/assets/img/entities/player/dead/1.png`
   - `public/assets/img/entities/player/dead/2.png`
