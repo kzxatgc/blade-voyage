@@ -581,6 +581,10 @@ export class TouchControls {
       });
     }
     this.updateSettingsUI();
+    this.lastZoom = zoom;
+    this.lastWidth = width;
+    this.lastHeight = height;
+    this.lastCanvasWidth = canvasWidth;
   }
 
   private readSavedMode(): TouchControlsMode | undefined {
