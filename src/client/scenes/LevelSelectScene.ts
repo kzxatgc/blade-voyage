@@ -22,7 +22,11 @@ const LEVEL_NAV_DISABLED_TINT = 0x555555;
 const NAV_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
 const NAV_BUTTON_PRESS_DURATION_MS = 70;
 const NAV_BUTTON_RELEASE_DURATION_MS = 140;
-const LEVEL_BOX_DISPLAY_SIZE = 120;
+const MIN_TOUCH_TARGET_CSS = 44;
+const MIN_CARD_GAP_CSS = 6;
+const NAV_BUTTON_BASE_SIZE = 84;
+const LEVEL_BOX_BASE_SIZE = 120;
+const LEVEL_DIGIT_BASE_SIZE = 40;
 const PANEL_WIDTH = 896;
 const PANEL_HEIGHT = 480;
 const PANEL_ARROW_INSET = 22;
@@ -47,7 +51,6 @@ export class LevelSelectScene extends Phaser.Scene {
     const centerY = height / 2;
     const panelWidth = Math.min(width - 72, PANEL_WIDTH);
     const panelHeight = Math.min(height - 48, PANEL_HEIGHT);
-    const panelSide = (width - panelWidth) / 2;
 
     this.soundEnabled = this.readSoundPreference();
     this.sound.setMute(!this.soundEnabled);
@@ -62,17 +65,6 @@ export class LevelSelectScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDisplaySize(panelWidth, panelHeight)
       .setDepth(2);
-
-    this.previousArrow = this.createPageArrow(
-      panelSide + PANEL_ARROW_INSET,
-      centerY,
-      true
-    );
-    this.nextArrow = this.createPageArrow(
-      width - panelSide - PANEL_ARROW_INSET,
-      centerY,
-      false
-    );
 
     this.soundHitTarget = this.add
       .rectangle(
@@ -97,23 +89,22 @@ export class LevelSelectScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(7);
     this.soundHitTarget.on('pointerdown', this.toggleSound, this);
-    this.scale.on('resize', this.layoutSoundControl, this);
+    this.scale.on('resize', this.layoutResponsiveUI, this);
     this.events.once('shutdown', () => {
-      this.scale.off('resize', this.layoutSoundControl, this);
+      this.scale.off('resize', this.layoutResponsiveUI, this);
     });
-    this.layoutSoundControl();
-
-    this.renderPage();
+    this.layoutResponsiveUI();
   }
 
   private createPageArrow(
     x: number,
     y: number,
-    flipped: boolean
+    flipped: boolean,
+    displaySize: number
   ): Phaser.GameObjects.Image {
     const arrow = this.add
       .image(x, y, LEVEL_NAV_KEY, LEVEL_NAV_FRAME)
-      .setDisplaySize(84, 84)
+      .setDisplaySize(displaySize, displaySize)
       .setFlipX(flipped)
       .setDepth(6)
       .setInteractive({ useHandCursor: true });
@@ -201,45 +192,109 @@ export class LevelSelectScene extends Phaser.Scene {
     const panelTop = (height - panelHeight) / 2;
     const columns = Math.min(4, levelNumbers.length);
     const rows = Math.ceil(levelNumbers.length / columns);
-    const gapX =
-      (panelWidth - columns * LEVEL_BOX_DISPLAY_SIZE) / (columns + 1);
-    const gapY =
-      (panelHeight - rows * LEVEL_BOX_DISPLAY_SIZE) / (rows + 1);
-    const firstX = panelLeft + gapX + LEVEL_BOX_DISPLAY_SIZE / 2;
-    const firstY = panelTop + gapY + LEVEL_BOX_DISPLAY_SIZE / 2;
+    const boxDisplaySize = Math.max(
+      LEVEL_BOX_BASE_SIZE,
+      MIN_TOUCH_TARGET_CSS * this.getCanvasUnitScale()
+    );
+    const digitDisplaySize =
+      LEVEL_DIGIT_BASE_SIZE * (boxDisplaySize / LEVEL_BOX_BASE_SIZE);
+    const digitOffset = 13 * (digitDisplaySize / LEVEL_DIGIT_BASE_SIZE);
+    const gapX = (panelWidth - columns * boxDisplaySize) / (columns + 1);
+    const gapY = (panelHeight - rows * boxDisplaySize) / (rows + 1);
+    const firstX = panelLeft + gapX + boxDisplaySize / 2;
+    const firstY = panelTop + gapY + boxDisplaySize / 2;
 
     levelNumbers.forEach((levelNumber, index) => {
       const column = index % columns;
       const row = Math.floor(index / columns);
-      const x = firstX + column * (LEVEL_BOX_DISPLAY_SIZE + gapX);
-      const y = firstY + row * (LEVEL_BOX_DISPLAY_SIZE + gapY);
+      const x = firstX + column * (boxDisplaySize + gapX);
+      const y = firstY + row * (boxDisplaySize + gapY);
       const isAvailable = PLAYABLE_LEVELS.some(
         (level) => level.number === levelNumber
       );
-      cardGroup.add(this.createLevelCard(levelNumber, x, y, isAvailable));
+      cardGroup.add(
+        this.createLevelCard(
+          levelNumber,
+          x,
+          y,
+          isAvailable,
+          boxDisplaySize,
+          digitDisplaySize,
+          digitOffset
+        )
+      );
     });
 
     this.cardGroup = cardGroup;
+  }
+
+  private layoutResponsiveUI(): void {
+    const { width, height } = this.scale;
+    const panelWidth = Math.min(width - 72, PANEL_WIDTH);
+    const panelSide = (width - panelWidth) / 2;
+    const unitScale = this.getCanvasUnitScale();
+    const navButtonSize = Math.max(
+      NAV_BUTTON_BASE_SIZE,
+      MIN_TOUCH_TARGET_CSS * unitScale
+    );
+    const boxDisplaySize = Math.max(
+      LEVEL_BOX_BASE_SIZE,
+      MIN_TOUCH_TARGET_CSS * unitScale
+    );
+    const boxGapX = (panelWidth - 4 * boxDisplaySize) / 5;
+    const arrowOffset = Math.min(
+      0,
+      boxGapX -
+        navButtonSize / 2 -
+        MIN_CARD_GAP_CSS * unitScale -
+        PANEL_ARROW_INSET
+    );
+
+    this.previousArrow?.destroy();
+    this.nextArrow?.destroy();
+    this.previousArrow = this.createPageArrow(
+      panelSide + PANEL_ARROW_INSET + arrowOffset,
+      height / 2,
+      true,
+      navButtonSize
+    );
+    this.nextArrow = this.createPageArrow(
+      width - panelSide - PANEL_ARROW_INSET - arrowOffset,
+      height / 2,
+      false,
+      navButtonSize
+    );
+
+    this.layoutSoundControl();
+    this.renderPage();
   }
 
   private createLevelCard(
     levelNumber: number,
     x: number,
     y: number,
-    isAvailable: boolean
+    isAvailable: boolean,
+    boxDisplaySize: number,
+    digitDisplaySize: number,
+    digitOffset: number
   ): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
     const levelBox = this.add
       .image(0, 0, LEVEL_BOX_KEY, LEVEL_BOX_FRAME)
-      .setDisplaySize(LEVEL_BOX_DISPLAY_SIZE, LEVEL_BOX_DISPLAY_SIZE);
+      .setDisplaySize(boxDisplaySize, boxDisplaySize);
     const digits = String(levelNumber)
       .padStart(2, '0')
       .split('')
       .map(Number);
     const digitSprites = digits.map((digit, index) =>
       this.add
-        .image(index === 0 ? -13 : 13, 0, LEVEL_DIGITS_KEY, digit)
-        .setDisplaySize(40, 40)
+        .image(
+          index === 0 ? -digitOffset : digitOffset,
+          0,
+          LEVEL_DIGITS_KEY,
+          digit
+        )
+        .setDisplaySize(digitDisplaySize, digitDisplaySize)
     );
 
     card.add([levelBox, ...digitSprites]);
@@ -325,10 +380,7 @@ export class LevelSelectScene extends Phaser.Scene {
     }
 
     const { width, height } = this.scale;
-    const canvasBounds = this.game.canvas.getBoundingClientRect();
-    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
-    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
-    const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
+    const unitScale = this.getCanvasUnitScale();
     const buttonSize = SETTINGS_BUTTON_SIZE_CSS * unitScale;
     const margin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
     const buttonX = width - margin - buttonSize / 2;
@@ -341,6 +393,14 @@ export class LevelSelectScene extends Phaser.Scene {
     this.soundIcon
       .setPosition(buttonX, buttonY)
       .setDisplaySize(buttonSize, buttonSize);
+  }
+
+  private getCanvasUnitScale(): number {
+    const { width, height } = this.scale;
+    const canvasBounds = this.game.canvas.getBoundingClientRect();
+    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
+    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
+    return Math.min(width / canvasWidth, height / canvasHeight);
   }
 
   private playUiClick(): void {
