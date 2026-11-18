@@ -62,11 +62,14 @@ const PICKUP_HINT_STORAGE_KEY = 'blade-voyage:pickup-hint-enabled';
 const SETTINGS_PANEL_SCALE = 1.2;
 const SETTINGS_PANEL_WIDTH_CSS = Math.round(250 * SETTINGS_PANEL_SCALE);
 const SETTINGS_PANEL_HEIGHT_CSS = Math.round(182 * SETTINGS_PANEL_SCALE);
+const SETTINGS_PANEL_SCALE_BREAKPOINT_CSS = 931.08;
 const SETTINGS_TITLE_FONT_SIZE = Math.round(18 * SETTINGS_PANEL_SCALE);
 const SETTINGS_LEVEL_FONT_SIZE = 18;
 const SETTINGS_TITLE_TOP_OFFSET_CSS = 60;
 const SETTINGS_PANEL_SAFE_MARGIN_CSS = 24;
 const SETTINGS_TOGGLE_HIT_HEIGHT_CSS = 54;
+const SETTINGS_ITEM_MIN_GAP_CSS = 54.75;
+const SETTINGS_ITEM_ROW_HALF_WIDTH_CSS = 116;
 const SETTINGS_LEVEL_BOTTOM_MARGIN_CSS = 32;
 const SETTINGS_HOME_X_CSS = -84;
 const SETTINGS_HOME_ICON_SIZE_CSS = 64;
@@ -565,12 +568,26 @@ export class TouchControls {
       1,
       canvasHeight - SETTINGS_PANEL_SAFE_MARGIN_CSS * 2
     );
-    const panelScale = Math.min(
+    const viewportScale = Math.min(
       1,
+      canvasWidth / SETTINGS_PANEL_SCALE_BREAKPOINT_CSS
+    );
+    const panelScale = Math.min(
+      viewportScale,
       availableWidthCss / SETTINGS_PANEL_WIDTH_CSS,
       availableHeightCss / SETTINGS_PANEL_HEIGHT_CSS
     );
     const uiScale = unitScale * panelScale;
+    const horizontalScaleToFitHitTargets =
+      MIN_HIT_TARGET_CSS_SIZE / SETTINGS_ITEM_MIN_GAP_CSS;
+    const horizontalScaleToFitPanel =
+      (panelScale * SETTINGS_PANEL_WIDTH_CSS) /
+      (2 * SETTINGS_ITEM_ROW_HALF_WIDTH_CSS);
+    const itemHorizontalScale = Math.min(
+      Math.max(panelScale, horizontalScaleToFitHitTargets),
+      horizontalScaleToFitPanel
+    );
+    const itemHorizontalUiScale = unitScale * itemHorizontalScale;
     const panelWidth = SETTINGS_PANEL_WIDTH_CSS * uiScale;
     const panelHeight = SETTINGS_PANEL_HEIGHT_CSS * uiScale;
     this.settingsBackdrop
@@ -589,17 +606,20 @@ export class TouchControls {
     this.settingsLevelLabel
       .setPosition(0, height / 2 - SETTINGS_LEVEL_BOTTOM_MARGIN_CSS * unitScale)
       .setFontSize(SETTINGS_LEVEL_FONT_SIZE * unitScale);
-    const homeLocalX = SETTINGS_HOME_X_CSS * unitScale;
-    const homeLocalY = SETTINGS_ITEM_Y_CSS * unitScale;
+    const homeLocalX = SETTINGS_HOME_X_CSS * itemHorizontalUiScale;
+    const homeLocalY = SETTINGS_ITEM_Y_CSS * uiScale;
     this.settingsHomeIcon
       .setPosition(homeLocalX, homeLocalY)
       .setDisplaySize(
-        SETTINGS_HOME_ICON_SIZE_CSS * unitScale,
-        SETTINGS_HOME_ICON_SIZE_CSS * unitScale
+        SETTINGS_HOME_ICON_SIZE_CSS * uiScale,
+        SETTINGS_HOME_ICON_SIZE_CSS * uiScale
       );
-    const homeHitWidth = SETTINGS_HOME_ICON_SIZE_CSS * unitScale;
+    const homeHitWidth = Math.min(
+      MIN_HIT_TARGET_CSS_SIZE * unitScale,
+      SETTINGS_ITEM_MIN_GAP_CSS * itemHorizontalUiScale
+    );
     const homeHitHeight = Math.max(
-      SETTINGS_TOGGLE_HIT_HEIGHT_CSS * unitScale,
+      SETTINGS_TOGGLE_HIT_HEIGHT_CSS * uiScale,
       MIN_HIT_TARGET_CSS_SIZE * unitScale
     );
     this.settingsHomeBounds = {
@@ -610,15 +630,15 @@ export class TouchControls {
     };
 
     for (const item of SETTINGS_ITEMS) {
-      const localX = SETTINGS_ITEM_X_CSS[item] * unitScale;
-      const localY = SETTINGS_ITEM_Y_CSS * unitScale;
+      const localX = SETTINGS_ITEM_X_CSS[item] * itemHorizontalUiScale;
+      const localY = SETTINGS_ITEM_Y_CSS * uiScale;
       const icon = this.settingsToggleIcons.get(item);
       if (!icon) {
         continue;
       }
       this.scene.tweens.killTweensOf(icon);
       const iconDisplaySize =
-        SETTINGS_ITEM_ICON_SIZE_CSS[item] * unitScale;
+        SETTINGS_ITEM_ICON_SIZE_CSS[item] * uiScale;
       icon
         .setPosition(localX, localY)
         .setDisplaySize(iconDisplaySize, iconDisplaySize);
@@ -629,12 +649,12 @@ export class TouchControls {
       });
       const screenX = width / 2 + localX;
       const screenY = height / 2 + localY;
-      const hitWidth = Math.max(
-        SETTINGS_ITEM_X_CSS.controls * unitScale,
-        MIN_HIT_TARGET_CSS_SIZE * unitScale
+      const hitWidth = Math.min(
+        MIN_HIT_TARGET_CSS_SIZE * unitScale,
+        SETTINGS_ITEM_MIN_GAP_CSS * itemHorizontalUiScale
       );
       const hitHeight = Math.max(
-        SETTINGS_TOGGLE_HIT_HEIGHT_CSS * unitScale,
+        SETTINGS_TOGGLE_HIT_HEIGHT_CSS * uiScale,
         iconDisplaySize,
         MIN_HIT_TARGET_CSS_SIZE * unitScale
       );
