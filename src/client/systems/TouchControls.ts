@@ -20,6 +20,8 @@ export type TouchControlActions = {
   setPickupHintEnabled: (enabled: boolean) => void;
   setGamePaused: (paused: boolean) => void;
   playUiClick: () => void;
+  returnToLevelPicker: () => void;
+  levelNumber: number;
 };
 
 type TouchButton = 'left' | 'right' | 'down' | 'jump' | 'attack' | 'throw';
@@ -57,21 +59,28 @@ const BUTTON_MARGIN = 24;
 const BUTTON_GAP = 12;
 const SETTINGS_STORAGE_KEY = 'blade-voyage:touch-controls-mode';
 const PICKUP_HINT_STORAGE_KEY = 'blade-voyage:pickup-hint-enabled';
-const SETTINGS_PANEL_WIDTH_CSS = 250;
-const SETTINGS_PANEL_HEIGHT_CSS = 182;
+const SETTINGS_PANEL_SCALE = 1.2;
+const SETTINGS_PANEL_WIDTH_CSS = Math.round(250 * SETTINGS_PANEL_SCALE);
+const SETTINGS_PANEL_HEIGHT_CSS = Math.round(182 * SETTINGS_PANEL_SCALE);
+const SETTINGS_TITLE_FONT_SIZE = Math.round(18 * SETTINGS_PANEL_SCALE);
+const SETTINGS_LEVEL_FONT_SIZE = 18;
+const SETTINGS_TITLE_TOP_OFFSET_CSS = 60;
 const SETTINGS_PANEL_SAFE_MARGIN_CSS = 24;
 const SETTINGS_TOGGLE_HIT_HEIGHT_CSS = 54;
+const SETTINGS_LEVEL_BOTTOM_MARGIN_CSS = 32;
+const SETTINGS_HOME_X_CSS = -84;
+const SETTINGS_HOME_ICON_SIZE_CSS = 64;
 const SETTINGS_CENTER_ITEM_OPTICAL_OFFSET_CSS = 1.25;
 const SETTINGS_ITEM_X_CSS: Record<SettingsItem, number> = {
-  sound: -56,
-  hint: SETTINGS_CENTER_ITEM_OPTICAL_OFFSET_CSS,
-  controls: 56,
+  sound: -28,
+  hint: 28 + SETTINGS_CENTER_ITEM_OPTICAL_OFFSET_CSS,
+  controls: 84,
 };
 const SETTINGS_ITEM_Y_CSS = 12;
 const SETTINGS_ITEM_ICON_SIZE_CSS: Record<SettingsItem, number> = {
   sound: 64,
   controls: 52,
-  hint: 64,
+  hint: 52,
 };
 const SETTINGS_CATEGORIES: SettingsCategory[] = ['sound', 'hint', 'controls'];
 const SETTINGS_ITEMS: SettingsItem[] = ['sound', 'hint', 'controls'];
@@ -97,6 +106,12 @@ export class TouchControls {
     SettingsItem,
     TouchSettingsBounds
   >();
+  private settingsHomeBounds: TouchSettingsBounds = {
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  };
   private readonly settingsToggleIcons = new Map<
     SettingsItem,
     Phaser.GameObjects.Image
@@ -119,6 +134,8 @@ export class TouchControls {
   private settingsMenu!: Phaser.GameObjects.Container;
   private settingsBackdrop!: Phaser.GameObjects.Rectangle;
   private settingsPanelImage!: Phaser.GameObjects.Image;
+  private settingsHomeIcon!: Phaser.GameObjects.Image;
+  private settingsLevelLabel!: Phaser.GameObjects.BitmapText;
   private settingsButtonBackground!: Phaser.GameObjects.Image;
   private settingsButtonIcon!: Phaser.GameObjects.Image;
   private settingsButtonBackgroundScaleX = 1;
@@ -437,16 +454,34 @@ export class TouchControls {
       'touch-settings-panel'
     );
     this.settingsTitle = this.scene.add
-      .bitmapText(0, 0, 'touch-settings-font', 'SETTINGS', 18)
+      .bitmapText(
+        0,
+        0,
+        'touch-settings-font',
+        'SETTINGS',
+        SETTINGS_TITLE_FONT_SIZE
+      )
       .setOrigin(0.5);
     this.settingsStatus = this.scene.add
       .bitmapText(0, 0, 'touch-settings-font', 'DEVICE DETECTED', 12)
+      .setOrigin(0.5);
+    this.settingsHomeIcon = this.scene.add.image(0, 0, 'touch-settings-home');
+    this.settingsLevelLabel = this.scene.add
+      .bitmapText(
+        0,
+        0,
+        'touch-settings-font',
+        `LV ${String(this.actions.levelNumber).padStart(2, '0')}`,
+        SETTINGS_LEVEL_FONT_SIZE
+      )
       .setOrigin(0.5);
 
     const menuChildren: Phaser.GameObjects.GameObject[] = [
       this.settingsBackdrop,
       this.settingsPanelImage,
       this.settingsTitle,
+      this.settingsHomeIcon,
+      this.settingsLevelLabel,
     ];
     for (const item of SETTINGS_ITEMS) {
       const icon = this.scene.add.image(
@@ -546,11 +581,33 @@ export class TouchControls {
       .setPosition(0, 0)
       .setDisplaySize(panelWidth, panelHeight);
     this.settingsTitle
-      .setPosition(0, -panelHeight / 2 + 53 * uiScale)
-      .setFontSize(18 * uiScale);
+      .setPosition(0, -panelHeight / 2 + SETTINGS_TITLE_TOP_OFFSET_CSS * uiScale)
+      .setFontSize(SETTINGS_TITLE_FONT_SIZE * uiScale);
     this.settingsStatus
       .setPosition(0, panelHeight / 2 - 20 * uiScale)
       .setFontSize(12 * uiScale);
+    this.settingsLevelLabel
+      .setPosition(0, height / 2 - SETTINGS_LEVEL_BOTTOM_MARGIN_CSS * unitScale)
+      .setFontSize(SETTINGS_LEVEL_FONT_SIZE * unitScale);
+    const homeLocalX = SETTINGS_HOME_X_CSS * unitScale;
+    const homeLocalY = SETTINGS_ITEM_Y_CSS * unitScale;
+    this.settingsHomeIcon
+      .setPosition(homeLocalX, homeLocalY)
+      .setDisplaySize(
+        SETTINGS_HOME_ICON_SIZE_CSS * unitScale,
+        SETTINGS_HOME_ICON_SIZE_CSS * unitScale
+      );
+    const homeHitWidth = SETTINGS_HOME_ICON_SIZE_CSS * unitScale;
+    const homeHitHeight = Math.max(
+      SETTINGS_TOGGLE_HIT_HEIGHT_CSS * unitScale,
+      MIN_HIT_TARGET_CSS_SIZE * unitScale
+    );
+    this.settingsHomeBounds = {
+      left: width / 2 + homeLocalX - homeHitWidth / 2,
+      top: height / 2 + homeLocalY - homeHitHeight / 2,
+      width: homeHitWidth,
+      height: homeHitHeight,
+    };
 
     for (const item of SETTINGS_ITEMS) {
       const localX = SETTINGS_ITEM_X_CSS[item] * unitScale;
@@ -831,6 +888,18 @@ export class TouchControls {
         this.animateSettingsToggle(item);
         return true;
       }
+    }
+    if (
+      this.containsPoint(
+        this.settingsHomeBounds,
+        pointer.x,
+        pointer.y
+      )
+    ) {
+      this.actions.playUiClick();
+      this.setSettingsOpen(false);
+      this.actions.returnToLevelPicker();
+      return true;
     }
     this.actions.playUiClick();
     this.setSettingsOpen(false);

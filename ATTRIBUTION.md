@@ -352,6 +352,7 @@ This document records credits for assets used in this project.
 - **Files**:
   - `public/assets/img/ui/settings/gear.png`
   - `public/assets/img/ui/settings/gear-open.png`
+  - `public/assets/img/ui/settings/home.png`
   - `public/assets/img/ui/settings/button.png`
   - `public/assets/img/ui/settings/sound-on.png`
   - `public/assets/img/ui/settings/sound-off.png`

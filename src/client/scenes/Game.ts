@@ -134,8 +134,13 @@ export class Game extends Phaser.Scene {
       throw new Error(`Level ${this.selectedLevelNumber} is not configured.`);
     }
 
+    const cacheKey = getLevelMapCacheKey(level.number);
+    if (this.cache.json.exists(cacheKey)) {
+      return;
+    }
+
     this.load.setPath('../assets');
-    this.load.json(getLevelMapCacheKey(level.number), level.mapFile);
+    this.load.json(cacheKey, level.mapFile);
   }
 
   create() {
@@ -277,6 +282,8 @@ export class Game extends Phaser.Scene {
       playUiClick: () => {
         this.sound.play('settings-click', { volume: 0.45 });
       },
+      returnToLevelPicker: () => this.scene.start('LevelSelectScene'),
+      levelNumber: this.selectedLevelNumber,
     });
 
     const spawnResult = spawnEntities(

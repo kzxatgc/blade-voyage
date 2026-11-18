@@ -81,6 +81,7 @@ export class Preloader extends Scene {
     this.load.image('touch-settings-hint-off', 'img/ui/settings/hint-off.png');
     this.load.image('touch-settings-panel', 'img/ui/settings/panel.png');
     this.load.image('touch-settings-button', 'img/ui/settings/button.png');
+    this.load.image('touch-settings-home', 'img/ui/settings/home.png');
     this.load.bitmapFont(
       'touch-settings-font',
       'img/font/font.png',
