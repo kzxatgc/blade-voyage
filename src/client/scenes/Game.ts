@@ -15,6 +15,7 @@ import {
   ZOOM_EASING_SPEED,
   ZOOM_LEVELS,
 } from '../../shared/constants';
+import { PLAYABLE_LEVELS, getLevelMapCacheKey } from '../../shared/levels';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
@@ -100,9 +101,29 @@ export class Game extends Phaser.Scene {
     width: number;
     height: number;
   }[] = [];
+  private selectedLevelNumber = 1;
 
   constructor() {
     super('Game');
+  }
+
+  init(data: unknown): void {
+    if (typeof data !== 'object' || data === null || !('levelNumber' in data)) {
+      this.selectedLevelNumber = 1;
+      return;
+    }
+
+    const levelNumber = data.levelNumber;
+    if (
+      typeof levelNumber !== 'number' ||
+      !PLAYABLE_LEVELS.some((level) => level.number === levelNumber)
+    ) {
+      throw new Error(
+        `The selected level "${String(levelNumber)}" is unavailable.`
+      );
+    }
+
+    this.selectedLevelNumber = levelNumber;
   }
 
   create() {
@@ -193,9 +214,19 @@ export class Game extends Phaser.Scene {
       .setDisplaySize(this.scale.width, this.scale.height);
     this.createWaterBackground();
 
-    const mapData: unknown = this.cache.json.get('game-map');
+    const level = PLAYABLE_LEVELS.find(
+      (candidate) => candidate.number === this.selectedLevelNumber
+    );
+    if (!level) {
+      throw new Error(`Level ${this.selectedLevelNumber} is not configured.`);
+    }
+    const mapData: unknown = this.cache.json.get(
+      getLevelMapCacheKey(this.selectedLevelNumber)
+    );
     if (!isMapData(mapData)) {
-      throw new Error('The game map at /assets/maps/0.json is missing or invalid.');
+      throw new Error(
+        `The map for level ${this.selectedLevelNumber} at /assets/${level.mapFile} is missing or invalid.`
+      );
     }
 
     this.tilemap = new Tilemap();

@@ -4,6 +4,7 @@ import { TitleScene } from './scenes/TitleScene';
 import * as Phaser from 'phaser';
 import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
+import { LevelSelectScene } from './scenes/LevelSelectScene';
 import { TARGET_FPS, WINDOW_HEIGHT, WINDOW_WIDTH } from '../shared/constants';
 
 //  Find out more information about the Game Config at:
@@ -28,7 +29,7 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
   },
-  scene: [Boot, Preloader, TitleScene, MainGame],
+  scene: [Boot, Preloader, TitleScene, LevelSelectScene, MainGame],
 };
 
 const StartGame = (parent: string) => {

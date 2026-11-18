@@ -2,6 +2,13 @@ import * as Phaser from 'phaser';
 import { RENDER_DEPTH } from '../../shared/constants';
 import { DEBUG_CONFIG } from '../../shared/debug';
 import type { TouchControlsMode, TouchMovementInput } from '../../shared/types';
+import {
+  animateSettingsToggleIcon,
+  SETTINGS_BUTTON_ICON_SIZE_CSS,
+  SETTINGS_BUTTON_MARGIN_CSS,
+  SETTINGS_BUTTON_SIZE_CSS,
+  SOUND_STORAGE_KEY,
+} from './SettingsUI';
 import { shouldShowTouchControls } from './TouchControlsVisibility';
 
 export type TouchControlActions = {
@@ -49,9 +56,7 @@ const MIN_HIT_TARGET_CSS_SIZE = 48;
 const BUTTON_MARGIN = 24;
 const BUTTON_GAP = 12;
 const SETTINGS_STORAGE_KEY = 'blade-voyage:touch-controls-mode';
-const SOUND_STORAGE_KEY = 'blade-voyage:sound-enabled';
 const PICKUP_HINT_STORAGE_KEY = 'blade-voyage:pickup-hint-enabled';
-const SETTINGS_BUTTON_SIZE_CSS = 56;
 const SETTINGS_PANEL_WIDTH_CSS = 250;
 const SETTINGS_PANEL_HEIGHT_CSS = 182;
 const SETTINGS_PANEL_SAFE_MARGIN_CSS = 24;
@@ -489,7 +494,7 @@ export class TouchControls {
     this.settingsRoot.setPosition(width / 2, height / 2).setScale(1 / zoom);
 
     const buttonSize = SETTINGS_BUTTON_SIZE_CSS * unitScale;
-    const buttonMargin = 12 * unitScale;
+    const buttonMargin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
     const buttonX = width - buttonMargin - buttonSize / 2;
     const buttonY = buttonMargin + buttonSize / 2;
     const buttonLocalX = buttonX - width / 2;
@@ -509,7 +514,10 @@ export class TouchControls {
     this.settingsButtonBackgroundScaleY = this.settingsButtonBackground.scaleY;
     this.settingsButtonIcon
       .setPosition(buttonLocalX, buttonLocalY)
-      .setDisplaySize(32 * unitScale, 32 * unitScale)
+      .setDisplaySize(
+        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale,
+        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale
+      )
       .setAngle(this.settingsOpen ? 30 : 0);
     this.settingsButtonScaleX = this.settingsButtonIcon.scaleX;
     this.settingsButtonScaleY = this.settingsButtonIcon.scaleY;
@@ -738,16 +746,12 @@ export class TouchControls {
       return;
     }
 
-    this.scene.tweens.killTweensOf(icon);
-    icon.setScale(scales.iconX, scales.iconY);
-    this.scene.tweens.add({
-      targets: icon,
-      scaleX: scales.iconX * 1.16,
-      scaleY: scales.iconY * 1.16,
-      duration: 85,
-      ease: 'Sine.Out',
-      yoyo: true,
-    });
+    animateSettingsToggleIcon(
+      this.scene,
+      icon,
+      scales.iconX,
+      scales.iconY
+    );
   }
 
   private setSettingsOpen(open: boolean): void {

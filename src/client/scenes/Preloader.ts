@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { PLAYABLE_LEVELS, getLevelMapCacheKey } from '../../shared/levels';
 import { SFX_DEFINITIONS } from '../systems/Audio';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -28,7 +29,9 @@ export class Preloader extends Scene {
   preload() {
     this.load.setPath('../assets');
 
-    this.load.json('game-map', 'maps/0.json');
+    for (const level of PLAYABLE_LEVELS) {
+      this.load.json(getLevelMapCacheKey(level.number), level.mapFile);
+    }
     this.load.audio('settings-click', 'sfx/ui/settings-click.wav');
     this.load.image('title-player-avatar', 'img/ui/title/player-avatar.png');
     this.load.image('title-next', 'img/ui/title/next-button.png');
@@ -36,7 +39,21 @@ export class Preloader extends Scene {
       'title-next-pressed',
       'img/ui/title/next-button-pressed.png'
     );
-
+    this.load.spritesheet(
+      'level-boxes',
+      'img/ui/level-select/level-boxes.png',
+      { frameWidth: 32, frameHeight: 32 }
+    );
+    this.load.spritesheet(
+      'level-digits',
+      'img/ui/level-select/level-digits.png',
+      { frameWidth: 32, frameHeight: 32 }
+    );
+    this.load.spritesheet(
+      'level-nav-arrows',
+      'img/ui/level-select/level-nav-arrows.png',
+      { frameWidth: 32, frameHeight: 32 }
+    );
     this.load.image('touch-left', 'img/ui/touch/left.png');
     this.load.image('touch-right', 'img/ui/touch/right.png');
     this.load.image('touch-down', 'img/ui/touch/down.png');

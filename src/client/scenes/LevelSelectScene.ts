@@ -1,0 +1,349 @@
+import * as Phaser from 'phaser';
+import {
+  LEVEL_PAGE_COUNT,
+  PLAYABLE_LEVELS,
+  getLevelNumbersForPage,
+} from '../../shared/levels';
+import {
+  animateSettingsToggleIcon,
+  SETTINGS_BUTTON_MARGIN_CSS,
+  SETTINGS_BUTTON_SIZE_CSS,
+  SOUND_STORAGE_KEY,
+} from '../systems/SettingsUI';
+
+export const LEVEL_SELECT_SCENE_KEY = 'LevelSelectScene';
+
+const LEVEL_BOX_KEY = 'level-boxes';
+const LEVEL_DIGITS_KEY = 'level-digits';
+const LEVEL_BOX_FRAME = 24;
+const LEVEL_NAV_KEY = 'level-nav-arrows';
+const LEVEL_NAV_FRAME = 53;
+const LEVEL_NAV_DISABLED_TINT = 0x555555;
+const NAV_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
+const NAV_BUTTON_PRESS_DURATION_MS = 70;
+const NAV_BUTTON_RELEASE_DURATION_MS = 140;
+const LEVEL_BOX_DISPLAY_SIZE = 120;
+const PANEL_WIDTH = 896;
+const PANEL_HEIGHT = 480;
+const PANEL_ARROW_INSET = 22;
+const LEVEL_PICKER_SOUND = 'settings-click';
+
+export class LevelSelectScene extends Phaser.Scene {
+  private pageIndex = 0;
+  private cardGroup?: Phaser.GameObjects.Container;
+  private previousArrow?: Phaser.GameObjects.Image;
+  private nextArrow?: Phaser.GameObjects.Image;
+  private soundHitTarget?: Phaser.GameObjects.Rectangle;
+  private soundIcon?: Phaser.GameObjects.Image;
+  private soundEnabled = true;
+
+  constructor() {
+    super(LEVEL_SELECT_SCENE_KEY);
+  }
+
+  create(): void {
+    const { width, height } = this.scale;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(width - 72, PANEL_WIDTH);
+    const panelHeight = Math.min(height - 48, PANEL_HEIGHT);
+    const panelSide = (width - panelWidth) / 2;
+
+    this.soundEnabled = this.readSoundPreference();
+    this.sound.setMute(!this.soundEnabled);
+
+    this.add
+      .image(centerX, centerY, 'background')
+      .setScrollFactor(0)
+      .setDisplaySize(width, height)
+      .setDepth(0);
+    this.add
+      .image(centerX, centerY, 'touch-settings-panel')
+      .setScrollFactor(0)
+      .setDisplaySize(panelWidth, panelHeight)
+      .setDepth(2);
+
+    this.previousArrow = this.createPageArrow(
+      panelSide + PANEL_ARROW_INSET,
+      centerY,
+      true
+    );
+    this.nextArrow = this.createPageArrow(
+      width - panelSide - PANEL_ARROW_INSET,
+      centerY,
+      false
+    );
+
+    this.soundHitTarget = this.add
+      .rectangle(
+        0,
+        0,
+        SETTINGS_BUTTON_SIZE_CSS,
+        SETTINGS_BUTTON_SIZE_CSS,
+        0xffffff,
+        0.001
+      )
+      .setScrollFactor(0)
+      .setDepth(6)
+      .setInteractive({ useHandCursor: true });
+    this.soundIcon = this.add
+      .image(
+        0,
+        0,
+        this.soundEnabled
+          ? 'touch-settings-sound-on'
+          : 'touch-settings-sound-off'
+      )
+      .setScrollFactor(0)
+      .setDepth(7);
+    this.soundHitTarget.on('pointerdown', this.toggleSound, this);
+    this.scale.on('resize', this.layoutSoundControl, this);
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.layoutSoundControl, this);
+    });
+    this.layoutSoundControl();
+
+    this.renderPage();
+  }
+
+  private createPageArrow(
+    x: number,
+    y: number,
+    flipped: boolean
+  ): Phaser.GameObjects.Image {
+    const arrow = this.add
+      .image(x, y, LEVEL_NAV_KEY, LEVEL_NAV_FRAME)
+      .setDisplaySize(84, 84)
+      .setFlipX(flipped)
+      .setDepth(6)
+      .setInteractive({ useHandCursor: true });
+
+    const getNextPage = () => this.pageIndex + (flipped ? -1 : 1);
+    const isAvailable = () => {
+      const nextPage = getNextPage();
+      return nextPage >= 0 && nextPage < LEVEL_PAGE_COUNT;
+    };
+    const baseScaleX = arrow.scaleX;
+    const baseScaleY = arrow.scaleY;
+    const releaseArrow = () => {
+      this.tweens.killTweensOf(arrow);
+      this.tweens.add({
+        targets: arrow,
+        scaleX: baseScaleX,
+        scaleY: baseScaleY,
+        duration: NAV_BUTTON_RELEASE_DURATION_MS,
+        ease: 'Sine.Out',
+      });
+    };
+
+    arrow.on('pointerdown', () => {
+      if (!isAvailable()) {
+        return;
+      }
+
+      this.tweens.killTweensOf(arrow);
+      this.tweens.add({
+        targets: arrow,
+        scaleX: baseScaleX * NAV_BUTTON_PRESSED_SCALE_FACTOR,
+        scaleY: baseScaleY * NAV_BUTTON_PRESSED_SCALE_FACTOR,
+        duration: NAV_BUTTON_PRESS_DURATION_MS,
+        ease: 'Sine.Out',
+      });
+    });
+    arrow.on('pointerout', () => {
+      releaseArrow();
+      if (isAvailable()) {
+        arrow.clearTint();
+      } else {
+        arrow.setTint(LEVEL_NAV_DISABLED_TINT);
+      }
+    });
+    arrow.on('pointerup', () => {
+      const nextPage = getNextPage();
+      if (nextPage < 0 || nextPage >= LEVEL_PAGE_COUNT) {
+        releaseArrow();
+        return;
+      }
+
+      releaseArrow();
+      this.playUiClick();
+      this.pageIndex = nextPage;
+      this.renderPage();
+    });
+    arrow.on('pointerupoutside', releaseArrow);
+
+    return arrow;
+  }
+
+  private renderPage(): void {
+    const { width, height } = this.scale;
+    const canGoPrevious = this.pageIndex > 0;
+    const canGoNext = this.pageIndex < LEVEL_PAGE_COUNT - 1;
+    this.previousArrow?.setAlpha(1);
+    this.nextArrow?.setAlpha(1);
+    if (canGoPrevious) {
+      this.previousArrow?.clearTint();
+    } else {
+      this.previousArrow?.setTint(LEVEL_NAV_DISABLED_TINT);
+    }
+    if (canGoNext) {
+      this.nextArrow?.clearTint();
+    } else {
+      this.nextArrow?.setTint(LEVEL_NAV_DISABLED_TINT);
+    }
+    this.cardGroup?.destroy(true);
+
+    const cardGroup = this.add.container(0, 0).setDepth(4);
+    const levelNumbers = getLevelNumbersForPage(this.pageIndex);
+    const panelWidth = Math.min(width - 72, PANEL_WIDTH);
+    const panelHeight = Math.min(height - 48, PANEL_HEIGHT);
+    const panelLeft = (width - panelWidth) / 2;
+    const panelTop = (height - panelHeight) / 2;
+    const columns = Math.min(4, levelNumbers.length);
+    const rows = Math.ceil(levelNumbers.length / columns);
+    const gapX =
+      (panelWidth - columns * LEVEL_BOX_DISPLAY_SIZE) / (columns + 1);
+    const gapY =
+      (panelHeight - rows * LEVEL_BOX_DISPLAY_SIZE) / (rows + 1);
+    const firstX = panelLeft + gapX + LEVEL_BOX_DISPLAY_SIZE / 2;
+    const firstY = panelTop + gapY + LEVEL_BOX_DISPLAY_SIZE / 2;
+
+    levelNumbers.forEach((levelNumber, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = firstX + column * (LEVEL_BOX_DISPLAY_SIZE + gapX);
+      const y = firstY + row * (LEVEL_BOX_DISPLAY_SIZE + gapY);
+      const isAvailable = PLAYABLE_LEVELS.some(
+        (level) => level.number === levelNumber
+      );
+      cardGroup.add(this.createLevelCard(levelNumber, x, y, isAvailable));
+    });
+
+    this.cardGroup = cardGroup;
+  }
+
+  private createLevelCard(
+    levelNumber: number,
+    x: number,
+    y: number,
+    isAvailable: boolean
+  ): Phaser.GameObjects.Container {
+    const card = this.add.container(x, y);
+    const levelBox = this.add
+      .image(0, 0, LEVEL_BOX_KEY, LEVEL_BOX_FRAME)
+      .setDisplaySize(LEVEL_BOX_DISPLAY_SIZE, LEVEL_BOX_DISPLAY_SIZE);
+    const digits = String(levelNumber)
+      .padStart(2, '0')
+      .split('')
+      .map(Number);
+    const digitSprites = digits.map((digit, index) =>
+      this.add
+        .image(index === 0 ? -13 : 13, 0, LEVEL_DIGITS_KEY, digit)
+        .setDisplaySize(40, 40)
+    );
+
+    card.add([levelBox, ...digitSprites]);
+    card.setAlpha(isAvailable ? 1 : 0.5);
+
+    if (isAvailable) {
+      levelBox.setInteractive({ useHandCursor: true });
+      levelBox.on('pointerover', () => {
+        this.tweens.killTweensOf(card);
+        this.tweens.add({
+          targets: card,
+          scaleX: 1.04,
+          scaleY: 1.04,
+          duration: 100,
+          ease: 'Sine.Out',
+        });
+      });
+      levelBox.on('pointerout', () => {
+        this.tweens.killTweensOf(card);
+        this.tweens.add({
+          targets: card,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 120,
+          ease: 'Sine.Out',
+        });
+      });
+      levelBox.on('pointerdown', () => this.startLevel(levelNumber));
+    }
+
+    return card;
+  }
+
+  private startLevel(levelNumber: number): void {
+    if (!PLAYABLE_LEVELS.some((level) => level.number === levelNumber)) {
+      return;
+    }
+
+    this.playUiClick();
+    this.scene.start('Game', { levelNumber });
+  }
+
+  private toggleSound(): void {
+    this.playUiClick();
+    this.soundEnabled = !this.soundEnabled;
+    this.sound.setMute(!this.soundEnabled);
+    this.soundIcon?.setTexture(
+      this.soundEnabled ? 'touch-settings-sound-on' : 'touch-settings-sound-off'
+    );
+    this.layoutSoundControl();
+
+    if (this.soundIcon) {
+      animateSettingsToggleIcon(
+        this,
+        this.soundIcon,
+        this.soundIcon.scaleX,
+        this.soundIcon.scaleY
+      );
+    }
+
+    try {
+      window.localStorage.setItem(
+        SOUND_STORAGE_KEY,
+        this.soundEnabled ? 'on' : 'off'
+      );
+    } catch (error) {
+      console.error('Unable to save sound preference.', error);
+    }
+  }
+
+  private readSoundPreference(): boolean {
+    try {
+      return window.localStorage.getItem(SOUND_STORAGE_KEY) !== 'off';
+    } catch (error) {
+      console.warn('Unable to read sound preference.', error);
+      return true;
+    }
+  }
+
+  private layoutSoundControl(): void {
+    if (!this.soundHitTarget || !this.soundIcon) {
+      return;
+    }
+
+    const { width, height } = this.scale;
+    const canvasBounds = this.game.canvas.getBoundingClientRect();
+    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
+    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
+    const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
+    const buttonSize = SETTINGS_BUTTON_SIZE_CSS * unitScale;
+    const margin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
+    const buttonX = width - margin - buttonSize / 2;
+    const buttonY = height - margin - buttonSize / 2;
+
+    this.soundHitTarget
+      .setPosition(buttonX, buttonY)
+      .setSize(buttonSize, buttonSize)
+      .setInteractive({ useHandCursor: true });
+    this.soundIcon
+      .setPosition(buttonX, buttonY)
+      .setDisplaySize(buttonSize, buttonSize);
+  }
+
+  private playUiClick(): void {
+    this.sound.play(LEVEL_PICKER_SOUND, { volume: 0.45 });
+  }
+}

@@ -63,6 +63,12 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/touch/jump.png`
   - `public/assets/img/ui/touch/attack.png`
   - `public/assets/img/ui/touch/throw.png`
+  - `public/assets/img/ui/title/player-avatar.png`
+  - `public/assets/img/ui/title/next-button.png`
+  - `public/assets/img/ui/title/next-button-pressed.png`
+  - `public/assets/img/ui/settings/sound-on.png`
+  - `public/assets/img/ui/settings/sound-off.png`
+  - `public/assets/img/ui/settings/button.png`
   - `public/assets/img/ui/settings/panel.png`
   - `public/assets/img/font/font.png`
   - `public/assets/img/font/font.fnt`
@@ -345,8 +351,14 @@ This document records credits for assets used in this project.
 - **Creator / License**: Created with PixelLab by the project owner. PixelLab's [Terms of Service](https://www.pixellab.ai/termsofservice) state that users own copyrights to their creations and may use them commercially or non-commercially without permission. The terms also require compliance with OpenRAIL-M, prohibit using creations to train other models without PixelLab's permission, and make users responsible for third-party rights. This is PixelLab's output-use grant, not a CC0 declaration.
 - The settings gear states, button backing, speaker and controller toggles, and hint toggles are crops from sheets in this folder.
 - The title-screen Next button uses zero-based row 0, column 0 for its default state and row 2, column 0 for its pressed state from `full_asset/Pixellab/1794918873875.png`.
+- The level selector uses zero-based row 3, column 0 from `full_asset/Pixellab/1795001501247.png` for its level boxes.
+- The black 0–9 digit glyphs are extracted at native pixel size from `full_asset/Pixellab/1795001803028.png` and arranged as a 10-frame 32×32 spritesheet.
+- The level-selector navigation uses zero-based row 6, column 5 from `full_asset/Pixellab/1795008316666.png` for both arrows; the left arrow is flipped horizontally.
 - **Files**:
   - `full_asset/Pixellab/1794918873875.png`
+  - `full_asset/Pixellab/1795001501247.png`
+  - `full_asset/Pixellab/1795001803028.png`
+  - `full_asset/Pixellab/1795008316666.png`
   - `public/assets/img/ui/settings/gear.png`
   - `public/assets/img/ui/settings/gear-open.png`
   - `public/assets/img/ui/settings/button.png`
@@ -358,6 +370,9 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/settings/hint-off.png`
   - `public/assets/img/ui/title/next-button.png`
   - `public/assets/img/ui/title/next-button-pressed.png`
+  - `public/assets/img/ui/level-select/level-boxes.png`
+  - `public/assets/img/ui/level-select/level-digits.png`
+  - `public/assets/img/ui/level-select/level-nav-arrows.png`
 
 ## 3. Kenney UI Audio
 

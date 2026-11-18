@@ -53,7 +53,7 @@ export class TitleScene extends Phaser.Scene {
         scaleY: nextButtonScaleY,
         duration: PLAY_BUTTON_RELEASE_DURATION_MS,
         ease: 'Sine.Out',
-        onComplete: () => this.scene.start('Game'),
+        onComplete: () => this.scene.start('LevelSelectScene'),
       });
     };
     const showDefaultButton = () => {
