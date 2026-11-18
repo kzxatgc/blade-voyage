@@ -126,6 +126,18 @@ export class Game extends Phaser.Scene {
     this.selectedLevelNumber = levelNumber;
   }
 
+  preload(): void {
+    const level = PLAYABLE_LEVELS.find(
+      (candidate) => candidate.number === this.selectedLevelNumber
+    );
+    if (!level) {
+      throw new Error(`Level ${this.selectedLevelNumber} is not configured.`);
+    }
+
+    this.load.setPath('../assets');
+    this.load.json(getLevelMapCacheKey(level.number), level.mapFile);
+  }
+
   create() {
     this.input.mouse?.disableContextMenu();
     this.cameras.main.setBackgroundColor(0xe6e6e6);

@@ -5,17 +5,18 @@
   "license": "BSD-3-Clause",
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "generate:levels": "node tools/generate-level-map-manifest.mjs",
+    "build": "npm run generate:levels && vite build",
     "deploy": "npm run test:types && npm run lint && devvit upload",
-    "dev": "devvit playtest",
-    "editor": "vite --config vite.editor.config.ts",
-    "local": "vite --config vite.local.config.ts",
+    "dev": "npm run generate:levels && devvit playtest",
+    "editor": "npm run generate:levels && vite --config vite.editor.config.ts",
+    "local": "npm run generate:levels && vite --config vite.local.config.ts",
     "launch": "npm run deploy && devvit publish",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "login": "devvit login",
     "prettier": "prettier --write .",
-    "test:types": "tsc --build",
-    "test:unit": "node --experimental-strip-types --no-warnings=ExperimentalWarning --test \"src/**/*.test.ts\""
+    "test:types": "npm run generate:levels && tsc --build",
+    "test:unit": "npm run generate:levels && node --experimental-strip-types --no-warnings=ExperimentalWarning --test \"src/**/*.test.ts\""
   },
   "engines": {
     "node": ">=24.0.0"

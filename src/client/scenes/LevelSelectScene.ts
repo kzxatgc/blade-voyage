@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import {
   LEVEL_PAGE_COUNT,
+  LEVELS_PER_PAGE,
   PLAYABLE_LEVELS,
   getLevelNumbersForPage,
 } from '../../shared/levels';
@@ -190,8 +191,8 @@ export class LevelSelectScene extends Phaser.Scene {
     const panelHeight = Math.min(height - 48, PANEL_HEIGHT);
     const panelLeft = (width - panelWidth) / 2;
     const panelTop = (height - panelHeight) / 2;
-    const columns = Math.min(4, levelNumbers.length);
-    const rows = Math.ceil(levelNumbers.length / columns);
+    const columns = 4;
+    const rows = LEVELS_PER_PAGE / columns;
     const boxDisplaySize = Math.max(
       LEVEL_BOX_BASE_SIZE,
       MIN_TOUCH_TARGET_CSS * this.getCanvasUnitScale()
@@ -209,15 +210,11 @@ export class LevelSelectScene extends Phaser.Scene {
       const row = Math.floor(index / columns);
       const x = firstX + column * (boxDisplaySize + gapX);
       const y = firstY + row * (boxDisplaySize + gapY);
-      const isAvailable = PLAYABLE_LEVELS.some(
-        (level) => level.number === levelNumber
-      );
       cardGroup.add(
         this.createLevelCard(
           levelNumber,
           x,
           y,
-          isAvailable,
           boxDisplaySize,
           digitDisplaySize,
           digitOffset
@@ -273,7 +270,6 @@ export class LevelSelectScene extends Phaser.Scene {
     levelNumber: number,
     x: number,
     y: number,
-    isAvailable: boolean,
     boxDisplaySize: number,
     digitDisplaySize: number,
     digitOffset: number
@@ -298,32 +294,28 @@ export class LevelSelectScene extends Phaser.Scene {
     );
 
     card.add([levelBox, ...digitSprites]);
-    card.setAlpha(isAvailable ? 1 : 0.5);
-
-    if (isAvailable) {
-      levelBox.setInteractive({ useHandCursor: true });
-      levelBox.on('pointerover', () => {
-        this.tweens.killTweensOf(card);
-        this.tweens.add({
-          targets: card,
-          scaleX: 1.04,
-          scaleY: 1.04,
-          duration: 100,
-          ease: 'Sine.Out',
-        });
+    levelBox.setInteractive({ useHandCursor: true });
+    levelBox.on('pointerover', () => {
+      this.tweens.killTweensOf(card);
+      this.tweens.add({
+        targets: card,
+        scaleX: 1.04,
+        scaleY: 1.04,
+        duration: 100,
+        ease: 'Sine.Out',
       });
-      levelBox.on('pointerout', () => {
-        this.tweens.killTweensOf(card);
-        this.tweens.add({
-          targets: card,
-          scaleX: 1,
-          scaleY: 1,
-          duration: 120,
-          ease: 'Sine.Out',
-        });
+    });
+    levelBox.on('pointerout', () => {
+      this.tweens.killTweensOf(card);
+      this.tweens.add({
+        targets: card,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 120,
+        ease: 'Sine.Out',
       });
-      levelBox.on('pointerdown', () => this.startLevel(levelNumber));
-    }
+    });
+    levelBox.on('pointerdown', () => this.startLevel(levelNumber));
 
     return card;
   }

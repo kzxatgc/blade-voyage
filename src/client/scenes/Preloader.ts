@@ -1,5 +1,4 @@
 import { Scene } from 'phaser';
-import { PLAYABLE_LEVELS, getLevelMapCacheKey } from '../../shared/levels';
 import { SFX_DEFINITIONS } from '../systems/Audio';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -29,9 +28,6 @@ export class Preloader extends Scene {
   preload() {
     this.load.setPath('../assets');
 
-    for (const level of PLAYABLE_LEVELS) {
-      this.load.json(getLevelMapCacheKey(level.number), level.mapFile);
-    }
     this.load.audio('settings-click', 'sfx/ui/settings-click.wav');
     this.load.image('title-player-avatar', 'img/ui/title/player-avatar.png');
     this.load.image('title-next', 'img/ui/title/next-button.png');
