@@ -1,6 +1,11 @@
 import type { Tilemap } from './Tilemap.ts';
 import { Enemy, type EnemyName, type EnemyParticleSystem } from '../entities/Enemy.ts';
-import type { EntityPosition, EntitySize, EntityType } from '../../shared/types.ts';
+import type {
+  EntityCollision,
+  EntityPosition,
+  EntitySize,
+  EntityType,
+} from '../../shared/types.ts';
 import { PHYSICAL_TILES, RECT_POS_ADJUSTMENT } from '../../shared/constants.ts';
 import type { Sparks } from './Sparks.ts';
 
@@ -23,6 +28,16 @@ export interface SpawnEntitiesResult {
   enemies: Enemy[];
 }
 
+type SpawnPlayer = {
+  pos: EntityPosition;
+  velocity?: EntityPosition;
+  collision?: EntityCollision;
+  standingOn?: { grass: boolean };
+  airTime?: number;
+  wasInAir?: boolean;
+  justLanded?: boolean;
+};
+
 function findFloorY(tilemap: Tilemap, gridX: number, startGridY: number): number {
   for (let y = startGridY; y < startGridY + 20; y++) {
     const tile = tilemap.tiles[`${gridX};${y}`];
@@ -35,7 +50,7 @@ function findFloorY(tilemap: Tilemap, gridX: number, startGridY: number): number
 
 export function spawnEntities(
   tilemap: Tilemap,
-  player?: { pos: EntityPosition },
+  player?: SpawnPlayer,
   particles?: EnemyParticleSystem,
   sparksEffect?: Sparks[]
 ): SpawnEntitiesResult {
@@ -63,23 +78,23 @@ export function spawnEntities(
       if (player) {
         player.pos[0] = playerPos[0];
         player.pos[1] = playerPos[1];
-        if ('velocity' in player && Array.isArray((player as any).velocity)) {
-          (player as any).velocity[1] = 0;
+        if (player.velocity) {
+          player.velocity[1] = 0;
         }
-        if ('collision' in player && (player as any).collision) {
-          (player as any).collision.bottom = true;
+        if (player.collision) {
+          player.collision.bottom = true;
         }
-        if ('standingOn' in player && (player as any).standingOn) {
-          (player as any).standingOn.grass = true;
+        if (player.standingOn) {
+          player.standingOn.grass = true;
         }
-        if ('airTime' in player) {
-          (player as any).airTime = 0;
+        if (player.airTime !== undefined) {
+          player.airTime = 0;
         }
-        if ('wasInAir' in player) {
-          (player as any).wasInAir = false;
+        if (player.wasInAir !== undefined) {
+          player.wasInAir = false;
         }
-        if ('justLanded' in player) {
-          (player as any).justLanded = false;
+        if (player.justLanded !== undefined) {
+          player.justLanded = false;
         }
       }
     } else {

@@ -12,7 +12,7 @@
     "editor": "npm run generate:levels && vite --config vite.editor.config.ts",
     "local": "npm run generate:levels && vite --config vite.local.config.ts",
     "launch": "npm run deploy && devvit publish",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "login": "devvit login",
     "prettier": "prettier --write .",
     "test:types": "npm run generate:levels && tsc --build",

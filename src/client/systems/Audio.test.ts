@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { SFX_DEFINITIONS, SoundSystem, type SoundPlayer } from './Audio.ts';
 
-describe('SoundSystem and SFX_DEFINITIONS', () => {
-  it('defines all 15 sound categories from game.py', () => {
+void describe('SoundSystem and SFX_DEFINITIONS', () => {
+  void it('defines all 15 sound categories from game.py', () => {
     const expectedKeys = [
       'player/jump',
       'player/run/grass',
@@ -26,7 +26,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     }
   });
 
-  it('contains exactly 38 total audio files across all definitions', () => {
+  void it('contains exactly 38 total audio files across all definitions', () => {
     let totalFiles = 0;
     for (const def of Object.values(SFX_DEFINITIONS)) {
       totalFiles += def.files.length;
@@ -34,7 +34,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     assert.equal(totalFiles, 38);
   });
 
-  it('plays single-file sounds with exact tuned volume', () => {
+  void it('plays single-file sounds with exact tuned volume', () => {
     const played: { key: string; volume?: number | undefined }[] = [];
     const mockSound: SoundPlayer = {
       play(key: string, extra?: { volume?: number }) {
@@ -51,7 +51,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     ]);
   });
 
-  it('selects sequential frames for spinning sword', () => {
+  void it('selects sequential frames for spinning sword', () => {
     const played: string[] = [];
     const mockSound: SoundPlayer = {
       play(key: string) {
@@ -67,7 +67,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     assert.equal(soundSystem.play('sword/spinning', { sequenceIndex: 3 }), 'sfx/sword/spinning/0.wav');
   });
 
-  it('selects random jump sound variant', () => {
+  void it('selects random jump sound variant', () => {
     const played: string[] = [];
     const mockSound: SoundPlayer = {
       play(key: string) {
@@ -85,7 +85,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     assert.equal(chosen1, 'sfx/player/jump/1.wav');
   });
 
-  it('handles attack weighted random choice and scales volume', () => {
+  void it('handles attack weighted random choice and scales volume', () => {
     let playedVolume = 0;
     const mockSound: SoundPlayer = {
       play(_key: string, extra?: { volume?: number }) {
@@ -100,7 +100,7 @@ describe('SoundSystem and SFX_DEFINITIONS', () => {
     assert.equal(playedVolume, 0.1); // 0.2 * 0.5
   });
 
-  it('returns null and does not throw for unknown key or when sound player is undefined', () => {
+  void it('returns null and does not throw for unknown key or when sound player is undefined', () => {
     const soundSystem = new SoundSystem(undefined);
     assert.equal(soundSystem.play('nonexistent/sound'), null);
     // Known sound with no sound player should return chosen file without error
