@@ -5,6 +5,8 @@
 export interface DebugConfig {
   /** Master toggle for all debug overlays */
   enabled: boolean;
+  /** Start at the level picker instead of the title scene */
+  startAtLevelPicker: boolean;
   /** Show virtual touch controls on non-touch devices when debug mode is enabled */
   showTouchControlsOnDesktop: boolean;
   /** Player health is infinite (cannot die) */
@@ -25,6 +27,7 @@ export interface DebugConfig {
 
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
+  startAtLevelPicker: true,
   showTouchControlsOnDesktop: false,
   playerInfiniteHealth: true,
   showEntityBodyRects: false,

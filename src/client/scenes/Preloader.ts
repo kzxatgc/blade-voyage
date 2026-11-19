@@ -1,8 +1,8 @@
 import { Scene } from 'phaser';
 import { SFX_DEFINITIONS } from '../systems/Audio';
+import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
-const DEBUG_SKIP_TITLE_SCREEN = false;
 
 export class Preloader extends Scene {
   constructor() {
@@ -252,6 +252,8 @@ export class Preloader extends Scene {
   }
 
   create() {
-    this.scene.start(DEBUG_SKIP_TITLE_SCREEN ? 'Game' : 'TitleScene');
+    this.scene.start(
+      DEBUG_CONFIG.startAtLevelPicker ? 'LevelSelectScene' : 'TitleScene'
+    );
   }
 }

@@ -11,6 +11,7 @@ import {
   SETTINGS_BUTTON_SIZE_CSS,
   SOUND_STORAGE_KEY,
 } from '../systems/SettingsUI';
+import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 
 export const LEVEL_SELECT_SCENE_KEY = 'LevelSelectScene';
 
@@ -46,12 +47,36 @@ export class LevelSelectScene extends Phaser.Scene {
   private soundHitTarget?: Phaser.GameObjects.Rectangle;
   private soundIcon?: Phaser.GameObjects.Image;
   private soundEnabled = true;
+  private readonly levelCardCenters = new Map<number, IrisFocus>();
+  private irisTransition!: IrisTransition;
 
   constructor() {
     super(LEVEL_SELECT_SCENE_KEY);
   }
 
-  create(data: { skipEntrance?: boolean } = {}): void {
+  create(
+    data: { skipEntrance?: boolean; openOnLevelNumber?: number } = {}
+  ): void {
+    this.input.enabled = true;
+    this.pageIndex = 0;
+    this.irisTransition = new IrisTransition(this);
+    this.levelCardCenters.clear();
+
+    let openOnLevelNumber: number | undefined;
+    if (data.openOnLevelNumber !== undefined) {
+      const requestedIndex = PLAYABLE_LEVELS.findIndex(
+        (level) => level.number === data.openOnLevelNumber
+      );
+      const focusIndex =
+        requestedIndex >= 0 ? requestedIndex : PLAYABLE_LEVELS.length - 1;
+      const focusLevel = PLAYABLE_LEVELS[focusIndex];
+      if (!focusLevel) {
+        throw new Error('Cannot focus the level picker without a playable level.');
+      }
+      openOnLevelNumber = focusLevel.number;
+      this.pageIndex = Math.floor(focusIndex / LEVELS_PER_PAGE);
+    }
+
     const { width, height } = this.scale;
     const centerX = width / 2;
     const centerY = height / 2;
@@ -106,9 +131,18 @@ export class LevelSelectScene extends Phaser.Scene {
       this.scale.off('resize', this.layoutResponsiveUI, this);
     });
     this.layoutResponsiveUI();
-    if (data.skipEntrance) {
+    if (data.skipEntrance || openOnLevelNumber !== undefined) {
       this.soundHitTarget?.setVisible(true);
       this.soundIcon?.setVisible(true);
+      if (openOnLevelNumber !== undefined) {
+        const focus = this.levelCardCenters.get(openOnLevelNumber);
+        if (!focus) {
+          throw new Error(
+            `Missing level-picker focus point for level ${openOnLevelNumber}.`
+          );
+        }
+        this.irisTransition.startOpening(focus);
+      }
       return;
     }
 
@@ -120,6 +154,10 @@ export class LevelSelectScene extends Phaser.Scene {
       this
     );
     this.playEntranceAnimation();
+  }
+
+  override update(_time: number, delta: number): void {
+    this.irisTransition.update(delta);
   }
 
   private createPageArrow(
@@ -209,6 +247,7 @@ export class LevelSelectScene extends Phaser.Scene {
       this.nextArrow?.setTint(LEVEL_NAV_DISABLED_TINT);
     }
     this.cardGroup?.destroy(true);
+    this.levelCardCenters.clear();
 
     const cardGroup = this.add.container(0, 0).setDepth(4);
     const levelNumbers = getLevelNumbersForPage(this.pageIndex);
@@ -244,6 +283,7 @@ export class LevelSelectScene extends Phaser.Scene {
       const row = Math.floor(index / columns);
       const x = firstX + column * (boxDisplaySize + gapX);
       const y = firstY + row * (boxDisplaySize + gapY);
+      this.levelCardCenters.set(levelNumber, { x, y });
       cardGroup.add(
         this.createLevelCard(
           levelNumber,
@@ -394,12 +434,22 @@ export class LevelSelectScene extends Phaser.Scene {
   }
 
   private startLevel(levelNumber: number): void {
-    if (!PLAYABLE_LEVELS.some((level) => level.number === levelNumber)) {
+    if (
+      !PLAYABLE_LEVELS.some((level) => level.number === levelNumber) ||
+      this.irisTransition.isActive
+    ) {
       return;
     }
 
+    const focus = this.levelCardCenters.get(levelNumber);
+    if (!focus) {
+      throw new Error(`Missing level-picker focus point for level ${levelNumber}.`);
+    }
+
     this.playUiClick();
-    this.scene.start('Game', { levelNumber });
+    this.irisTransition.startClosing(focus, () => {
+      this.scene.start('Game', { levelNumber, openIris: true });
+    });
   }
 
   private toggleSound(): void {

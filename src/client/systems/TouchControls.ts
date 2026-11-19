@@ -9,6 +9,7 @@ import {
   SETTINGS_BUTTON_SIZE_CSS,
   SOUND_STORAGE_KEY,
 } from './SettingsUI';
+import type { IrisFocus } from './IrisTransition';
 import { shouldShowTouchControls } from './TouchControlsVisibility';
 
 export type TouchControlActions = {
@@ -20,7 +21,7 @@ export type TouchControlActions = {
   setPickupHintEnabled: (enabled: boolean) => void;
   setGamePaused: (paused: boolean) => void;
   playUiClick: () => void;
-  returnToLevelPicker: () => void;
+  returnToLevelPicker: (focus: IrisFocus) => void;
   levelLabel: string;
 };
 
@@ -203,6 +204,20 @@ export class TouchControls {
   }
 
   update(): void {
+    if (
+      !this.scene.input.enabled &&
+      (this.activePointers.size > 0 || this.pointersDown.size > 0)
+    ) {
+      const hadActiveButtons = this.activePointers.size > 0;
+      this.activePointers.clear();
+      this.pointersDown.clear();
+      this.movement.left = false;
+      this.movement.right = false;
+      if (hadActiveButtons) {
+        this.updateButtonStates();
+      }
+    }
+
     const canvasWidth = this.getCanvasWidth();
     const layoutChanged =
       this.lastZoom !== this.scene.cameras.main.zoom ||
@@ -917,8 +932,10 @@ export class TouchControls {
       )
     ) {
       this.actions.playUiClick();
-      this.setSettingsOpen(false);
-      this.actions.returnToLevelPicker();
+      this.actions.returnToLevelPicker({
+        x: this.settingsHomeBounds.left + this.settingsHomeBounds.width / 2,
+        y: this.settingsHomeBounds.top + this.settingsHomeBounds.height / 2,
+      });
       return true;
     }
     this.actions.playUiClick();

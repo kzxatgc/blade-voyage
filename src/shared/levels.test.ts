@@ -55,7 +55,10 @@ void describe('Level picker pages', () => {
 
     assert.ok(firstLevel);
     assert.ok(lastLevel);
-    assert.deepEqual(getNextLevel(firstLevel.number), PLAYABLE_LEVELS[1]);
+    assert.deepEqual(
+      getNextLevel(firstLevel.number),
+      PLAYABLE_LEVELS[1] ?? ENDING_LEVEL
+    );
     assert.deepEqual(getNextLevel(lastLevel.number), ENDING_LEVEL);
     assert.throws(() => getNextLevel(ENDING_LEVEL.number), /not playable/);
   });

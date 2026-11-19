@@ -20,6 +20,7 @@ import {
   getLevelDefinition,
   getLevelMapCacheKey,
   getNextLevel,
+  PLAYABLE_LEVELS,
 } from '../../shared/levels';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
@@ -37,6 +38,7 @@ import { Animation } from '../utils/Animation';
 import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
 import { SoundSystem } from '../systems/Audio';
 import { TouchControls } from '../systems/TouchControls';
+import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -108,6 +110,10 @@ export class Game extends Phaser.Scene {
   }[] = [];
   private selectedLevelNumber = 1;
   private levelTransitionScheduled = false;
+  private levelTransitionTimer: Phaser.Time.TimerEvent | undefined;
+  private deathTransitionScheduled = false;
+  private openIrisOnStart = false;
+  private irisTransition?: IrisTransition;
 
   constructor() {
     super('Game');
@@ -115,6 +121,16 @@ export class Game extends Phaser.Scene {
 
   init(data: unknown): void {
     this.levelTransitionScheduled = false;
+    this.levelTransitionTimer?.remove(false);
+    this.levelTransitionTimer = undefined;
+    this.deathTransitionScheduled = false;
+    this.settingsPaused = false;
+    this.tickAccumulator = 0;
+    this.openIrisOnStart =
+      typeof data === 'object' &&
+      data !== null &&
+      'openIris' in data &&
+      data.openIris === true;
     if (typeof data !== 'object' || data === null || !('levelNumber' in data)) {
       this.selectedLevelNumber = 1;
       return;
@@ -149,6 +165,7 @@ export class Game extends Phaser.Scene {
   }
 
   create() {
+    this.input.enabled = true;
     this.input.mouse?.disableContextMenu();
     this.cameras.main.setBackgroundColor(0xe6e6e6);
     this.leftKeys = [
@@ -288,8 +305,7 @@ export class Game extends Phaser.Scene {
       playUiClick: () => {
         this.sound.play('settings-click', { volume: 0.45 });
       },
-      returnToLevelPicker: () =>
-        this.scene.start('LevelSelectScene', { skipEntrance: true }),
+      returnToLevelPicker: (focus) => this.returnToLevelPicker(focus),
       levelLabel:
         this.selectedLevelNumber === ENDING_LEVEL.number
           ? 'ALL LEVEL CLEARED!'
@@ -431,10 +447,16 @@ export class Game extends Phaser.Scene {
       window.addEventListener('pointerdown', unlockAudio, { once: true });
       window.addEventListener('keydown', unlockAudio, { once: true });
     }
+
+    this.irisTransition = new IrisTransition(this);
+    if (this.openIrisOnStart) {
+      this.irisTransition.startOpening(this.getPlayerScreenFocus());
+    }
   }
 
   override update(_time: number, delta: number) {
-    if (this.settingsPaused) {
+    this.irisTransition?.update(delta);
+    if (this.settingsPaused && !this.irisTransition?.isActive) {
       this.touchControls?.update();
       return;
     }
@@ -601,16 +623,19 @@ export class Game extends Phaser.Scene {
     }
     this.checkForLevelCompletion();
 
-    const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
-    const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
+    const controlsEnabled = !this.irisTransition?.isActive;
+    const slowMovingLeft =
+      controlsEnabled && this.slowLeftKeys.some((key) => key.isDown);
+    const slowMovingRight =
+      controlsEnabled && this.slowRightKeys.some((key) => key.isDown);
     const movingLeft =
-      this.leftKeys.some((key) => key.isDown) ||
+      (controlsEnabled && this.leftKeys.some((key) => key.isDown)) ||
       slowMovingLeft ||
-      (this.touchControls?.movement.left ?? false);
+      (controlsEnabled && (this.touchControls?.movement.left ?? false));
     const movingRight =
-      this.rightKeys.some((key) => key.isDown) ||
+      (controlsEnabled && this.rightKeys.some((key) => key.isDown)) ||
       slowMovingRight ||
-      (this.touchControls?.movement.right ?? false);
+      (controlsEnabled && (this.touchControls?.movement.right ?? false));
     const isSlowDown = slowMovingLeft || slowMovingRight;
     const horizontalDirection = Number(movingRight) - Number(movingLeft);
 
@@ -625,7 +650,7 @@ export class Game extends Phaser.Scene {
     for (const key of this.jumpKeys) {
       jumpPressed = Phaser.Input.Keyboard.JustDown(key) || jumpPressed;
     }
-    if (jumpPressed) {
+    if (controlsEnabled && jumpPressed) {
       this.playerEntity.jump();
     }
     let dropThroughPressed = false;
@@ -633,7 +658,7 @@ export class Game extends Phaser.Scene {
       dropThroughPressed =
         Phaser.Input.Keyboard.JustDown(key) || dropThroughPressed;
     }
-    if (dropThroughPressed) {
+    if (controlsEnabled && dropThroughPressed) {
       this.playerEntity.dropThroughPlatform();
     }
 
@@ -644,7 +669,7 @@ export class Game extends Phaser.Scene {
     if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
       attackPressed = true;
     }
-    if (attackPressed) {
+    if (controlsEnabled && attackPressed) {
       this.triggerAttackOrPickup();
     }
 
@@ -655,7 +680,7 @@ export class Game extends Phaser.Scene {
     if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
       throwPressed = true;
     }
-    if (throwPressed) {
+    if (controlsEnabled && throwPressed) {
       this.playerEntity.throwSword();
     }
 
@@ -663,6 +688,7 @@ export class Game extends Phaser.Scene {
       horizontalDirection * PLAYER_MOVE_SPEED,
       0,
     ]);
+    this.checkForDeathTransition();
     this.clouds?.update();
     const playerAnimation = this.playerEntity.animation;
     if (!playerAnimation) {
@@ -909,6 +935,8 @@ export class Game extends Phaser.Scene {
     if (
       this.selectedLevelNumber === ENDING_LEVEL.number ||
       this.levelTransitionScheduled ||
+      this.deathTransitionScheduled ||
+      this.playerEntity?.dead ||
       this.enemies.length === 0 ||
       this.enemies.some((enemy) => !enemy.dead)
     ) {
@@ -917,9 +945,92 @@ export class Game extends Phaser.Scene {
 
     this.levelTransitionScheduled = true;
     const nextLevel = getNextLevel(this.selectedLevelNumber);
-    this.time.delayedCall(1000, () => {
-      this.scene.start('Game', { levelNumber: nextLevel.number });
+    this.levelTransitionTimer = this.time.delayedCall(1000, () => {
+      this.levelTransitionTimer = undefined;
+      if (this.playerEntity?.dead || this.deathTransitionScheduled) {
+        return;
+      }
+
+      const transition = this.irisTransition;
+      if (!transition) {
+        throw new Error('The game iris transition was not initialized.');
+      }
+      transition.startClosing(this.getPlayerScreenFocus(), () => {
+        this.scene.start('Game', {
+          levelNumber: nextLevel.number,
+          openIris: true,
+        });
+      });
     });
+  }
+
+  private checkForDeathTransition(): void {
+    const player = this.playerEntity;
+    if (
+      this.deathTransitionScheduled ||
+      !player?.dead ||
+      player.deadHitAnimation ||
+      !player.animation?.done ||
+      player.dialogueAnimation
+    ) {
+      return;
+    }
+
+    this.deathTransitionScheduled = true;
+    this.levelTransitionTimer?.remove(false);
+    this.levelTransitionTimer = undefined;
+    const transition = this.irisTransition;
+    if (!transition) {
+      throw new Error('The game iris transition was not initialized.');
+    }
+    transition.startClosing(this.getPlayerScreenFocus(), () => {
+      this.scene.start('Game', {
+        levelNumber: this.selectedLevelNumber,
+        openIris: true,
+      });
+    });
+  }
+
+  private returnToLevelPicker(focus: IrisFocus): void {
+    const focusLevel =
+      PLAYABLE_LEVELS.find(
+        (level) => level.number === this.selectedLevelNumber
+      ) ?? PLAYABLE_LEVELS[PLAYABLE_LEVELS.length - 1];
+    if (!focusLevel) {
+      throw new Error('Cannot return to the level picker without a playable level.');
+    }
+
+    const transition = this.irisTransition;
+    if (!transition) {
+      throw new Error('The game iris transition was not initialized.');
+    }
+    transition.startClosing(focus, () => {
+      this.scene.start('LevelSelectScene', {
+        skipEntrance: true,
+        openOnLevelNumber: focusLevel.number,
+      });
+    });
+  }
+
+  private getPlayerScreenFocus(): IrisFocus {
+    const player = this.playerEntity;
+    if (!player) {
+      throw new Error('Cannot focus an iris transition without a player.');
+    }
+
+    const camera = this.cameras.main;
+    const originX = camera.width * camera.originX;
+    const originY = camera.height * camera.originY;
+    return {
+      x:
+        camera.x +
+        originX +
+        (player.pos[0] + 32 - camera.scrollX - originX) * camera.zoomX,
+      y:
+        camera.y +
+        originY +
+        (player.pos[1] + 18 - camera.scrollY - originY) * camera.zoomY,
+    };
   }
 
   private updateSwordPickupPrompt(): void {
