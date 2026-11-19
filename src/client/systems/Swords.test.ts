@@ -270,6 +270,21 @@ void describe('Swords manager', () => {
     assert.equal(cappedManager.swords.length, 5);
   });
 
+  void it('can disable random sword spawning while updating existing swords', () => {
+    const tm = new Tilemap();
+    tm.loadFromData({
+      tiles: {
+        '0;0': { type: 'grass', variant: 0, loc: [0, 0] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const manager = new Swords([0, 0], () => 0.005);
+    manager.update(tm, [0, 0], undefined, undefined, false);
+
+    assert.equal(manager.swords.length, 0);
+  });
+
   void it('removes swords when timer reaches or exceeds 1200 on update', () => {
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });

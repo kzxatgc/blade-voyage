@@ -21,7 +21,7 @@ export type TouchControlActions = {
   setGamePaused: (paused: boolean) => void;
   playUiClick: () => void;
   returnToLevelPicker: () => void;
-  levelNumber: number;
+  levelLabel: string;
 };
 
 type TouchButton = 'left' | 'right' | 'down' | 'jump' | 'attack' | 'throw';
@@ -474,7 +474,7 @@ export class TouchControls {
         0,
         0,
         'touch-settings-font',
-        `LV ${String(this.actions.levelNumber).padStart(2, '0')}`,
+        this.actions.levelLabel,
         SETTINGS_LEVEL_FONT_SIZE
       )
       .setOrigin(0.5);

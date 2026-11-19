@@ -110,5 +110,61 @@ void describe('Spawner', () => {
     assert.equal(player.collision.bottom, true);
     assert.deepEqual(player.pos, [64, 96]);
   });
+
+  void it('spawns a player from an off-grid spawner', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '2;3': { type: 'grass', variant: 1, loc: [2, 3] },
+        '2;4': { type: 'grass', variant: 1, loc: [2, 4] },
+      },
+      off_grid_tiles: [
+        {
+          type: 'spawner',
+          variant: 0,
+          depth: 'front',
+          status: 'static',
+          pos: [65.5, 96],
+        },
+      ],
+    });
+
+    const player = new Player([0, 0]);
+    const result = spawnEntities(tm, player);
+
+    assert.deepEqual(result.playerPos, [65.5, 64]);
+    assert.deepEqual(player.pos, [65.5, 64]);
+    player.update(tm);
+    assert.deepEqual(player.pos, [65.5, 64]);
+    assert.equal(player.collision.bottom, true);
+    assert.equal(player.standingOn.grass, true);
+  });
+
+  void it('finds the floor beneath the player collision box for an off-grid spawner', () => {
+    const tiles: Record<string, { type: string; variant: number; loc: [number, number] }> = {};
+    for (let y = 6; y <= 15; y++) {
+      tiles[`16;${y}`] = { type: 'grass', variant: 1, loc: [16, y] };
+    }
+    tiles['17;14'] = { type: 'grass', variant: 1, loc: [17, 14] };
+    tiles['17;15'] = { type: 'grass', variant: 1, loc: [17, 15] };
+
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles,
+      off_grid_tiles: [
+        {
+          type: 'spawner',
+          variant: 0,
+          depth: 'front',
+          status: 'static',
+          pos: [528, 450],
+        },
+      ],
+    });
+
+    const result = spawnEntities(tm, new Player([0, 0]));
+
+    assert.deepEqual(result.playerPos, [528, 416]);
+  });
 });
 

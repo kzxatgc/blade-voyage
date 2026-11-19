@@ -42,6 +42,13 @@ function findFloorY(tilemap: Tilemap, gridX: number, startGridY: number): number
   for (let y = startGridY; y < startGridY + 20; y++) {
     const tile = tilemap.tiles[`${gridX};${y}`];
     if (tile && PHYSICAL_TILES.has(tile.type)) {
+      while (y > 0) {
+        const tileAbove = tilemap.tiles[`${gridX};${y - 1}`];
+        if (!tileAbove || !PHYSICAL_TILES.has(tileAbove.type)) {
+          break;
+        }
+        y--;
+      }
       return y * tilemap.tileSize;
     }
   }
@@ -54,27 +61,60 @@ export function spawnEntities(
   particles?: EnemyParticleSystem,
   sparksEffect?: Sparks[]
 ): SpawnEntitiesResult {
-  const spawnerTiles = tilemap.extract(
-    [
-      ['spawner', 0],
-      ['spawner', 1],
-      ['spawner', 2],
-      ['spawner', 3],
-    ],
-    false
-  );
+  const spawnerTiles = [
+    ...tilemap
+      .extract(
+        [
+          ['spawner', 0],
+          ['spawner', 1],
+          ['spawner', 2],
+          ['spawner', 3],
+        ],
+        false
+      )
+      .map((spawner) => ({
+        variant: spawner.variant,
+        gridX: spawner.loc[0],
+        startGridY: spawner.loc[1] + 1,
+        x: spawner.loc[0] * tilemap.tileSize,
+      })),
+    ...tilemap.offGridTiles.flatMap((tile) => {
+      if (
+        tile.type !== 'spawner' ||
+        tile.variant === undefined ||
+        ![0, 1, 2, 3].includes(tile.variant)
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          variant: tile.variant,
+          gridX: Math.floor(tile.pos[0] / tilemap.tileSize),
+          startGridY: Math.floor(tile.pos[1] / tilemap.tileSize) + 1,
+          x: tile.pos[0],
+        },
+      ];
+    }),
+  ];
 
   let playerPos: EntityPosition | undefined;
   const enemies: Enemy[] = [];
 
   for (const spawner of spawnerTiles) {
-    const floorY = findFloorY(tilemap, spawner.loc[0], spawner.loc[1] + 1);
+    const floorGridX =
+      spawner.variant === 0
+        ? Math.floor(
+            (spawner.x + RECT_POS_ADJUSTMENT.player[0]) / tilemap.tileSize
+          )
+        : spawner.gridX;
+    const floorY = findFloorY(tilemap, floorGridX, spawner.startGridY);
 
     if (spawner.variant === 0) {
       const playerAdj = RECT_POS_ADJUSTMENT.player;
       const playerHeight = 28;
       const playerSpawnY = floorY - playerHeight - playerAdj[1];
-      playerPos = [spawner.loc[0] * tilemap.tileSize, playerSpawnY];
+      playerPos = [spawner.x, playerSpawnY];
       if (player) {
         player.pos[0] = playerPos[0];
         player.pos[1] = playerPos[1];
@@ -103,7 +143,7 @@ export function spawnEntities(
       if (enemyName && enemySize) {
         const enemyAdj = RECT_POS_ADJUSTMENT[`enemy/${enemyName}` as EntityType];
         const spawnY = floorY - enemySize[1] - enemyAdj[1];
-        const spawnX = spawner.loc[0] * tilemap.tileSize;
+        const spawnX = spawner.x;
         const enemy = new Enemy(
           enemyName,
           [spawnX, spawnY],

@@ -489,9 +489,12 @@ export class Swords {
     tilemap: Tilemap,
     movement: EntityPosition = [0, 0],
     playerPos?: readonly [number, number],
-    enemies?: readonly SwordEnemyTarget[]
+    enemies?: readonly SwordEnemyTarget[],
+    allowRandomSpawn = true
   ): SwordHitResult[] {
-    this.spawnSword(tilemap, playerPos);
+    if (allowRandomSpawn) {
+      this.spawnSword(tilemap, playerPos);
+    }
 
     this.swords = this.swords.filter((sword) => {
       if (sword.timer >= 1200) {

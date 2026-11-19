@@ -45,4 +45,18 @@ void describe('Level picker pages', () => {
     assert(LEVEL_COUNT <= MAX_LEVEL_COUNT);
     assert.deepEqual(getLevelNumbersForPage(LEVEL_PAGE_COUNT), []);
   });
+
+  void it('advances cleared levels and routes the final one to the ending map', async () => {
+    const { ENDING_LEVEL, PLAYABLE_LEVELS, getNextLevel } = await import(
+      levelsUrl
+    );
+    const firstLevel = PLAYABLE_LEVELS[0];
+    const lastLevel = PLAYABLE_LEVELS.at(-1);
+
+    assert.ok(firstLevel);
+    assert.ok(lastLevel);
+    assert.deepEqual(getNextLevel(firstLevel.number), PLAYABLE_LEVELS[1]);
+    assert.deepEqual(getNextLevel(lastLevel.number), ENDING_LEVEL);
+    assert.throws(() => getNextLevel(ENDING_LEVEL.number), /not playable/);
+  });
 });

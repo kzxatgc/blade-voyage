@@ -7,6 +7,11 @@ export type LevelDefinition = {
 
 export { MAX_LEVEL_COUNT } from './generatedLevelMaps.ts';
 
+export const ENDING_LEVEL: LevelDefinition = {
+  number: -1,
+  mapFile: 'maps/-1.json',
+};
+
 export const LEVELS_PER_PAGE = 8;
 export const PLAYABLE_LEVELS: readonly LevelDefinition[] = LEVEL_MAP_INDICES.map(
   (mapIndex) => ({
@@ -14,6 +19,21 @@ export const PLAYABLE_LEVELS: readonly LevelDefinition[] = LEVEL_MAP_INDICES.map
     mapFile: `maps/${mapIndex}.json`,
   })
 );
+export const getLevelDefinition = (
+  levelNumber: number
+): LevelDefinition | undefined =>
+  levelNumber === ENDING_LEVEL.number
+    ? ENDING_LEVEL
+    : PLAYABLE_LEVELS.find((level) => level.number === levelNumber);
+export const getNextLevel = (levelNumber: number): LevelDefinition => {
+  const currentIndex = PLAYABLE_LEVELS.findIndex(
+    (level) => level.number === levelNumber
+  );
+  if (currentIndex < 0) {
+    throw new Error(`Level ${levelNumber} is not playable.`);
+  }
+  return PLAYABLE_LEVELS[currentIndex + 1] ?? ENDING_LEVEL;
+};
 export const LEVEL_COUNT = PLAYABLE_LEVELS.length;
 export const LEVEL_PAGE_COUNT = Math.ceil(LEVEL_COUNT / LEVELS_PER_PAGE);
 

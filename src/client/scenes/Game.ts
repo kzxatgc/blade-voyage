@@ -15,7 +15,12 @@ import {
   ZOOM_EASING_SPEED,
   ZOOM_LEVELS,
 } from '../../shared/constants';
-import { PLAYABLE_LEVELS, getLevelMapCacheKey } from '../../shared/levels';
+import {
+  ENDING_LEVEL,
+  getLevelDefinition,
+  getLevelMapCacheKey,
+  getNextLevel,
+} from '../../shared/levels';
 import { isMapData } from '../../shared/mapData';
 import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
@@ -102,12 +107,14 @@ export class Game extends Phaser.Scene {
     height: number;
   }[] = [];
   private selectedLevelNumber = 1;
+  private levelTransitionScheduled = false;
 
   constructor() {
     super('Game');
   }
 
   init(data: unknown): void {
+    this.levelTransitionScheduled = false;
     if (typeof data !== 'object' || data === null || !('levelNumber' in data)) {
       this.selectedLevelNumber = 1;
       return;
@@ -116,7 +123,7 @@ export class Game extends Phaser.Scene {
     const levelNumber = data.levelNumber;
     if (
       typeof levelNumber !== 'number' ||
-      !PLAYABLE_LEVELS.some((level) => level.number === levelNumber)
+      !getLevelDefinition(levelNumber)
     ) {
       throw new Error(
         `The selected level "${String(levelNumber)}" is unavailable.`
@@ -127,9 +134,7 @@ export class Game extends Phaser.Scene {
   }
 
   preload(): void {
-    const level = PLAYABLE_LEVELS.find(
-      (candidate) => candidate.number === this.selectedLevelNumber
-    );
+    const level = getLevelDefinition(this.selectedLevelNumber);
     if (!level) {
       throw new Error(`Level ${this.selectedLevelNumber} is not configured.`);
     }
@@ -231,9 +236,7 @@ export class Game extends Phaser.Scene {
       .setDisplaySize(this.scale.width, this.scale.height);
     this.createWaterBackground();
 
-    const level = PLAYABLE_LEVELS.find(
-      (candidate) => candidate.number === this.selectedLevelNumber
-    );
+    const level = getLevelDefinition(this.selectedLevelNumber);
     if (!level) {
       throw new Error(`Level ${this.selectedLevelNumber} is not configured.`);
     }
@@ -248,6 +251,9 @@ export class Game extends Phaser.Scene {
 
     this.tilemap = new Tilemap();
     this.tilemap.loadFromData(mapData);
+    if (this.selectedLevelNumber === ENDING_LEVEL.number) {
+      this.tilemap.autoTile();
+    }
 
     this.tileAnimations = Object.fromEntries(
       TILE_ANIMATION_TYPES.map((type) => [
@@ -284,7 +290,10 @@ export class Game extends Phaser.Scene {
       },
       returnToLevelPicker: () =>
         this.scene.start('LevelSelectScene', { skipEntrance: true }),
-      levelNumber: this.selectedLevelNumber,
+      levelLabel:
+        this.selectedLevelNumber === ENDING_LEVEL.number
+          ? 'ALL LEVEL CLEARED!'
+          : `LV ${String(this.selectedLevelNumber).padStart(2, '0')}`,
     });
 
     const spawnResult = spawnEntities(
@@ -476,7 +485,8 @@ export class Game extends Phaser.Scene {
         this.tilemap,
         [0, 0],
         this.playerEntity.pos,
-        this.enemies
+        this.enemies,
+        this.selectedLevelNumber !== ENDING_LEVEL.number
       ) ?? [];
     for (const enemy of this.enemies) {
       enemy.update(this.tilemap, [0, 0], this.playerEntity);
@@ -589,6 +599,7 @@ export class Game extends Phaser.Scene {
         this.sparksEffect.splice(i, 1);
       }
     }
+    this.checkForLevelCompletion();
 
     const slowMovingLeft = this.slowLeftKeys.some((key) => key.isDown);
     const slowMovingRight = this.slowRightKeys.some((key) => key.isDown);
@@ -892,6 +903,23 @@ export class Game extends Phaser.Scene {
     } else if (this.playerEntity.swordState) {
       this.playerEntity.attack();
     }
+  }
+
+  private checkForLevelCompletion(): void {
+    if (
+      this.selectedLevelNumber === ENDING_LEVEL.number ||
+      this.levelTransitionScheduled ||
+      this.enemies.length === 0 ||
+      this.enemies.some((enemy) => !enemy.dead)
+    ) {
+      return;
+    }
+
+    this.levelTransitionScheduled = true;
+    const nextLevel = getNextLevel(this.selectedLevelNumber);
+    this.time.delayedCall(1000, () => {
+      this.scene.start('Game', { levelNumber: nextLevel.number });
+    });
   }
 
   private updateSwordPickupPrompt(): void {
