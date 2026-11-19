@@ -6,6 +6,9 @@ const TITLE_NEXT_PRESSED_KEY = 'title-next-pressed';
 const PLAY_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
 const PLAY_BUTTON_PRESS_DURATION_MS = 70;
 const PLAY_BUTTON_RELEASE_DURATION_MS = 140;
+const TITLE_EXIT_DURATION_MS = 800;
+const TITLE_GROUP_BOTTOM_EXTENT = 175;
+const TITLE_EXIT_SAFE_MARGIN = 8;
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -45,6 +48,7 @@ export class TitleScene extends Phaser.Scene {
       }
 
       isStarting = true;
+      this.input.enabled = false;
       this.tweens.killTweensOf(nextButton);
       nextButton.setTexture(TITLE_NEXT_KEY);
       this.tweens.add({
@@ -53,6 +57,12 @@ export class TitleScene extends Phaser.Scene {
         scaleY: nextButtonScaleY,
         duration: PLAY_BUTTON_RELEASE_DURATION_MS,
         ease: 'Sine.Out',
+      });
+      this.tweens.add({
+        targets: titleGroup,
+        y: -TITLE_GROUP_BOTTOM_EXTENT - TITLE_EXIT_SAFE_MARGIN,
+        duration: TITLE_EXIT_DURATION_MS,
+        ease: 'Sine.In',
         onComplete: () => this.scene.start('LevelSelectScene'),
       });
     };

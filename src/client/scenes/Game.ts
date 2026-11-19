@@ -282,7 +282,8 @@ export class Game extends Phaser.Scene {
       playUiClick: () => {
         this.sound.play('settings-click', { volume: 0.45 });
       },
-      returnToLevelPicker: () => this.scene.start('LevelSelectScene'),
+      returnToLevelPicker: () =>
+        this.scene.start('LevelSelectScene', { skipEntrance: true }),
       levelNumber: this.selectedLevelNumber,
     });
 

@@ -30,14 +30,19 @@ const LEVEL_BOX_BASE_SIZE = 120;
 const LEVEL_DIGIT_BASE_SIZE = 40;
 const PANEL_WIDTH = 896;
 const PANEL_HEIGHT = 480;
+const LEVEL_CARD_OUTER_MARGIN_FACTOR = 1.2;
 const PANEL_ARROW_INSET = 22;
 const LEVEL_PICKER_SOUND = 'settings-click';
+const LEVEL_PICKER_ENTRANCE_DURATION_MS = 800;
+const SOUND_BUTTON_ENTRANCE_LEAD_MS = 500;
+const SOUND_BUTTON_ENTRANCE_DURATION_MS = 600;
 
 export class LevelSelectScene extends Phaser.Scene {
   private pageIndex = 0;
   private cardGroup?: Phaser.GameObjects.Container;
   private previousArrow?: Phaser.GameObjects.Image;
   private nextArrow?: Phaser.GameObjects.Image;
+  private levelPickerGroup!: Phaser.GameObjects.Container;
   private soundHitTarget?: Phaser.GameObjects.Rectangle;
   private soundIcon?: Phaser.GameObjects.Image;
   private soundEnabled = true;
@@ -46,7 +51,7 @@ export class LevelSelectScene extends Phaser.Scene {
     super(LEVEL_SELECT_SCENE_KEY);
   }
 
-  create(): void {
+  create(data: { skipEntrance?: boolean } = {}): void {
     const { width, height } = this.scale;
     const centerX = width / 2;
     const centerY = height / 2;
@@ -56,16 +61,20 @@ export class LevelSelectScene extends Phaser.Scene {
     this.soundEnabled = this.readSoundPreference();
     this.sound.setMute(!this.soundEnabled);
 
+    this.levelPickerGroup = this.add
+      .container(0, 0)
+      .setScrollFactor(0)
+      .setDepth(2);
     this.add
       .image(centerX, centerY, 'background')
       .setScrollFactor(0)
       .setDisplaySize(width, height)
       .setDepth(0);
-    this.add
+    const panel = this.add
       .image(centerX, centerY, 'touch-settings-panel')
-      .setScrollFactor(0)
       .setDisplaySize(panelWidth, panelHeight)
-      .setDepth(2);
+      .setDepth(0);
+    this.levelPickerGroup.add(panel);
 
     this.soundHitTarget = this.add
       .rectangle(
@@ -78,6 +87,7 @@ export class LevelSelectScene extends Phaser.Scene {
       )
       .setScrollFactor(0)
       .setDepth(6)
+      .setVisible(false)
       .setInteractive({ useHandCursor: true });
     this.soundIcon = this.add
       .image(
@@ -88,13 +98,28 @@ export class LevelSelectScene extends Phaser.Scene {
           : 'touch-settings-sound-off'
       )
       .setScrollFactor(0)
-      .setDepth(7);
+      .setDepth(7)
+      .setVisible(false);
     this.soundHitTarget.on('pointerdown', this.toggleSound, this);
     this.scale.on('resize', this.layoutResponsiveUI, this);
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layoutResponsiveUI, this);
     });
     this.layoutResponsiveUI();
+    if (data.skipEntrance) {
+      this.soundHitTarget?.setVisible(true);
+      this.soundIcon?.setVisible(true);
+      return;
+    }
+
+    this.input.enabled = false;
+    this.time.delayedCall(
+      LEVEL_PICKER_ENTRANCE_DURATION_MS - SOUND_BUTTON_ENTRANCE_LEAD_MS,
+      this.playSoundButtonEntrance,
+      [],
+      this
+    );
+    this.playEntranceAnimation();
   }
 
   private createPageArrow(
@@ -200,10 +225,19 @@ export class LevelSelectScene extends Phaser.Scene {
     const digitDisplaySize =
       LEVEL_DIGIT_BASE_SIZE * (boxDisplaySize / LEVEL_BOX_BASE_SIZE);
     const digitOffset = 13 * (digitDisplaySize / LEVEL_DIGIT_BASE_SIZE);
-    const gapX = (panelWidth - columns * boxDisplaySize) / (columns + 1);
-    const gapY = (panelHeight - rows * boxDisplaySize) / (rows + 1);
-    const firstX = panelLeft + gapX + boxDisplaySize / 2;
-    const firstY = panelTop + gapY + boxDisplaySize / 2;
+    const outerMarginX =
+      ((panelWidth - columns * boxDisplaySize) / (columns + 1)) *
+      LEVEL_CARD_OUTER_MARGIN_FACTOR;
+    const outerMarginY =
+      ((panelHeight - rows * boxDisplaySize) / (rows + 1)) *
+      LEVEL_CARD_OUTER_MARGIN_FACTOR;
+    const gapX =
+      (panelWidth - columns * boxDisplaySize - 2 * outerMarginX) /
+      (columns - 1);
+    const gapY =
+      (panelHeight - rows * boxDisplaySize - 2 * outerMarginY) / (rows - 1);
+    const firstX = panelLeft + outerMarginX + boxDisplaySize / 2;
+    const firstY = panelTop + outerMarginY + boxDisplaySize / 2;
 
     levelNumbers.forEach((levelNumber, index) => {
       const column = index % columns;
@@ -222,6 +256,7 @@ export class LevelSelectScene extends Phaser.Scene {
       );
     });
 
+    this.levelPickerGroup.add(cardGroup);
     this.cardGroup = cardGroup;
   }
 
@@ -261,9 +296,47 @@ export class LevelSelectScene extends Phaser.Scene {
       false,
       navButtonSize
     );
+    this.levelPickerGroup.add([this.previousArrow, this.nextArrow]);
 
     this.layoutSoundControl();
     this.renderPage();
+  }
+
+  private playEntranceAnimation(): void {
+    const { height } = this.scale;
+    this.levelPickerGroup
+      .setY(height)
+      .setAlpha(0);
+    this.tweens.add({
+      targets: this.levelPickerGroup,
+      y: 0,
+      alpha: 1,
+      duration: LEVEL_PICKER_ENTRANCE_DURATION_MS,
+      ease: 'Back.Out',
+    });
+  }
+
+  private playSoundButtonEntrance(): void {
+    if (!this.soundIcon || !this.soundHitTarget) {
+      this.input.enabled = true;
+      return;
+    }
+
+    const { height } = this.scale;
+    const soundY = this.soundIcon.y;
+    const soundStartY =
+      height + (SETTINGS_BUTTON_SIZE_CSS * this.getCanvasUnitScale()) / 2;
+    this.soundIcon.setY(soundStartY).setVisible(true);
+    this.soundHitTarget.setY(soundStartY).setVisible(true);
+    this.tweens.add({
+      targets: [this.soundIcon, this.soundHitTarget],
+      y: soundY,
+      duration: SOUND_BUTTON_ENTRANCE_DURATION_MS,
+      ease: 'Sine.Out',
+      onComplete: () => {
+        this.input.enabled = true;
+      },
+    });
   }
 
   private createLevelCard(
