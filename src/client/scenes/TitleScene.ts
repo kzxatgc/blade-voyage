@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 const TITLE_AVATAR_KEY = 'title-player-avatar';
 const TITLE_NEXT_KEY = 'title-next';
 const TITLE_NEXT_PRESSED_KEY = 'title-next-pressed';
+const TITLE_CLICK_SOUND = 'settings-click';
 const PLAY_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
 const PLAY_BUTTON_PRESS_DURATION_MS = 70;
 const PLAY_BUTTON_RELEASE_DURATION_MS = 140;
@@ -48,6 +49,7 @@ export class TitleScene extends Phaser.Scene {
       }
 
       isStarting = true;
+      this.sound.play(TITLE_CLICK_SOUND, { volume: 0.45 });
       this.input.enabled = false;
       this.tweens.killTweensOf(nextButton);
       nextButton.setTexture(TITLE_NEXT_KEY);
