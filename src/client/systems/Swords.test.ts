@@ -98,7 +98,7 @@ void describe('Sword entity', () => {
     assert.ok(spark !== undefined);
     assert.equal(spark.shape, 'diamond');
     assert.deepEqual(spark.color, [255, 235, 170]);
-    assert.equal(spark.sparks.length, 10);
+    assert.equal(spark.sparks.length, 16);
     assert.equal(spark.speed, 1.8);
     assert.deepEqual(spark.size, [2, 2]);
 
@@ -410,14 +410,14 @@ void describe('Swords manager', () => {
 
     // Starburst: bright white core
     assert.deepEqual(starburst.color, [255, 255, 255]);
-    assert.equal(starburst.sparks.length, 14);
+    assert.equal(starburst.sparks.length, 22);
     assert.equal(starburst.speed, 2.8);
     assert.equal(starburst.shape, 'diamond');
     assert.deepEqual(starburst.size, [3, 3]);
 
     // Shimmer: golden outer shimmer
     assert.deepEqual(shimmer.color, [255, 215, 0]);
-    assert.equal(shimmer.sparks.length, 8);
+    assert.equal(shimmer.sparks.length, 13);
     assert.equal(shimmer.speed, 1.8);
     assert.equal(shimmer.shape, 'diamond');
     assert.deepEqual(shimmer.size, [2, 2]);
