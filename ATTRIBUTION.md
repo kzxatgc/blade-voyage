@@ -365,6 +365,7 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/level-select/level-boxes.png`
   - `public/assets/img/ui/level-select/level-digits.png`
   - `public/assets/img/ui/level-select/level-nav-arrows.png`
+  - `public/assets/img/ui/health/player-health.png`
 
 ## 3. Kenney UI Audio
 

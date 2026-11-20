@@ -11,6 +11,7 @@ export type EnemyParticleSystem = Pick<Particles, 'addParticle'>;
 
 export interface EnemyPlayerTarget {
   pos: EntityPosition;
+  dead?: boolean;
   rect(): EntityRect;
 }
 
@@ -224,6 +225,10 @@ export class Enemy extends PhysicsEntity {
   }
 
   attack() {
+    if (this.dead) {
+      return;
+    }
+
     if (this.enemyType === 'pink_star') {
       this.attackTimer = 120;
       this.velocity[0] = this.flip ? -2 : 2;
@@ -263,18 +268,24 @@ export class Enemy extends PhysicsEntity {
     const wasDead = this.dead;
     super.checkDead();
     if (!wasDead && this.dead) {
-      this.attackEffect = null;
-      this.attackTimer = 0;
-      this.attackHasHitPlayer = false;
+      this.cancelAttack();
     }
+  }
+
+  cancelAttack() {
+    this.attackEffect = null;
+    this.attackEffectImage?.destroy();
+    this.attackEffectImage = null;
+    this.attackEffectTexture = null;
+    this.attackTimer = 0;
+    this.attackHasHitPlayer = false;
+    this.anticipationState = false;
+    this.chaseState = false;
   }
 
   /** Cancel an in-progress attack (clears effect particle + timer). */
   clearAttack() {
-    this.attackEffect = null;
-    this.attackTimer = 0;
-    this.attackHasHitPlayer = false;
-    this.chaseState = false;
+    this.cancelAttack();
     this.velocity[0] = 0;
     this.velocity[1] = 0;
   }
@@ -303,6 +314,12 @@ export class Enemy extends PhysicsEntity {
     playerPos: readonly [number, number],
     playerTarget?: EnemyPlayerTarget
   ): boolean {
+    if (playerTarget?.dead) {
+      this.cancelAttack();
+      this.walking = 0;
+      return false;
+    }
+
     if (
       this.dead ||
       this.anticipationState ||

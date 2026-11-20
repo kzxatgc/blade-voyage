@@ -50,8 +50,8 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.animation, null);
     assert.equal(entity.flip, false);
     assert.equal(entity.knockback, false);
-    assert.equal(entity.health, 3);
-    assert.equal(entity.maxHealth, 3);
+    assert.equal(entity.health, 4);
+    assert.equal(entity.maxHealth, 4);
     assert.equal(entity.dead, false);
 
     const enemy = new PhysicsEntity('enemy/pink_star', [0, 0]);
@@ -488,17 +488,17 @@ void describe('PhysicsEntity', () => {
     DEBUG_CONFIG.playerInfiniteHealth = false;
     try {
       const player = new PhysicsEntity('player', [100, 100], [20, 28]);
-      assert.equal(player.health, 3);
+      assert.equal(player.health, 4);
       assert.equal(player.invincibleTimer, 0);
 
       const hit1 = player.takeDamage(1);
       assert.equal(hit1, true);
-      assert.equal(player.health, 2);
+      assert.equal(player.health, 3);
       assert.equal(player.invincibleTimer, 75);
 
       const hitBlocked = player.takeDamage(1);
       assert.equal(hitBlocked, false);
-      assert.equal(player.health, 2);
+      assert.equal(player.health, 3);
 
       player.update(tm, [0, 0]);
       assert.equal(player.invincibleTimer, 74);
@@ -508,6 +508,10 @@ void describe('PhysicsEntity', () => {
       }
       assert.equal(player.invincibleTimer, 0);
 
+      assert.equal(player.takeDamage(1), true);
+      assert.equal(player.health, 2);
+
+      player.invincibleTimer = 0;
       assert.equal(player.takeDamage(1), true);
       assert.equal(player.health, 1);
 

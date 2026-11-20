@@ -78,7 +78,7 @@ export class PhysicsEntity {
     this.rectPosAdjustment = [...RECT_POS_ADJUSTMENT[type]];
     this.animations = animations;
     this.animationKey = `${type}/idle`;
-    this.health = type === 'player' ? 3 : 100;
+    this.health = type === 'player' ? 4 : 100;
     this.maxHealth = this.health;
     this.setAction('idle');
   }

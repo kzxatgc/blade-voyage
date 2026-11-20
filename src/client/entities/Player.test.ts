@@ -472,6 +472,8 @@ void describe('Player', () => {
     assert.equal(player.dead, true);
     assert.equal(player.attackHandler.attackState, false);
     assert.equal(player.attackHandler.effect, null);
+    assert.equal(player.attack(), false);
+    assert.equal(player.attackHandler.effect, null);
   });
 
   void it('triggers air attack when player is in the air', async () => {

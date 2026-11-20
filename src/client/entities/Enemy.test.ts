@@ -514,6 +514,28 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.dead, true);
     assert.equal(enemy.attackEffect, null);
     assert.equal(enemy.attackTimer, 0);
+    enemy.attack();
+    assert.equal(enemy.attackEffect, null);
+  });
+
+  void it('clears attack wind effects when the player target dies', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    const tilemap = new Tilemap(32);
+    enemy.attack();
+    assert.notEqual(enemy.attackEffect, null);
+
+    enemy.update(
+      tilemap,
+      [0, 0],
+      {
+        pos: [160, 195],
+        dead: true,
+        rect: () => enemy.rect(),
+      }
+    );
+
+    assert.equal(enemy.attackEffect, null);
+    assert.equal(enemy.attackTimer, 0);
   });
 
   void it('pink_star attack sets attackTimer to 120, velocity to 2, and spawns grass sparks', () => {
@@ -645,7 +667,13 @@ void describe('Enemy entity', () => {
     enemy.generateDialogue('exclamation');
     enemy.attack(); // creates attackEffect
 
-    const createdImages: { texture: string; x: number; y: number; flipX?: boolean }[] = [];
+    const createdImages: {
+      texture: string;
+      x: number;
+      y: number;
+      flipX?: boolean;
+      destroyed?: boolean;
+    }[] = [];
     const mockScene = {
       add: {
         image(x: number, y: number, texture: string) {
@@ -654,6 +682,7 @@ void describe('Enemy entity', () => {
             x,
             y,
             flipX: false,
+            destroyed: false,
             setOrigin() {},
             setPosition(nx: number, ny: number) {
               img.x = nx;
@@ -666,7 +695,9 @@ void describe('Enemy entity', () => {
               img.flipX = f;
             },
             setVisible() {},
-            destroy() {},
+            destroy() {
+              img.destroyed = true;
+            },
           };
           createdImages.push(img);
           return img;
@@ -680,6 +711,10 @@ void describe('Enemy entity', () => {
     assert.ok(createdImages[0]?.texture.startsWith('enemy/pink_star/'));
     assert.ok(createdImages[1]?.texture.startsWith('dialogue/exclamation'));
     assert.ok(createdImages[2]?.texture.startsWith('enemy/pink_star/attack_effect'));
+
+    enemy.health = 1;
+    enemy.takeDamage(1);
+    assert.equal(createdImages[2]?.destroyed, true);
 
     enemy.destroy();
   });

@@ -1,5 +1,9 @@
 import { Scene } from 'phaser';
 import { SFX_DEFINITIONS } from '../systems/Audio';
+import {
+  HEALTH_SPRITE_FRAME_SIZE,
+  HEALTH_SPRITE_KEY,
+} from '../systems/HealthHud';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -49,6 +53,14 @@ export class Preloader extends Scene {
       'level-nav-arrows',
       'img/ui/level-select/level-nav-arrows.png',
       { frameWidth: 32, frameHeight: 32 }
+    );
+    this.load.spritesheet(
+      HEALTH_SPRITE_KEY,
+      'img/ui/health/player-health.png',
+      {
+        frameWidth: HEALTH_SPRITE_FRAME_SIZE,
+        frameHeight: HEALTH_SPRITE_FRAME_SIZE,
+      }
     );
     this.load.image('touch-left', 'img/ui/touch/left.png');
     this.load.image('touch-right', 'img/ui/touch/right.png');

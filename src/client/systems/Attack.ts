@@ -169,5 +169,6 @@ export class Attack {
   destroy() {
     this.effectImage?.destroy();
     this.effectImage = null;
+    this.effectTexture = null;
   }
 }

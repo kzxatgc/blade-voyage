@@ -38,7 +38,13 @@ import { Animation } from '../utils/Animation';
 import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
 import { SoundSystem } from '../systems/Audio';
 import { TouchControls } from '../systems/TouchControls';
+import {
+  getHealthSpriteFrame,
+  HEALTH_INDICATOR_SIZE_CSS,
+  HEALTH_SPRITE_KEY,
+} from '../systems/HealthHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
+import { SETTINGS_BUTTON_MARGIN_CSS } from '../systems/SettingsUI';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -69,6 +75,10 @@ export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerEntity?: Player;
   private playerSprite?: Phaser.GameObjects.Image;
+  private healthIndicator: Phaser.GameObjects.Image | undefined;
+  private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
+  private healthIndicatorFrame = -1;
+  private healthIndicatorZoom = 0;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
   private downKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -121,11 +131,42 @@ export class Game extends Phaser.Scene {
     super('Game');
   }
 
+  private layoutHealthIndicator(): void {
+    if (!this.healthIndicator || !this.healthIndicatorRoot) {
+      return;
+    }
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const canvasBounds = this.game.canvas.getBoundingClientRect();
+    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
+    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
+    const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
+    const iconSize = HEALTH_INDICATOR_SIZE_CSS * unitScale;
+    const margin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
+    const zoom = this.cameras.main.zoom;
+
+    this.healthIndicatorRoot
+      .setPosition(width / 2, height / 2)
+      .setScale(1 / zoom);
+    this.healthIndicator
+      .setPosition(
+        -width / 2 + margin + iconSize / 2,
+        -height / 2 + margin + iconSize / 2
+      )
+      .setDisplaySize(iconSize, iconSize);
+    this.healthIndicatorZoom = zoom;
+  }
+
   init(data: unknown): void {
     this.levelTransitionScheduled = false;
     this.levelTransitionTimer?.remove(false);
     this.levelTransitionTimer = undefined;
     this.deathTransitionScheduled = false;
+    this.healthIndicator = undefined;
+    this.healthIndicatorRoot = undefined;
+    this.healthIndicatorFrame = -1;
+    this.healthIndicatorZoom = 0;
     this.settingsPaused = false;
     this.tickAccumulator = 0;
     this.openIrisOnStart =
@@ -413,6 +454,19 @@ export class Game extends Phaser.Scene {
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
     this.playerSprite.setDepth(RENDER_DEPTH.ENTITIES);
+    this.healthIndicator = this.add
+      .image(0, 0, HEALTH_SPRITE_KEY, 0)
+      .setOrigin(0.5, 0.5);
+    this.healthIndicatorRoot = this.add
+      .container(0, 0, [this.healthIndicator])
+      .setScrollFactor(0)
+      .setDepth(RENDER_DEPTH.DEBUG + 1);
+    this.healthIndicatorFrame = 0;
+    this.layoutHealthIndicator();
+    this.scale.on('resize', this.layoutHealthIndicator, this);
+    this.events.once('shutdown', () => {
+      this.scale.off('resize', this.layoutHealthIndicator, this);
+    });
     this.swordPickupPrompt = this.add
       .bitmapText(0, 0, 'touch-settings-font', 'PICK UP', 9)
       .setOrigin(0.5, 1)
@@ -533,6 +587,11 @@ export class Game extends Phaser.Scene {
               this.playerEntity.dead ? 1.4 : 1.5,
               this.playerEntity.dead ? 2.5 : 0
             );
+            if (this.playerEntity.dead) {
+              for (const activeEnemy of this.enemies) {
+                activeEnemy.cancelAttack();
+              }
+            }
             this.sparksEffect.push(
               ...createHeartSparkParticles(
                 [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
@@ -637,7 +696,8 @@ export class Game extends Phaser.Scene {
     }
     this.checkForLevelCompletion();
 
-    const controlsEnabled = !this.irisTransition?.isActive;
+    const controlsEnabled =
+      !this.playerEntity.dead && !this.irisTransition?.isActive;
     const slowMovingLeft =
       controlsEnabled && this.slowLeftKeys.some((key) => key.isDown);
     const slowMovingRight =
@@ -779,6 +839,15 @@ export class Game extends Phaser.Scene {
       return;
     }
 
+    const healthFrame = getHealthSpriteFrame(
+      this.playerEntity.health,
+      this.playerEntity.maxHealth
+    );
+    if (healthFrame !== this.healthIndicatorFrame) {
+      this.healthIndicator?.setFrame(healthFrame);
+      this.healthIndicatorFrame = healthFrame;
+    }
+
     const renderedPlayerX =
       this.previousPlayerPosition[0] +
       (this.playerEntity.pos[0] - this.previousPlayerPosition[0]) *
@@ -794,6 +863,9 @@ export class Game extends Phaser.Scene {
       (this.scroll[1] - this.previousScroll[1]) * alpha
     );
     this.cameras.main.setZoom(this.currentZoom);
+    if (this.currentZoom !== this.healthIndicatorZoom) {
+      this.layoutHealthIndicator();
+    }
     if (this.backgroundImage) {
       this.backgroundImage.setDisplaySize(
         this.scale.width / this.currentZoom,
@@ -935,7 +1007,7 @@ export class Game extends Phaser.Scene {
   }
 
   private triggerAttackOrPickup() {
-    if (!this.playerEntity) {
+    if (!this.playerEntity || this.playerEntity.dead) {
       return;
     }
     if (!this.playerEntity.swordState && this.swords) {

@@ -108,7 +108,7 @@ export class Player extends PhysicsEntity {
   }
 
   throwSword(): boolean {
-    if (this.swordState && !this.pendingThrow) {
+    if (!this.dead && this.swordState && !this.pendingThrow) {
       this.preRunBoost = this.runBoost;
       this.throwingFrameTriggered = false;
       this.pendingThrow = true;
@@ -118,7 +118,12 @@ export class Player extends PhysicsEntity {
   }
 
   attack(): boolean {
-    if (this.swordState && !this.pendingThrow && !this.throwingAnimation) {
+    if (
+      !this.dead &&
+      this.swordState &&
+      !this.pendingThrow &&
+      !this.throwingAnimation
+    ) {
       return this.attackHandler.triggerAttack(this.airTime);
     }
     return false;
