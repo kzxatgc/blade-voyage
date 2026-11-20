@@ -4,6 +4,7 @@ import {
 
 const ACTION_PROMPT_MIN_EDGE_PADDING_CSS = 11;
 const ACTION_PROMPT_EDGE_PADDING_RANGE_CSS = 3;
+const ACTION_PROMPT_TRANSITION_PHASE_DURATION_MS = 240;
 
 export type ActionPromptOptions = {
   inputType: 'key' | 'mouse';
@@ -65,6 +66,7 @@ export class ActionPromptHUD {
   private readonly keyCodes = new Set<string>();
   private signature = '';
   private raf = 0;
+  private transitionTimeout = 0;
   private holdProgress = 0;
 
   constructor(private readonly host: HTMLElement) {
@@ -103,11 +105,24 @@ export class ActionPromptHUD {
 
   show(options: ActionPromptOptions): void {
     this.worldPosition = options.worldPosition;
-    const nextSignature = JSON.stringify(options);
+    const nextSignature = JSON.stringify({
+      inputType: options.inputType,
+      keyLabel: options.keyLabel,
+      keyCode: options.keyCode,
+      mouseButton: options.mouseButton,
+      actionText: options.actionText,
+      itemName: options.itemName,
+      holdDuration: options.holdDuration,
+      additionalInputs: options.additionalInputs,
+      additionalRows: options.additionalRows,
+    });
 
     if (nextSignature !== this.signature) {
+      const animate =
+        this.signature.length > 0 &&
+        !this.prompt.classList.contains('is-hidden');
       this.holdProgress = 0;
-      this.render(options);
+      this.render(options, animate);
       this.signature = nextSignature;
     }
     this.prompt.classList.remove('is-hidden');
@@ -118,6 +133,7 @@ export class ActionPromptHUD {
   }
 
   hide(): void {
+    this.clearContentTransition();
     this.worldPosition = undefined;
     this.prompt.classList.add('is-hidden');
     this.root.setAttribute('aria-hidden', 'true');
@@ -154,8 +170,26 @@ export class ActionPromptHUD {
     this.root.remove();
   }
 
-  private render(options: ActionPromptOptions): void {
+  private render(options: ActionPromptOptions, animate = false): void {
+    this.clearContentTransition();
+    if (animate) {
+      const exitingRows = this.host.ownerDocument.createElement('div');
+      exitingRows.className = 'action-prompt-rows action-prompt-rows-exiting';
+      exitingRows.setAttribute('aria-hidden', 'true');
+      for (const row of this.rows.children) {
+        exitingRows.append(row.cloneNode(true));
+      }
+      exitingRows
+        .querySelectorAll('[data-key-code], [data-mouse-button]')
+        .forEach((input) => {
+          input.removeAttribute('data-key-code');
+          input.removeAttribute('data-mouse-button');
+        });
+      this.prompt.insertBefore(exitingRows, this.rows);
+    }
+
     this.rows.replaceChildren();
+    this.rows.classList.remove('is-entering');
     this.prompt.classList.toggle('is-key-prompt', options.inputType === 'key');
     this.prompt.classList.toggle('is-mouse-prompt', options.inputType === 'mouse');
     this.prompt.classList.toggle('has-hold', (options.holdDuration ?? 0) > 0);
@@ -206,7 +240,31 @@ export class ActionPromptHUD {
       rowElement.classList.toggle('is-primary-row', index === 0);
       this.rows.append(rowElement);
     }
+
+    if (animate) {
+      void this.rows.offsetWidth;
+      this.rows.classList.add('is-entering');
+      const view = this.host.ownerDocument.defaultView;
+      if (view) {
+        this.transitionTimeout = view.setTimeout(
+          this.clearContentTransition,
+          ACTION_PROMPT_TRANSITION_PHASE_DURATION_MS * 2
+        );
+      }
+    }
   }
+
+  private clearContentTransition = (): void => {
+    const view = this.host.ownerDocument.defaultView;
+    if (this.transitionTimeout && view) {
+      view.clearTimeout(this.transitionTimeout);
+    }
+    this.transitionTimeout = 0;
+    this.rows.classList.remove('is-entering');
+    this.prompt
+      .querySelectorAll('.action-prompt-rows-exiting')
+      .forEach((rows) => rows.remove());
+  };
 
   private getPrimaryInput(options: ActionPromptOptions): ActionPromptInput {
     if (options.inputType === 'key') {

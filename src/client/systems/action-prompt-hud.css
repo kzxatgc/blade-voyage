@@ -50,6 +50,44 @@
   gap: 7px;
 }
 
+.action-prompt-rows.is-entering {
+  animation: action-prompt-enter-from-left 240ms ease 240ms both;
+}
+
+.action-prompt-rows-exiting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: 100%;
+  pointer-events: none;
+  animation: action-prompt-exit-to-left 240ms ease both;
+}
+
+@keyframes action-prompt-enter-from-left {
+  from {
+    transform: translateX(-18px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes action-prompt-exit-to-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(-18px);
+    opacity: 0;
+  }
+}
+
 .action-prompt-row {
   display: flex;
   align-items: center;
