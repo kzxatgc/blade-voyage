@@ -8,12 +8,15 @@ import type { Sparks } from './Sparks.ts';
 import { RENDER_DEPTH } from '../../shared/constants.ts';
 
 void describe('Sword entity', () => {
-  void it('hovers for first 18 frames', () => {
+  void it('starts falling immediately after spawning', () => {
     const sword = new Sword([100, 100]);
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
-    for (let i = 0; i < 17; i++) sword.update(tm);
-    assert.equal(sword.velocity[1], 0);
+
+    sword.update(tm);
+
+    assert.equal(sword.timer, 1);
+    assert.equal(sword.velocity[1], 0.7);
   });
 
   void it('despawns after 1200 frames', () => {
@@ -29,32 +32,19 @@ void describe('Sword entity', () => {
     assert.equal(sword.animation?.img(), 'sword/fall/0');
   });
 
-  void it('accelerates downward after hovering for 18 frames when not landed', () => {
+  void it('accelerates downward until reaching its fall speed', () => {
     const sword = new Sword([100, 100]);
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
-    // Update 18 times (timer 0..17)
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 10; i++) {
       sword.update(tm);
     }
-    assert.equal(sword.timer, 18);
-    assert.equal(sword.velocity[1], 0);
 
-    // 19th update: timer is 18, hover ends, accelerates naturally downward
-    sword.update(tm);
-    assert.equal(sword.timer, 19);
-    assert.ok(sword.velocity[1] > 0);
-    assert.equal(sword.velocity[1], 0.7);
-
-    // Further updates accelerate up to cap of 3.5
-    for (let i = 0; i < 20; i++) {
-      sword.update(tm);
-    }
     assert.equal(sword.velocity[1], 3.5);
   });
 
-  void it('lands on bottom collision and switches to idle action', () => {
+  void it('lands on the grass and keeps the fixed fall pose', () => {
     const sword = new Sword([100, 100]);
     const tm = new Tilemap(32);
     tm.loadFromData({
@@ -65,20 +55,86 @@ void describe('Sword entity', () => {
     });
 
     // Sword at [100, 100], size [20, 20]. Tile top is at y = 128.
-    // Skip hover
-    sword.timer = 18;
     while (!sword.landed && sword.timer < 100) {
       sword.update(tm);
     }
 
     assert.equal(sword.landed, true);
-    assert.equal(sword.action, 'idle');
-    assert.equal(sword.animation?.img(), 'sword/idle/0');
+    assert.equal(sword.action, 'fall');
+    assert.equal(sword.animation?.img(), 'sword/fall/0');
+    assert.equal(sword.velocity[1], 0);
   });
 
-  void it('emits ground impact bounce sparks on first landing', () => {
+  void it('renders landed swords embedded in grass at a fixed downward angle', () => {
+    const sword = new Sword([100, 100]);
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '3;4': { type: 'grass', variant: 0, loc: [3, 4] },
+      },
+      off_grid_tiles: [],
+    });
+
+    let rendered: {
+      texture: string;
+      x: number;
+      y: number;
+      angle?: number;
+      depth?: number;
+    } | null = null;
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          rendered = { x, y, texture };
+          return {
+            setOrigin() {},
+            setPosition(nextX: number, nextY: number) {
+              if (rendered) {
+                rendered.x = nextX;
+                rendered.y = nextY;
+              }
+            },
+            setTexture(nextTexture: string) {
+              if (rendered) rendered.texture = nextTexture;
+            },
+            setAngle(angle: number) {
+              if (rendered) rendered.angle = angle;
+            },
+            setDepth(depth: number) {
+              if (rendered) rendered.depth = depth;
+            },
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    sword.render(scene);
+    assert.deepEqual(rendered, {
+      x: 110,
+      y: 110,
+      texture: 'sword/fall/0',
+      angle: 90,
+      depth: RENDER_DEPTH.ENTITIES,
+    });
+
+    while (!sword.landed && sword.timer < 100) {
+      sword.update(tm);
+    }
+
+    sword.render(scene);
+
+    assert.deepEqual(rendered, {
+      x: 110,
+      y: 120,
+      texture: 'sword/fall/0',
+      angle: 90,
+      depth: RENDER_DEPTH.EMBEDDED_SWORD,
+    });
+  });
+
+  void it('emits one ground spark burst without bouncing the landed sword', () => {
     const sparksEffect: Sparks[] = [];
-    const sword = new Sword([100, 100], undefined, undefined, sparksEffect);
     const tm = new Tilemap(32);
     tm.loadFromData({
       tiles: {
@@ -87,24 +143,29 @@ void describe('Sword entity', () => {
       off_grid_tiles: [],
     });
 
-    sword.timer = 18;
+    const manager = new Swords([0, 0], () => 0.005, sparksEffect);
+    const sword = manager.spawnSword(tm);
+    assert.ok(sword);
+    assert.equal(sparksEffect.length, 2);
+
     while (!sword.landed && sword.timer < 100) {
       sword.update(tm);
     }
 
     assert.equal(sword.landed, true);
-    assert.equal(sparksEffect.length, 1);
-    const spark = sparksEffect[0];
-    assert.ok(spark !== undefined);
-    assert.equal(spark.shape, 'diamond');
-    assert.deepEqual(spark.color, [255, 235, 170]);
-    assert.equal(spark.sparks.length, 16);
-    assert.equal(spark.speed, 1.8);
-    assert.deepEqual(spark.size, [2, 2]);
+    assert.equal(sparksEffect.length, 3);
+    const impactSparks = sparksEffect[2];
+    assert.ok(impactSparks);
+    assert.deepEqual(impactSparks.color, [255, 235, 170]);
+    assert.equal(impactSparks.speed, 1.44);
+    assert.equal(impactSparks.shape, 'diamond');
+    assert.equal(impactSparks.sparks.length, 16);
 
-    // Subsequent updates on the ground do not trigger more bounce sparks
+    const landedPosition: [number, number] = [...sword.pos];
     sword.update(tm);
-    assert.equal(sparksEffect.length, 1);
+
+    assert.deepEqual(sword.pos, landedPosition);
+    assert.equal(sparksEffect.length, 3);
   });
 
   void it('calculates blink visibility after 900 and 1080 frames', () => {
@@ -604,7 +665,7 @@ void describe('SpinningSword entity', () => {
     assert.ok(spark !== undefined);
     assert.equal(spark.shape, 'diamond');
     assert.deepEqual(spark.color, [140, 140, 160]);
-    assert.equal(spark.sparks.length, 10);
+    assert.equal(spark.sparks.length, 16);
 
     // Further updates do not trigger duplicate sparks
     sword.update(tm);

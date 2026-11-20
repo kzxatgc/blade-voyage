@@ -6,6 +6,8 @@ import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 import type { PlaySfxOptions } from './Audio.ts';
 
+const EMBEDDED_SWORD_SINK = 2;
+
 export interface SwordEnemyTarget {
   enemyType: string;
   dead: boolean;
@@ -76,34 +78,32 @@ export class Sword extends PhysicsEntity {
   ) {
     super.update(tilemap, movement);
 
-    if (this.timer < 18) {
-      this.velocity[1] = 0;
-    } else if (!this.landed) {
+    if (!this.landed) {
       this.velocity[1] = Math.min(3.5, this.velocity[1] + 0.2);
     }
 
     if (this.collision.bottom) {
       if (!this.landed) {
         this.landed = true;
-        this.setAction('idle');
+        this.velocity[1] = 0;
         this.sparksEffect?.push(
           new Sparks(
             [this.pos[0] + 10, this.pos[1] + 15],
             false,
-            1.8,
-            16,
+            2.0,
+            20,
             [255, 235, 170],
             'up',
             'diamond',
             [2, 2]
           )
         );
-      } else {
-        this.setAction('idle');
       }
     }
 
-    this.animation?.update();
+    if (!this.landed) {
+      this.animation?.update();
+    }
     this.timer += 1;
   }
 
@@ -135,25 +135,28 @@ export class Sword extends PhysicsEntity {
     }
 
     const texture = this.animation?.img() ?? 'sword/idle/0';
+    const targetDepth = this.landed
+      ? RENDER_DEPTH.EMBEDDED_SWORD
+      : RENDER_DEPTH.ENTITIES;
+    const renderX = this.pos[0] - offset[0] + 10;
+    const renderY =
+      this.pos[1] -
+      offset[1] +
+      10 +
+      (this.landed ? EMBEDDED_SWORD_SINK : 0);
     if (!this.image) {
-      this.image = scene.add.image(
-        this.pos[0] - offset[0] + 10,
-        this.pos[1] - offset[1] + 10,
-        texture
-      );
+      this.image = scene.add.image(renderX, renderY, texture);
       this.image.setOrigin(0.5, 0.5);
       this.image.setAngle?.(90);
-      this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
+      this.image.setDepth?.(targetDepth);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
         this.image.setTexture(texture);
         this.imageTexture = texture;
       }
-      this.image.setPosition(
-        this.pos[0] - offset[0] + 10,
-        this.pos[1] - offset[1] + 10
-      );
+      this.image.setPosition(renderX, renderY);
+      this.image.setDepth?.(targetDepth);
       this.image.setVisible?.(true);
     }
   }
@@ -248,7 +251,7 @@ export class SpinningSword extends PhysicsEntity {
           sparkPos,
           this.flip,
           sparkSpeed,
-          10,
+          16,
           [140, 140, 160],
           Math.PI * 0.75,
           'diamond'

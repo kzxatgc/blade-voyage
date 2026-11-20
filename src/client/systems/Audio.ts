@@ -43,7 +43,7 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     files: ['sfx/player/pickup_sword.wav'],
   },
   'player/sword/attack': {
-    volume: 0.6,
+    volume: 1.2,
     files: [
       'sfx/player/sword/attack/0.wav',
       'sfx/player/sword/attack/1.wav',
@@ -61,7 +61,7 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     ],
   },
   'player/sword/air_attack': {
-    volume: 1.0,
+    volume: 1.6,
     files: [
       'sfx/player/sword/air_attack/0.wav',
       'sfx/player/sword/air_attack/1.wav',
@@ -73,11 +73,11 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     files: ['sfx/player/throw_sword.wav'],
   },
   'player/hit': {
-    volume: 0.7,
+    volume: 3.0,
     files: ['sfx/player/hit.wav'],
   },
   'player/dead_hit': {
-    volume: 1.0,
+    volume: 3.0,
     files: ['sfx/player/dead_hit.wav'],
   },
   'sword/strike/stone': {
