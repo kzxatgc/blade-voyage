@@ -315,21 +315,27 @@ void describe('Player', () => {
 
     player.takeDamage(1);
     player.applyKnockback(1);
+    assert.equal(player.velocity[1], 0);
     assert.equal(player.invincibleTimer, 75);
     const initialX = player.pos[0];
+    let previousFrameDistance = Number.POSITIVE_INFINITY;
 
-    for (let frame = 0; frame < 30; frame++) {
+    for (let frame = 0; frame < player.knockbackDuration; frame++) {
+      const frameStartX = player.pos[0];
       player.update(tilemap, [2.5, 0]);
+      const frameDistance = player.pos[0] - frameStartX;
+      assert.ok(frameDistance < previousFrameDistance);
+      previousFrameDistance = frameDistance;
       assert.equal(player.animationKey, 'player/hit');
     }
 
     assert.equal(player.knockback, false);
-    assert.equal(player.invincibleTimer, 45);
-    assert.ok(Math.abs(player.pos[0] - (initialX + 35.65)) < 0.001);
+    assert.equal(player.invincibleTimer, 75 - player.knockbackDuration);
+    assert.ok(Math.abs(player.pos[0] - (initialX + 29.325)) < 0.001);
     player.airTime = 0;
     player.update(tilemap, [2.5, 0]);
     assert.equal(player.animationKey, 'player/run');
-    assert.equal(player.invincibleTimer, 44);
+    assert.equal(player.invincibleTimer, 75 - player.knockbackDuration - 1);
 
     const swordPlayer = new Player([100, 200]);
     swordPlayer.swordState = true;

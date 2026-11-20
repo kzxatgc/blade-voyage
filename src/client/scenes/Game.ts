@@ -522,7 +522,11 @@ export class Game extends Phaser.Scene {
           if (this.playerEntity.takeDamage(1)) {
             enemy.attackHasHitPlayer = true;
             const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
-            this.playerEntity.applyKnockback(knockDir);
+            this.playerEntity.applyKnockback(
+              knockDir,
+              this.playerEntity.dead ? 1.4 : 1.5,
+              this.playerEntity.dead ? 2.5 : 0
+            );
             this.sparksEffect.push(
               ...createHeartSparkParticles(
                 [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
@@ -564,7 +568,7 @@ export class Game extends Phaser.Scene {
             enemy.clearAttack();
             // Knockback: push enemy away from player
             const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
-            enemy.applyKnockback(knockDir, 1);
+            enemy.applyKnockback(knockDir, 1.5, enemy.dead ? 3 : 0);
             this.sparksEffect.push(
               ...createHeartSparkParticles(
                 [eRect.x + eRect.width / 2, eRect.y + eRect.height / 2],
@@ -582,12 +586,16 @@ export class Game extends Phaser.Scene {
     for (const result of swordHits) {
       if (result.type === 'hit') {
         const knockDir = result.enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
-        if ('applyKnockback' in result.enemy) {
-          (result.enemy as Enemy).applyKnockback(knockDir, 1);
-        }
-        // Cancel in-progress attack (clears effect particle)
+        // Clear attack velocity first so fatal knockback lift is not erased.
         if ('clearAttack' in result.enemy) {
           (result.enemy as Enemy).clearAttack();
+        }
+        if ('applyKnockback' in result.enemy) {
+          (result.enemy as Enemy).applyKnockback(
+            knockDir,
+            1.5,
+            result.enemy.dead ? 3 : 0
+          );
         }
         const eRect = result.enemy.rect();
         this.sparksEffect.push(

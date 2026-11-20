@@ -28,6 +28,9 @@ const PALM_TREE_PLATFORM_TYPES = [
   'palm_tree/front/right',
 ] as const;
 
+const KNOCKBACK_HORIZONTAL_SCALE = 2.3;
+const KNOCKBACK_DISTANCE_REFERENCE_DURATION = 16;
+
 export class PhysicsEntity {
   readonly type: EntityType;
   readonly pos: EntityPosition;
@@ -51,7 +54,6 @@ export class PhysicsEntity {
   knockbackSfxTimer = 0;
   readonly knockbackSfxCooldown = 30;
   playSfx?: ((name: string, options?: PlaySfxOptions) => void) | undefined;
-  private preKnockbackFlip = false;
   health = 100;
   maxHealth = this.health;
   dead = false;
@@ -164,14 +166,25 @@ export class PhysicsEntity {
     return true;
   }
 
-  applyKnockback(direction: number, power = 2.3): void {
-    if (!this.knockback) {
-      this.preKnockbackFlip = this.flip;
-    }
+  applyKnockback(
+    direction: number,
+    power = 1.5,
+    verticalPower = 0
+  ): void {
     this.knockback = true;
+    if (direction !== 0) {
+      this.flip = direction > 0;
+      if (this.dead) {
+        this.deathFlip = this.flip;
+      }
+    }
     this.knockbackTimer = this.knockbackDuration;
-    this.knockbackVelocity[0] = direction * power;
+    this.knockbackVelocity[0] =
+      direction * power * KNOCKBACK_HORIZONTAL_SCALE;
     this.knockbackVelocity[1] = 0;
+    if (verticalPower > 0) {
+      this.velocity[1] = Math.min(this.velocity[1], -verticalPower);
+    }
     if (this.knockbackSfxTimer <= 0) {
       if (this.health <= 0) {
         this.playSfx?.('player/dead_hit');
@@ -223,8 +236,17 @@ export class PhysicsEntity {
       if (this.knockbackSfxTimer > 0) {
         this.knockbackSfxTimer -= 1;
       }
+      const duration = this.knockbackDuration;
+      const progress = this.knockbackTimer / duration;
+      // Preserve the 16-tick travel distance while extending the knockback.
+      const distanceCorrection =
+        (3 * duration * (KNOCKBACK_DISTANCE_REFERENCE_DURATION + 1)) /
+        ((2 * duration + 1) * (duration + 1));
       knockbackX =
-        this.knockbackVelocity[0] * (this.knockbackTimer / this.knockbackDuration);
+        this.knockbackVelocity[0] *
+        progress *
+        progress *
+        distanceCorrection;
       this.knockbackTimer -= 1;
       if (this.knockbackTimer <= 0) {
         this.knockback = false;
@@ -234,7 +256,9 @@ export class PhysicsEntity {
         this.knockbackSfxTimer = 0;
       }
     }
-    const frameMovementX = this.dead ? 0 : movement[0] + this.velocity[0] + knockbackX;
+    const frameMovementX = this.dead
+      ? knockbackX
+      : movement[0] + this.velocity[0] + knockbackX;
     this.pos[0] += frameMovementX;
     let entityRect = this.rect();
 
@@ -275,9 +299,7 @@ export class PhysicsEntity {
         if (this.knockbackVelocity[0] !== 0) {
           this.flip = this.knockbackVelocity[0] > 0;
         }
-      } else if (wasKnockedBack) {
-        this.flip = this.preKnockbackFlip;
-      } else {
+      } else if (!wasKnockedBack) {
         if (frameMovementX < 0) {
           this.flip = true;
         } else if (frameMovementX > 0) {

@@ -483,6 +483,8 @@ void describe('Enemy entity', () => {
     const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
     enemy.walking = 20;
     enemy.applyKnockback(1);
+    assert.ok(Math.abs(enemy.knockbackVelocity[0] - 3.45) < 0.000001);
+    assert.equal(enemy.velocity[1], 0);
 
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
@@ -490,6 +492,15 @@ void describe('Enemy entity', () => {
     enemy.update(tm);
     assert.equal(enemy.walking, 0);
     assert.equal(enemy.action, 'hit');
+  });
+
+  void it('adds vertical lift on fatal knockback only', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.takeDamage(enemy.health);
+    enemy.applyKnockback(1, 1.5, enemy.dead ? 3 : 0);
+
+    assert.equal(enemy.dead, true);
+    assert.equal(enemy.velocity[1], -3);
   });
 
   void it('pink_star attack sets attackTimer to 120, velocity to 2, and spawns grass sparks', () => {

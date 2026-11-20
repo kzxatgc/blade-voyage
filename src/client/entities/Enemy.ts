@@ -269,8 +269,12 @@ export class Enemy extends PhysicsEntity {
     this.velocity[1] = 0;
   }
 
-  override applyKnockback(direction: number, power = 2.3) {
-    super.applyKnockback(direction, power);
+  override applyKnockback(
+    direction: number,
+    power = 1.5,
+    verticalPower = 0
+  ) {
+    super.applyKnockback(direction, power, verticalPower);
     this.anticipationState = false;
     this.chaseState = false;
     this.dialogueExclamationSfxTriggered = false;

@@ -162,27 +162,33 @@ void describe('PhysicsEntity', () => {
     assert.equal(entity.rect().x + entity.rect().width, 160);
   });
 
-  void it('restores pre-hit facing after knockback for players and enemies', async () => {
+  void it('faces the knockback source after knockback for players and enemies', async () => {
     const PhysicsEntity = await getPhysicsEntity();
     const Tilemap = await getTilemap();
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
     for (const type of ['player', 'enemy/crabby'] as const) {
-      const entity = new PhysicsEntity(type, [100, 100]);
-      entity.flip = false;
-      entity.applyKnockback(1);
+      for (const direction of [1, -1]) {
+        const entity = new PhysicsEntity(type, [100, 100]);
+        const expectedFlip = direction > 0;
+        entity.flip = !expectedFlip;
+        entity.applyKnockback(direction);
 
-      entity.update(tilemap);
-      assert.equal(entity.flip, true);
+        for (let frame = 0; frame < entity.knockbackDuration; frame++) {
+          entity.update(tilemap);
+        }
 
-      for (let frame = 1; frame < entity.knockbackDuration; frame++) {
-        entity.update(tilemap);
+        assert.equal(entity.knockback, false);
+        assert.equal(entity.flip, expectedFlip);
       }
-
-      assert.equal(entity.knockback, false);
-      assert.equal(entity.flip, false);
     }
+
+    const deadEnemy = new PhysicsEntity('enemy/crabby', [100, 100]);
+    deadEnemy.health = 0;
+    deadEnemy.update(tilemap);
+    deadEnemy.applyKnockback(1);
+    assert.equal(deadEnemy.deathFlip, true);
   });
 
   void it('lands on a physical tile and records the bottom collision', async () => {
@@ -418,6 +424,25 @@ void describe('PhysicsEntity', () => {
     entity.update(tm, [5, 0]); // attempt horizontal movement
     assert.equal(entity.pos[0], initialX); // no horizontal movement
     assert.ok(entity.pos[1] > initialY); // gravity still pulled entity downward
+  });
+
+  void it('eases fatal knockback down without applying player input', async () => {
+    const PhysicsEntity = await getPhysicsEntity();
+    const Tilemap = await getTilemap();
+    const tm = new Tilemap(32);
+    tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const entity = new PhysicsEntity('player', [100, 100], [20, 28]);
+    entity.health = 0;
+    entity.update(tm, [0, 0]);
+    const deathX = entity.pos[0];
+    const deathY = entity.pos[1];
+
+    entity.applyKnockback(-1, 1.4, 2.5);
+    entity.update(tm, [5, 0]);
+
+    assert.ok(Math.abs(entity.pos[0] - (deathX - 2.6052882073)) < 0.000001);
+    assert.equal(entity.pos[1], deathY - 2.5);
   });
 
   void it('transitions through dead_hit for 30 frames and generates dead dialogue', async () => {
