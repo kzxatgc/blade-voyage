@@ -1132,13 +1132,13 @@ export class Game extends Phaser.Scene {
     const additionalRows: NonNullable<
       ActionPromptOptions['additionalRows']
     > = [];
-    const keyLabel = touchControlsEnabled ? 'B' : 'L';
+    const keyLabel = touchControlsEnabled ? 'A' : 'L';
     const actionText = holdingSword ? 'ATTACK' : 'PICKUP';
     if (touchControlsEnabled) {
       if (holdingSword) {
         additionalRows.push({
           actionText: 'THROW',
-          inputs: [{ inputType: 'key', keyLabel: 'A' }],
+          inputs: [{ inputType: 'key', keyLabel: 'B' }],
         });
       }
     } else {

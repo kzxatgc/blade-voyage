@@ -46,8 +46,8 @@ const BUTTON_TEXTURES: Record<TouchButton, string> = {
   right: 'touch-right',
   down: 'touch-down',
   jump: 'touch-jump',
-  attack: 'touch-throw',
-  throw: 'touch-attack',
+  attack: 'touch-attack',
+  throw: 'touch-throw',
 };
 
 const BUTTON_WIDTH = 96;
