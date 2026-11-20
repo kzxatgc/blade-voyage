@@ -43,6 +43,15 @@ export class TitleScene extends Phaser.Scene {
     titleGroup.add([avatar, nextButton]);
 
     let isStarting = false;
+    const startTitleExit = () => {
+      this.tweens.add({
+        targets: titleGroup,
+        y: -TITLE_GROUP_BOTTOM_EXTENT - TITLE_EXIT_SAFE_MARGIN,
+        duration: TITLE_EXIT_DURATION_MS,
+        ease: 'Sine.In',
+        onComplete: () => this.scene.start('LevelSelectScene'),
+      });
+    };
     const startGame = () => {
       if (isStarting) {
         return;
@@ -52,20 +61,24 @@ export class TitleScene extends Phaser.Scene {
       this.sound.play(TITLE_CLICK_SOUND, { volume: 0.45 });
       this.input.enabled = false;
       this.tweens.killTweensOf(nextButton);
-      nextButton.setTexture(TITLE_NEXT_KEY);
+      nextButton.setTexture(TITLE_NEXT_PRESSED_KEY);
       this.tweens.add({
         targets: nextButton,
-        scaleX: nextButtonScaleX,
-        scaleY: nextButtonScaleY,
-        duration: PLAY_BUTTON_RELEASE_DURATION_MS,
+        scaleX: nextButtonScaleX * PLAY_BUTTON_PRESSED_SCALE_FACTOR,
+        scaleY: nextButtonScaleY * PLAY_BUTTON_PRESSED_SCALE_FACTOR,
+        duration: PLAY_BUTTON_PRESS_DURATION_MS,
         ease: 'Sine.Out',
-      });
-      this.tweens.add({
-        targets: titleGroup,
-        y: -TITLE_GROUP_BOTTOM_EXTENT - TITLE_EXIT_SAFE_MARGIN,
-        duration: TITLE_EXIT_DURATION_MS,
-        ease: 'Sine.In',
-        onComplete: () => this.scene.start('LevelSelectScene'),
+        onComplete: () => {
+          nextButton.setTexture(TITLE_NEXT_KEY);
+          this.tweens.add({
+            targets: nextButton,
+            scaleX: nextButtonScaleX,
+            scaleY: nextButtonScaleY,
+            duration: PLAY_BUTTON_RELEASE_DURATION_MS,
+            ease: 'Sine.Out',
+            onComplete: startTitleExit,
+          });
+        },
       });
     };
     const showDefaultButton = () => {
