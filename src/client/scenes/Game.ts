@@ -62,6 +62,8 @@ const WATER_REFLECTION_SCALE = 3;
 const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
+const PLAYER_HIT_SHAKE_DURATION_MS = 100;
+const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -520,6 +522,10 @@ export class Game extends Phaser.Scene {
           enemy.attackHitDetected && !enemy.attackHasHitPlayer;
         if (attackLanded) {
           if (this.playerEntity.takeDamage(1)) {
+            this.cameras.main.shake(
+              PLAYER_HIT_SHAKE_DURATION_MS,
+              PLAYER_HIT_SHAKE_INTENSITY
+            );
             enemy.attackHasHitPlayer = true;
             const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
             this.playerEntity.applyKnockback(
