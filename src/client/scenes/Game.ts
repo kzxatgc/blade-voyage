@@ -10,6 +10,7 @@ import {
   MAX_FRAME_DELTA,
   RENDER_DEPTH,
   TICK_RATE,
+  TILE_SIZE,
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
   ZOOM_EASING_SPEED,
@@ -838,13 +839,20 @@ export class Game extends Phaser.Scene {
       this.previousPlayerPosition[1] +
       (this.playerEntity.pos[1] - this.previousPlayerPosition[1]) *
       alpha;
-    this.cameras.main.setScroll(
+    // Keep 32px tiles at whole-pixel widths during eased zoom transitions.
+    const renderZoom =
+      Math.round(this.currentZoom * TILE_SIZE) / TILE_SIZE;
+    const interpolatedScrollX =
       this.previousScroll[0] +
-      (this.scroll[0] - this.previousScroll[0]) * alpha,
+      (this.scroll[0] - this.previousScroll[0]) * alpha;
+    const interpolatedScrollY =
       this.previousScroll[1] +
-      (this.scroll[1] - this.previousScroll[1]) * alpha
+      (this.scroll[1] - this.previousScroll[1]) * alpha;
+    this.cameras.main.setZoom(renderZoom);
+    this.cameras.main.setScroll(
+      Math.round(interpolatedScrollX * renderZoom) / renderZoom,
+      Math.round(interpolatedScrollY * renderZoom) / renderZoom
     );
-    this.cameras.main.setZoom(this.currentZoom);
     if (this.currentZoom !== this.healthIndicatorZoom) {
       this.layoutHealthIndicator();
     }
@@ -1176,7 +1184,7 @@ export class Game extends Phaser.Scene {
       this,
       [Math.floor(this.worldScroll[0]), Math.floor(this.worldScroll[1])],
       1,
-      this.currentZoom
+      this.cameras.main.zoom
     );
   }
 
@@ -1220,7 +1228,7 @@ export class Game extends Phaser.Scene {
     }
 
     const { width, height } = this.scale;
-    const zoom = this.currentZoom;
+    const zoom = this.cameras.main.zoom;
     const centerX = width / 2;
     const centerY = height / 2;
     const surfaceY = height * WATER_SURFACE_RATIO;
