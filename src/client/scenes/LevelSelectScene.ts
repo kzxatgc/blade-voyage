@@ -34,6 +34,9 @@ const PANEL_HEIGHT = 480;
 const LEVEL_CARD_OUTER_MARGIN_FACTOR = 1.2;
 const PANEL_ARROW_INSET = 22;
 const LEVEL_PICKER_SOUND = 'settings-click';
+const LEVEL_CARD_PRESSED_SCALE_FACTOR = 0.74;
+const LEVEL_CARD_PRESS_DURATION_MS = 90;
+const LEVEL_CARD_RELEASE_DURATION_MS = 130;
 const LEVEL_PICKER_ENTRANCE_DURATION_MS = 800;
 const SOUND_BUTTON_ENTRANCE_LEAD_MS = 500;
 const SOUND_BUTTON_ENTRANCE_DURATION_MS = 600;
@@ -47,6 +50,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private soundHitTarget?: Phaser.GameObjects.Rectangle;
   private soundIcon?: Phaser.GameObjects.Image;
   private soundEnabled = true;
+  private isStartingLevel = false;
   private readonly levelCardCenters = new Map<number, IrisFocus>();
   private irisTransition!: IrisTransition;
 
@@ -59,6 +63,7 @@ export class LevelSelectScene extends Phaser.Scene {
   ): void {
     this.input.enabled = true;
     this.pageIndex = 0;
+    this.isStartingLevel = false;
     this.irisTransition = new IrisTransition(this);
     this.levelCardCenters.clear();
 
@@ -428,15 +433,19 @@ export class LevelSelectScene extends Phaser.Scene {
         ease: 'Sine.Out',
       });
     });
-    levelBox.on('pointerdown', () => this.startLevel(levelNumber));
+    levelBox.on('pointerdown', () => this.startLevel(levelNumber, card));
 
     return card;
   }
 
-  private startLevel(levelNumber: number): void {
+  private startLevel(
+    levelNumber: number,
+    card: Phaser.GameObjects.Container
+  ): void {
     if (
       !PLAYABLE_LEVELS.some((level) => level.number === levelNumber) ||
-      this.irisTransition.isActive
+      this.irisTransition.isActive ||
+      this.isStartingLevel
     ) {
       return;
     }
@@ -446,10 +455,35 @@ export class LevelSelectScene extends Phaser.Scene {
       throw new Error(`Missing level-picker focus point for level ${levelNumber}.`);
     }
 
+    this.isStartingLevel = true;
     this.playUiClick();
-    this.irisTransition.startClosing(focus, () => {
+    this.tweens.killTweensOf(card);
+    const releaseScaleX = card.scaleX;
+    const releaseScaleY = card.scaleY;
+    this.tweens.add({
+      targets: card,
+      scaleX: releaseScaleX * LEVEL_CARD_PRESSED_SCALE_FACTOR,
+      scaleY: releaseScaleY * LEVEL_CARD_PRESSED_SCALE_FACTOR,
+      duration: LEVEL_CARD_PRESS_DURATION_MS,
+      ease: 'Sine.Out',
+      onComplete: () => {
+        this.tweens.add({
+          targets: card,
+          scaleX: releaseScaleX,
+          scaleY: releaseScaleY,
+          duration: LEVEL_CARD_RELEASE_DURATION_MS,
+          ease: 'Back.Out',
+        });
+      },
+    });
+    const transitionStarted = this.irisTransition.startClosing(focus, () => {
       this.scene.start('Game', { levelNumber, openIris: true });
     });
+    if (!transitionStarted) {
+      this.isStartingLevel = false;
+      this.tweens.killTweensOf(card);
+      card.setScale(releaseScaleX, releaseScaleY);
+    }
   }
 
   private toggleSound(): void {
