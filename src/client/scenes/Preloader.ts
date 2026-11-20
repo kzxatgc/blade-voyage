@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import type * as Phaser from 'phaser';
 import { SFX_DEFINITIONS } from '../systems/Audio';
 import {
   HEALTH_SPRITE_FRAME_SIZE,
@@ -8,7 +9,28 @@ import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
 
+const LOADING_BAR_FILL_WIDTH = 460;
+const LOADING_BAR_MAX_WIDTH = LOADING_BAR_FILL_WIDTH + 4;
+const LOADING_RUNNER_END_CAP_RATIO = 0.95;
+const LOADING_RUNNER_HEIGHT_CSS = 64;
+const LOADING_RUNNER_FRAME_COUNT = 6;
+const LOADING_RUNNER_FRAME_DURATION_MS = 117;
+const LOADING_RUNNER_FRAME_KEYS = Array.from(
+  { length: LOADING_RUNNER_FRAME_COUNT },
+  (_, frame) => `player/sword/run/${frame}`
+);
+
 export class Preloader extends Scene {
+  private loadingBackground: Phaser.GameObjects.Image | undefined;
+  private loadingBarBorder: Phaser.GameObjects.Rectangle | undefined;
+  private loadingBar: Phaser.GameObjects.Rectangle | undefined;
+  private loadingRunner: Phaser.GameObjects.Image | undefined;
+  private loadingProgress = 0;
+  private currentRunFrame = 0;
+  private lastRunFrameAt = 0;
+  private animationWindow: Window | undefined;
+  private animationFrameId: number | undefined;
+
   constructor() {
     super(PRELOADER_KEY);
   }
@@ -17,20 +39,33 @@ export class Preloader extends Scene {
     const centerX = this.scale.width / 2;
     const centerY = this.scale.height / 2;
 
-    this.add
+    this.loadingBackground = this.add
       .image(centerX, centerY, 'background')
       .setDisplaySize(this.scale.width, this.scale.height);
 
-    this.add.rectangle(centerX, centerY, 468, 32).setStrokeStyle(1, 0xffffff);
+    this.loadingBarBorder = this.add
+      .rectangle(centerX, centerY, 468, 32)
+      .setStrokeStyle(1, 0xffffff);
 
-    const bar = this.add.rectangle(centerX - 230, centerY, 4, 28, 0xffffff);
-    this.load.on('progress', (progress: number) => {
-      bar.width = 4 + 460 * progress;
-    });
+    this.loadingBar = this.add
+      .rectangle(centerX - 230, centerY, 4, 28, 0xffffff)
+      .setOrigin(0, 0.5);
+    this.load.on('progress', this.updateLoadingProgress, this);
+    this.load.on('filecomplete', this.handleFileComplete, this);
+    this.scale.on('resize', this.layoutLoadingIndicator, this);
+    this.events.once('shutdown', this.stopLoadingRunnerAnimation, this);
+    this.layoutLoadingIndicator();
   }
 
   preload() {
     this.load.setPath('../assets');
+
+    for (let frame = 0; frame < LOADING_RUNNER_FRAME_COUNT; frame++) {
+      this.load.image(
+        LOADING_RUNNER_FRAME_KEYS[frame]!,
+        `img/entities/player/sword/run/${frame}.png`
+      );
+    }
 
     this.load.audio('settings-click', 'sfx/ui/settings-click.wav');
     this.load.image('title-player-avatar', 'img/ui/title/player-avatar.png');
@@ -151,7 +186,6 @@ export class Preloader extends Scene {
       'sword/idle': ['0.png', '1.png', '2.png', '3.png', '4.png'],
       'sword/jump': ['0.png', '1.png', '2.png'],
       'sword/land': ['0.png', '1.png'],
-      'sword/run': ['0.png', '1.png', '2.png', '3.png', '4.png', '5.png'],
       dead_hit: ['0.png', '1.png', '2.png', '3.png'],
       dead: ['0.png', '1.png', '2.png', '3.png'],
       'sword/dead_hit': ['0.png', '1.png', '2.png', '3.png'],
@@ -264,10 +298,121 @@ export class Preloader extends Scene {
   }
 
   create() {
+    this.stopLoadingRunnerAnimation();
     this.scene.start(
       DEBUG_CONFIG.enabled && DEBUG_CONFIG.startAtLevelPicker
         ? 'LevelSelectScene'
         : 'TitleScene'
     );
+  }
+
+  private updateLoadingProgress(progress: number): void {
+    this.loadingProgress = progress;
+    this.loadingBar?.setSize(4 + LOADING_BAR_FILL_WIDTH * progress, 28);
+    this.positionLoadingRunner();
+  }
+
+  private handleFileComplete(key: string): void {
+    if (key !== LOADING_RUNNER_FRAME_KEYS[0] || this.loadingRunner) {
+      return;
+    }
+
+    this.loadingRunner = this.add.image(0, 0, key).setOrigin(0.5, 0.8);
+    this.positionLoadingRunner();
+    this.startLoadingRunnerAnimation();
+  }
+
+  private positionLoadingRunner(): void {
+    if (!this.loadingBar || !this.loadingRunner) {
+      return;
+    }
+
+    const canvasUnitScale = this.getCanvasUnitScale();
+    const runnerHeight = LOADING_RUNNER_HEIGHT_CSS * canvasUnitScale.y;
+    const runnerWidth =
+      runnerHeight *
+      (this.loadingRunner.width / this.loadingRunner.height) *
+      (canvasUnitScale.x / canvasUnitScale.y);
+    this.loadingRunner.setDisplaySize(runnerWidth, runnerHeight);
+
+    const minX = this.loadingBar.x + runnerWidth / 2;
+    const maxX =
+      this.loadingBar.x +
+      LOADING_BAR_MAX_WIDTH * LOADING_RUNNER_END_CAP_RATIO;
+    const fillEdgeX = this.loadingBar.x + this.loadingBar.width;
+    const x = Math.max(minX, Math.min(fillEdgeX, maxX));
+    const barTopY = this.loadingBar.y - this.loadingBar.height / 2;
+    this.loadingRunner.setPosition(x, barTopY);
+  }
+
+  private layoutLoadingIndicator(): void {
+    const centerX = this.scale.width / 2;
+    const centerY = this.scale.height / 2;
+    this.loadingBackground
+      ?.setPosition(centerX, centerY)
+      .setDisplaySize(this.scale.width, this.scale.height);
+    this.loadingBarBorder?.setPosition(centerX, centerY);
+    this.loadingBar
+      ?.setPosition(centerX - 230, centerY)
+      .setSize(4 + LOADING_BAR_FILL_WIDTH * this.loadingProgress, 28);
+    this.positionLoadingRunner();
+  }
+
+  private getCanvasUnitScale(): { x: number; y: number } {
+    const { width, height } = this.scale;
+    const canvasBounds = this.game.canvas.getBoundingClientRect();
+    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
+    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
+    return {
+      x: width / canvasWidth,
+      y: height / canvasHeight,
+    };
+  }
+
+  private startLoadingRunnerAnimation(): void {
+    const browserWindow = this.game.canvas.ownerDocument.defaultView;
+    if (!browserWindow) {
+      throw new Error('The loading animation requires a browser window.');
+    }
+
+    this.animationWindow = browserWindow;
+    this.animationFrameId = browserWindow.requestAnimationFrame(
+      this.animateLoadingRunner
+    );
+  }
+
+  private animateLoadingRunner = (time: number): void => {
+    if (!this.animationWindow || !this.loadingRunner) {
+      return;
+    }
+
+    if (time - this.lastRunFrameAt >= LOADING_RUNNER_FRAME_DURATION_MS) {
+      this.lastRunFrameAt = time;
+      for (let offset = 1; offset <= LOADING_RUNNER_FRAME_COUNT; offset++) {
+        const frame =
+          (this.currentRunFrame + offset) % LOADING_RUNNER_FRAME_COUNT;
+        const key = LOADING_RUNNER_FRAME_KEYS[frame]!;
+        if (this.textures.exists(key)) {
+          this.currentRunFrame = frame;
+          this.loadingRunner.setTexture(key);
+          break;
+        }
+      }
+    }
+
+    this.animationFrameId = this.animationWindow.requestAnimationFrame(
+      this.animateLoadingRunner
+    );
+  };
+
+  private stopLoadingRunnerAnimation(): void {
+    if (this.animationWindow && this.animationFrameId !== undefined) {
+      this.animationWindow.cancelAnimationFrame(this.animationFrameId);
+    }
+    this.animationFrameId = undefined;
+    this.animationWindow = undefined;
+    this.load.off('progress', this.updateLoadingProgress, this);
+    this.load.off('filecomplete', this.handleFileComplete, this);
+    this.scale.off('resize', this.layoutLoadingIndicator, this);
   }
 }
