@@ -70,7 +70,6 @@ const SETTINGS_TITLE_TOP_OFFSET_CSS = 60;
 const SETTINGS_PANEL_SAFE_MARGIN_CSS = 24;
 const SETTINGS_TOGGLE_HIT_HEIGHT_CSS = 54;
 const SETTINGS_ITEM_MIN_GAP_CSS = 54.75;
-const SETTINGS_ITEM_ROW_HALF_WIDTH_CSS = 116;
 const SETTINGS_LEVEL_BOTTOM_MARGIN_CSS = 32;
 const SETTINGS_HOME_X_CSS = -84;
 const SETTINGS_HOME_ICON_SIZE_CSS = 64;
@@ -593,16 +592,7 @@ export class TouchControls {
       availableHeightCss / SETTINGS_PANEL_HEIGHT_CSS
     );
     const uiScale = unitScale * panelScale;
-    const horizontalScaleToFitHitTargets =
-      MIN_HIT_TARGET_CSS_SIZE / SETTINGS_ITEM_MIN_GAP_CSS;
-    const horizontalScaleToFitPanel =
-      (panelScale * SETTINGS_PANEL_WIDTH_CSS) /
-      (2 * SETTINGS_ITEM_ROW_HALF_WIDTH_CSS);
-    const itemHorizontalScale = Math.min(
-      Math.max(panelScale, horizontalScaleToFitHitTargets),
-      horizontalScaleToFitPanel
-    );
-    const itemHorizontalUiScale = unitScale * itemHorizontalScale;
+    const itemHorizontalUiScale = uiScale;
     const panelWidth = SETTINGS_PANEL_WIDTH_CSS * uiScale;
     const panelHeight = SETTINGS_PANEL_HEIGHT_CSS * uiScale;
     this.settingsBackdrop
@@ -620,7 +610,7 @@ export class TouchControls {
       .setFontSize(12 * uiScale);
     this.settingsLevelLabel
       .setPosition(0, height / 2 - SETTINGS_LEVEL_BOTTOM_MARGIN_CSS * unitScale)
-      .setFontSize(SETTINGS_LEVEL_FONT_SIZE * unitScale);
+      .setFontSize(SETTINGS_LEVEL_FONT_SIZE * uiScale);
     const homeLocalX = SETTINGS_HOME_X_CSS * itemHorizontalUiScale;
     const homeLocalY = SETTINGS_ITEM_Y_CSS * uiScale;
     this.settingsHomeIcon
