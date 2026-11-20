@@ -218,6 +218,7 @@ export class TouchControls {
       if (hadActiveButtons) {
         this.updateButtonStates();
       }
+
     }
 
     const canvasBounds = this.scene.game.canvas.getBoundingClientRect();
@@ -238,6 +239,10 @@ export class TouchControls {
         this.layout(canvasWidth);
       }
     }
+  }
+
+  get areTouchControlsEnabled(): boolean {
+    return this.enabled;
   }
 
   destroy(): void {

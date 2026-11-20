@@ -48,6 +48,10 @@ import {
   getResponsiveSettingsScale,
   SETTINGS_BUTTON_MARGIN_CSS,
 } from '../systems/SettingsUI';
+import type {
+  ActionPromptHUD,
+  ActionPromptOptions,
+} from '../systems/ActionPromptHUD';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -70,7 +74,6 @@ const WATER_REFLECTION_FRAME_DURATION = TICK_RATE / 10;
 const WATER_REFLECTION_SCALE = 3;
 const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
-const SLOW_WALK_RATIO = 0.6; // Classic 3:5 ratio (1.5 / 2.5)
 const PLAYER_HIT_SHAKE_DURATION_MS = 100;
 const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
 
@@ -82,19 +85,15 @@ export class Game extends Phaser.Scene {
   private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
   private healthIndicatorFrame = -1;
   private healthIndicatorZoom = 0;
+  private actionPromptHUD?: ActionPromptHUD;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
   private jumpKeys: Phaser.Input.Keyboard.Key[] = [];
   private downKeys: Phaser.Input.Keyboard.Key[] = [];
-  private slowLeftKeys: Phaser.Input.Keyboard.Key[] = [];
-  private slowRightKeys: Phaser.Input.Keyboard.Key[] = [];
-  private spaceKey: Phaser.Input.Keyboard.Key | undefined;
   private kKey: Phaser.Input.Keyboard.Key | undefined;
-  private qKey: Phaser.Input.Keyboard.Key | undefined;
   private lKey: Phaser.Input.Keyboard.Key | undefined;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
-  private swordPickupPrompt?: Phaser.GameObjects.BitmapText;
   private swords?: Swords;
   private enemies: Enemy[] = [];
   private sparksEffect: Sparks[] = [];
@@ -240,24 +239,8 @@ export class Game extends Phaser.Scene {
     ]
       .map((keyCode) => this.input.keyboard?.addKey(keyCode))
       .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
-    this.slowLeftKeys = [
-      Phaser.Input.Keyboard.KeyCodes.Z,
-    ]
-      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
-      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
-    this.slowRightKeys = [
-      Phaser.Input.Keyboard.KeyCodes.C,
-    ]
-      .map((keyCode) => this.input.keyboard?.addKey(keyCode))
-      .filter((key): key is Phaser.Input.Keyboard.Key => key !== undefined);
-    this.spaceKey = this.input.keyboard?.addKey(
-      Phaser.Input.Keyboard.KeyCodes.SPACE
-    );
     this.kKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.K
-    );
-    this.qKey = this.input.keyboard?.addKey(
-      Phaser.Input.Keyboard.KeyCodes.Q
     );
     this.lKey = this.input.keyboard?.addKey(
       Phaser.Input.Keyboard.KeyCodes.L
@@ -413,9 +396,7 @@ export class Game extends Phaser.Scene {
         event.code === 'KeyA' ||
         event.code === 'ArrowLeft' ||
         event.code === 'KeyD' ||
-        event.code === 'ArrowRight' ||
-        event.code === 'KeyZ' ||
-        event.code === 'KeyC'
+        event.code === 'ArrowRight'
       ) {
         if (this.playerEntity) {
           this.playerEntity.runBoost = 0;
@@ -472,13 +453,26 @@ export class Game extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layoutHealthIndicator, this);
     });
-    this.swordPickupPrompt = this.add
-      .bitmapText(0, 0, 'touch-settings-font', 'PICK UP', 9)
-      .setOrigin(0.5, 1)
-      .setTint(0xffe6a0)
-      .setDepth(RENDER_DEPTH.PARTICLES + 1)
-      .setVisible(false)
-      .setAlpha(0);
+    this.actionPromptHUD = window.ActionPromptHUD;
+    this.actionPromptHUD.setWorldToScreen(({ x, y }) => {
+      const currentCamera = this.cameras.main;
+      const originX = currentCamera.width * currentCamera.originX;
+      const originY = currentCamera.height * currentCamera.originY;
+      const screenX =
+        currentCamera.x +
+        originX +
+        (x - currentCamera.scrollX - originX) * currentCamera.zoomX;
+      const screenY =
+        currentCamera.y +
+        originY +
+        (y - currentCamera.scrollY - originY) * currentCamera.zoomY;
+      const canvasBounds = this.game.canvas.getBoundingClientRect();
+      return {
+        x: (screenX / this.scale.width) * canvasBounds.width,
+        y: (screenY / this.scale.height) * canvasBounds.height,
+      };
+    });
+    this.events.once('shutdown', () => this.actionPromptHUD?.hide());
     this.sparksGraphics = this.add.graphics().setDepth(RENDER_DEPTH.DEBUG);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
 
@@ -703,24 +697,17 @@ export class Game extends Phaser.Scene {
 
     const controlsEnabled =
       !this.playerEntity.dead && !this.irisTransition?.isActive;
-    const slowMovingLeft =
-      controlsEnabled && this.slowLeftKeys.some((key) => key.isDown);
-    const slowMovingRight =
-      controlsEnabled && this.slowRightKeys.some((key) => key.isDown);
     const movingLeft =
       (controlsEnabled && this.leftKeys.some((key) => key.isDown)) ||
-      slowMovingLeft ||
       (controlsEnabled && (this.touchControls?.movement.left ?? false));
     const movingRight =
       (controlsEnabled && this.rightKeys.some((key) => key.isDown)) ||
-      slowMovingRight ||
       (controlsEnabled && (this.touchControls?.movement.right ?? false));
-    const isSlowDown = slowMovingLeft || slowMovingRight;
     const horizontalDirection = Number(movingRight) - Number(movingLeft);
 
     if (!this.playerEntity.throwingAnimation) {
       if (horizontalDirection !== 0) {
-        this.playerEntity.runBoost = isSlowDown ? SLOW_WALK_RATIO : 1.0;
+        this.playerEntity.runBoost = 1.0;
       } else {
         this.playerEntity.runBoost = 0;
       }
@@ -741,24 +728,14 @@ export class Game extends Phaser.Scene {
       this.playerEntity.dropThroughPlatform();
     }
 
-    let attackPressed = false;
-    if (this.spaceKey && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
-      attackPressed = true;
-    }
-    if (this.lKey && Phaser.Input.Keyboard.JustDown(this.lKey)) {
-      attackPressed = true;
-    }
+    const attackPressed =
+      this.lKey !== undefined && Phaser.Input.Keyboard.JustDown(this.lKey);
     if (controlsEnabled && attackPressed) {
       this.triggerAttackOrPickup();
     }
 
-    let throwPressed = false;
-    if (this.qKey && Phaser.Input.Keyboard.JustDown(this.qKey)) {
-      throwPressed = true;
-    }
-    if (this.kKey && Phaser.Input.Keyboard.JustDown(this.kKey)) {
-      throwPressed = true;
-    }
+    const throwPressed =
+      this.kKey !== undefined && Phaser.Input.Keyboard.JustDown(this.kKey);
     if (controlsEnabled && throwPressed) {
       this.playerEntity.throwSword();
     }
@@ -893,7 +870,7 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
-    this.updateSwordPickupPrompt();
+    this.updateActionPromptHUD();
     for (let i = 0; i < this.enemies.length; i++) {
       const enemy = this.enemies[i];
       if (!enemy) {
@@ -1126,43 +1103,66 @@ export class Game extends Phaser.Scene {
     };
   }
 
-  private updateSwordPickupPrompt(): void {
-    const prompt = this.swordPickupPrompt;
-    const sword = this.pickupHintEnabled
-      ? this.playerEntity?.getPickupableSword(this.swords?.swords ?? [])
-      : undefined;
-    if (!prompt) {
+  private updateActionPromptHUD(): void {
+    const hud = this.actionPromptHUD;
+    const player = this.playerEntity;
+    if (!hud) {
       return;
     }
 
-    if (!sword) {
-      if (prompt.visible) {
-        this.tweens.killTweensOf(prompt);
-        prompt.setVisible(false).setAlpha(0).setScale(1);
+    if (!this.pickupHintEnabled || !player || player.dead) {
+      hud.hide();
+      return;
+    }
+
+    const holdingSword = player.swordState;
+    const pickupableSword = holdingSword
+      ? undefined
+      : player.getPickupableSword(this.swords?.swords ?? []);
+    if (!holdingSword && !pickupableSword) {
+      hud.hide();
+      return;
+    }
+
+    const touchControlsEnabled =
+      this.touchControls?.areTouchControlsEnabled ?? false;
+    const additionalInputs: NonNullable<
+      ActionPromptOptions['additionalInputs']
+    > = [];
+    const additionalRows: NonNullable<
+      ActionPromptOptions['additionalRows']
+    > = [];
+    const keyLabel = touchControlsEnabled ? 'B' : 'L';
+    const actionText = holdingSword ? 'ATTACK' : 'PICKUP';
+    if (touchControlsEnabled) {
+      if (holdingSword) {
+        additionalRows.push({
+          actionText: 'THROW',
+          inputs: [{ inputType: 'key', keyLabel: 'A' }],
+        });
       }
-      return;
+    } else {
+      additionalInputs.push(
+        { inputType: 'mouse', mouseButton: 'left' }
+      );
+      if (holdingSword) {
+        additionalRows.push({
+          actionText: 'THROW',
+          inputs: [
+            { inputType: 'key', keyLabel: 'K', keyCode: 'KeyK' },
+            { inputType: 'mouse', mouseButton: 'right' },
+          ],
+        });
+      }
     }
 
-    prompt.setPosition(sword.pos[0] + 10, sword.pos[1] - 13);
-    if (prompt.visible) {
-      return;
-    }
-
-    prompt.setVisible(true).setAlpha(0).setScale(1);
-    this.tweens.add({
-      targets: prompt,
-      alpha: 1,
-      duration: 120,
-      ease: 'Sine.Out',
-    });
-    this.tweens.add({
-      targets: prompt,
-      scaleX: 1.0625,
-      scaleY: 1.0625,
-      duration: 480,
-      ease: 'Sine.InOut',
-      yoyo: true,
-      repeat: -1,
+    hud.show({
+      inputType: 'key',
+      keyLabel,
+      ...(!touchControlsEnabled ? { keyCode: 'KeyL' } : {}),
+      actionText,
+      additionalInputs,
+      additionalRows,
     });
   }
 

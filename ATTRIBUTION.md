@@ -9,7 +9,7 @@ This document records credits for assets used in this project.
 - **Author / Creator**: Pixel Frog
 - **Source Link**: https://pixelfrog-assets.itch.io/treasure-hunters
 - **License**: CC0 1.0 Universal (Public Domain) / Free for Personal & Commercial Use
-- The inline splash prompt displays `OPEN` using the shared Big Text bitmap font in `public/assets/img/font/`, also used by the settings UI and in-game `PICK UP` sword hint. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
+- The inline splash prompt displays `OPEN` using the shared Big Text bitmap font in `public/assets/img/font/`, also used by the settings UI. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - **Files**:
@@ -349,7 +349,9 @@ This document records credits for assets used in this project.
 
 - **Source**: PixelLab-generated assets.
 - **Creator / License**: Created with PixelLab by the project owner. PixelLab's [Terms of Service](https://www.pixellab.ai/termsofservice) state that users own copyrights to their creations and may use them commercially or non-commercially without permission. The terms also require compliance with OpenRAIL-M, prohibit using creations to train other models without PixelLab's permission, and make users responsible for third-party rights. This is PixelLab's output-use grant, not a CC0 declaration.
+- The in-game sword interaction HUD uses this sheet for its keyboard and mouse prompts.
 - **Files**:
+  - `full_asset/Pixellab/1795183831946.png`
   - `public/assets/img/ui/settings/gear.png`
   - `public/assets/img/ui/settings/gear-open.png`
   - `public/assets/img/ui/settings/home.png`
