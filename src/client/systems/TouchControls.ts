@@ -4,6 +4,8 @@ import { DEBUG_CONFIG } from '../../shared/debug';
 import type { TouchControlsMode, TouchMovementInput } from '../../shared/types';
 import {
   animateSettingsToggleIcon,
+  getResponsiveSettingsPanelScale,
+  getResponsiveSettingsScale,
   SETTINGS_BUTTON_ICON_SIZE_CSS,
   SETTINGS_BUTTON_MARGIN_CSS,
   SETTINGS_BUTTON_SIZE_CSS,
@@ -52,6 +54,7 @@ const BUTTON_WIDTH = 96;
 const BUTTON_HEIGHT = 96;
 const BUTTON_IMAGE_SIZE = 72;
 const BUTTON_IMAGE_RATIO = BUTTON_IMAGE_SIZE / BUTTON_WIDTH;
+const GAMEPLAY_BUTTON_SIZE_CSS = 56;
 const BUTTON_PRESSED_SCALE = 0.9;
 const BUTTON_PRESS_DURATION_MS = 70;
 const BUTTON_RELEASE_DURATION_MS = 140;
@@ -63,7 +66,6 @@ const PICKUP_HINT_STORAGE_KEY = 'blade-voyage:pickup-hint-enabled';
 const SETTINGS_PANEL_SCALE = 1.2;
 const SETTINGS_PANEL_WIDTH_CSS = Math.round(250 * SETTINGS_PANEL_SCALE);
 const SETTINGS_PANEL_HEIGHT_CSS = Math.round(182 * SETTINGS_PANEL_SCALE);
-const SETTINGS_PANEL_SCALE_BREAKPOINT_CSS = 931.08;
 const SETTINGS_TITLE_FONT_SIZE = Math.round(18 * SETTINGS_PANEL_SCALE);
 const SETTINGS_LEVEL_FONT_SIZE = 18;
 const SETTINGS_TITLE_TOP_OFFSET_CSS = 60;
@@ -164,6 +166,7 @@ export class TouchControls {
   private lastWidth = 0;
   private lastHeight = 0;
   private lastCanvasWidth = 0;
+  private lastCanvasHeight = 0;
   private lastButtonSize = 0;
 
   constructor(
@@ -217,12 +220,17 @@ export class TouchControls {
       }
     }
 
-    const canvasWidth = this.getCanvasWidth();
+    const canvasBounds = this.scene.game.canvas.getBoundingClientRect();
+    const canvasWidth =
+      canvasBounds.width > 0 ? canvasBounds.width : this.scene.scale.width;
+    const canvasHeight =
+      canvasBounds.height > 0 ? canvasBounds.height : this.scene.scale.height;
     const layoutChanged =
       this.lastZoom !== this.scene.cameras.main.zoom ||
       this.lastWidth !== this.scene.scale.width ||
       this.lastHeight !== this.scene.scale.height ||
-      this.lastCanvasWidth !== canvasWidth;
+      this.lastCanvasWidth !== canvasWidth ||
+      this.lastCanvasHeight !== canvasHeight;
     this.updateVisibility(canvasWidth);
     if (layoutChanged) {
       this.layoutSettingsUI();
@@ -351,7 +359,7 @@ export class TouchControls {
     const zoom = this.scene.cameras.main.zoom;
     const buttonSize =
       canvasWidth > 0
-        ? (MIN_HIT_TARGET_CSS_SIZE * width) / canvasWidth
+        ? (GAMEPLAY_BUTTON_SIZE_CSS * width) / canvasWidth
         : BUTTON_WIDTH;
     const gap = BUTTON_GAP;
     const bottom = height - BUTTON_MARGIN - buttonSize;
@@ -542,11 +550,14 @@ export class TouchControls {
     const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
     const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
     const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
+    const responsiveSettingsScale = getResponsiveSettingsScale(canvasWidth);
     const zoom = this.scene.cameras.main.zoom;
     this.settingsRoot.setPosition(width / 2, height / 2).setScale(1 / zoom);
 
-    const buttonSize = SETTINGS_BUTTON_SIZE_CSS * unitScale;
-    const buttonMargin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
+    const buttonSize =
+      SETTINGS_BUTTON_SIZE_CSS * unitScale * responsiveSettingsScale;
+    const buttonMargin =
+      SETTINGS_BUTTON_MARGIN_CSS * unitScale * responsiveSettingsScale;
     const buttonX = width - buttonMargin - buttonSize / 2;
     const buttonY = buttonMargin + buttonSize / 2;
     const buttonLocalX = buttonX - width / 2;
@@ -567,29 +578,19 @@ export class TouchControls {
     this.settingsButtonIcon
       .setPosition(buttonLocalX, buttonLocalY)
       .setDisplaySize(
-        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale,
-        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale
+        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale * responsiveSettingsScale,
+        SETTINGS_BUTTON_ICON_SIZE_CSS * unitScale * responsiveSettingsScale
       )
       .setAngle(this.settingsOpen ? 30 : 0);
     this.settingsButtonScaleX = this.settingsButtonIcon.scaleX;
     this.settingsButtonScaleY = this.settingsButtonIcon.scaleY;
 
-    const availableWidthCss = Math.max(
-      1,
-      canvasWidth - SETTINGS_PANEL_SAFE_MARGIN_CSS * 2
-    );
-    const availableHeightCss = Math.max(
-      1,
-      canvasHeight - SETTINGS_PANEL_SAFE_MARGIN_CSS * 2
-    );
-    const viewportScale = Math.min(
-      1,
-      canvasWidth / SETTINGS_PANEL_SCALE_BREAKPOINT_CSS
-    );
-    const panelScale = Math.min(
-      viewportScale,
-      availableWidthCss / SETTINGS_PANEL_WIDTH_CSS,
-      availableHeightCss / SETTINGS_PANEL_HEIGHT_CSS
+    const panelScale = getResponsiveSettingsPanelScale(
+      canvasWidth,
+      canvasHeight,
+      SETTINGS_PANEL_WIDTH_CSS,
+      SETTINGS_PANEL_HEIGHT_CSS,
+      SETTINGS_PANEL_SAFE_MARGIN_CSS
     );
     const uiScale = unitScale * panelScale;
     const itemHorizontalUiScale = uiScale;
@@ -642,8 +643,7 @@ export class TouchControls {
         continue;
       }
       this.scene.tweens.killTweensOf(icon);
-      const iconDisplaySize =
-        SETTINGS_ITEM_ICON_SIZE_CSS[item] * uiScale;
+      const iconDisplaySize = SETTINGS_ITEM_ICON_SIZE_CSS[item] * uiScale;
       icon
         .setPosition(localX, localY)
         .setDisplaySize(iconDisplaySize, iconDisplaySize);
@@ -675,6 +675,7 @@ export class TouchControls {
     this.lastWidth = width;
     this.lastHeight = height;
     this.lastCanvasWidth = canvasWidth;
+    this.lastCanvasHeight = canvasHeight;
   }
 
   private readSavedMode(): TouchControlsMode | undefined {

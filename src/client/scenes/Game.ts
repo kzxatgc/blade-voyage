@@ -44,7 +44,10 @@ import {
   HEALTH_SPRITE_KEY,
 } from '../systems/HealthHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
-import { SETTINGS_BUTTON_MARGIN_CSS } from '../systems/SettingsUI';
+import {
+  getResponsiveSettingsScale,
+  SETTINGS_BUTTON_MARGIN_CSS,
+} from '../systems/SettingsUI';
 
 const TILE_ANIMATION_TYPES = [
   'palm_tree/front/left',
@@ -142,8 +145,10 @@ export class Game extends Phaser.Scene {
     const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
     const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
     const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
-    const iconSize = HEALTH_INDICATOR_SIZE_CSS * unitScale;
-    const margin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
+    const responsiveScale = getResponsiveSettingsScale(canvasWidth);
+    const iconSize = HEALTH_INDICATOR_SIZE_CSS * unitScale * responsiveScale;
+    const margin =
+      SETTINGS_BUTTON_MARGIN_CSS * unitScale * responsiveScale;
     const zoom = this.cameras.main.zoom;
 
     this.healthIndicatorRoot

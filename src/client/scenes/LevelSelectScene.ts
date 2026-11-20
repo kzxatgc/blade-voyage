@@ -7,6 +7,7 @@ import {
 } from '../../shared/levels';
 import {
   animateSettingsToggleIcon,
+  getResponsiveSettingsScale,
   SETTINGS_BUTTON_MARGIN_CSS,
   SETTINGS_BUTTON_SIZE_CSS,
   SOUND_STORAGE_KEY,
@@ -369,8 +370,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
     const { height } = this.scale;
     const soundY = this.soundIcon.y;
-    const soundStartY =
-      height + (SETTINGS_BUTTON_SIZE_CSS * this.getCanvasUnitScale()) / 2;
+    const soundStartY = height + this.soundHitTarget.height / 2;
     this.soundIcon.setY(soundStartY).setVisible(true);
     this.soundHitTarget.setY(soundStartY).setVisible(true);
     this.tweens.add({
@@ -529,9 +529,15 @@ export class LevelSelectScene extends Phaser.Scene {
     }
 
     const { width, height } = this.scale;
+    const canvasBounds = this.game.canvas.getBoundingClientRect();
+    const canvasWidth =
+      canvasBounds.width > 0 ? canvasBounds.width : width;
     const unitScale = this.getCanvasUnitScale();
-    const buttonSize = SETTINGS_BUTTON_SIZE_CSS * unitScale;
-    const margin = SETTINGS_BUTTON_MARGIN_CSS * unitScale;
+    const responsiveScale = getResponsiveSettingsScale(canvasWidth);
+    const buttonSize =
+      SETTINGS_BUTTON_SIZE_CSS * unitScale * responsiveScale;
+    const margin =
+      SETTINGS_BUTTON_MARGIN_CSS * unitScale * responsiveScale;
     const buttonX = width - margin - buttonSize / 2;
     const buttonY = height - margin - buttonSize / 2;
 

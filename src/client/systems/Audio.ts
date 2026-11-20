@@ -5,11 +5,11 @@ export interface SfxDefinition {
 
 export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
   'player/jump': {
-    volume: 0.3,
+    volume: 0.22,
     files: ['sfx/player/jump/0.wav', 'sfx/player/jump/1.wav'],
   },
   'player/run/grass': {
-    volume: 0.25,
+    volume: 0.07,
     files: [
       'sfx/player/run/grass/0.ogg',
       'sfx/player/run/grass/1.ogg',
@@ -18,32 +18,32 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     ],
   },
   'player/run/palm_tree': {
-    volume: 1.0,
+    volume: 0.7,
     files: [
       'sfx/player/run/palm_tree/0.ogg',
       'sfx/player/run/palm_tree/1.ogg',
     ],
   },
   'player/land/grass': {
-    volume: 0.25,
+    volume: 0.15,
     files: [
       'sfx/player/land/grass/0.ogg',
       'sfx/player/land/grass/1.ogg',
     ],
   },
   'player/land/palm_tree': {
-    volume: 0.25,
+    volume: 0.15,
     files: [
       'sfx/player/land/palm_tree/0.ogg',
       'sfx/player/land/palm_tree/1.ogg',
     ],
   },
   'player/pickup_sword': {
-    volume: 0.7,
+    volume: 0.4,
     files: ['sfx/player/pickup_sword.wav'],
   },
   'player/sword/attack': {
-    volume: 0.2,
+    volume: 0.6,
     files: [
       'sfx/player/sword/attack/0.wav',
       'sfx/player/sword/attack/1.wav',
@@ -69,11 +69,11 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     ],
   },
   'player/throw_sword': {
-    volume: 0.6,
+    volume: 0.9,
     files: ['sfx/player/throw_sword.wav'],
   },
   'player/hit': {
-    volume: 1.0,
+    volume: 0.7,
     files: ['sfx/player/hit.wav'],
   },
   'player/dead_hit': {
@@ -81,7 +81,7 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     files: ['sfx/player/dead_hit.wav'],
   },
   'sword/strike/stone': {
-    volume: 0.28,
+    volume: 0.1,
     files: ['sfx/sword/strike/stone.wav'],
   },
   'sword/spinning': {
