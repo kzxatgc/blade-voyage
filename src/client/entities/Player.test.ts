@@ -459,6 +459,21 @@ void describe('Player', () => {
     assert.ok(player.action.startsWith('sword/attack_'));
   });
 
+  void it('clears the attack effect when the player dies mid-attack', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    player.swordState = true;
+    assert.equal(player.attack(), true);
+    assert.notEqual(player.attackHandler.effect, null);
+
+    player.health = 1;
+    player.takeDamage(1);
+
+    assert.equal(player.dead, true);
+    assert.equal(player.attackHandler.attackState, false);
+    assert.equal(player.attackHandler.effect, null);
+  });
+
   void it('triggers air attack when player is in the air', async () => {
     const Player = await getPlayer();
     const Tilemap = await getTilemap();

@@ -126,6 +126,14 @@ export class Attack {
     }
   }
 
+  cancelAttack() {
+    this.attackState = false;
+    this.currentAttackType = '';
+    this.effect = null;
+    this.hitEntities.clear();
+    this.destroy();
+  }
+
   render(
     scene: AttackRenderScene,
     offset: readonly [number, number] = [0, 0]

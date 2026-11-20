@@ -259,6 +259,16 @@ export class Enemy extends PhysicsEntity {
     }
   }
 
+  override checkDead() {
+    const wasDead = this.dead;
+    super.checkDead();
+    if (!wasDead && this.dead) {
+      this.attackEffect = null;
+      this.attackTimer = 0;
+      this.attackHasHitPlayer = false;
+    }
+  }
+
   /** Cancel an in-progress attack (clears effect particle + timer). */
   clearAttack() {
     this.attackEffect = null;

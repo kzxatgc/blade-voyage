@@ -503,6 +503,19 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.velocity[1], -3);
   });
 
+  void it('clears the attack wind effect when the enemy dies mid-attack', () => {
+    const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    enemy.attack();
+    assert.notEqual(enemy.attackEffect, null);
+
+    enemy.health = 1;
+    enemy.takeDamage(1);
+
+    assert.equal(enemy.dead, true);
+    assert.equal(enemy.attackEffect, null);
+    assert.equal(enemy.attackTimer, 0);
+  });
+
   void it('pink_star attack sets attackTimer to 120, velocity to 2, and spawns grass sparks', () => {
     const sparksEffect: Sparks[] = [];
     const enemy = new Enemy('pink_star', [100, 100], [26, 23], undefined, undefined, sparksEffect);

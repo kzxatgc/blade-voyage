@@ -77,6 +77,14 @@ export class Player extends PhysicsEntity {
     }
   }
 
+  override checkDead() {
+    const wasDead = this.dead;
+    super.checkDead();
+    if (!wasDead && this.dead) {
+      this.attackHandler.cancelAttack();
+    }
+  }
+
   checkDoubleTap(key: string, currentTime = performance.now()) {
     if (this.lastKey === key && currentTime - this.lastPressTime < 200) {
       this.runBoost = 1.5;
