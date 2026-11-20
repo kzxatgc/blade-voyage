@@ -114,8 +114,16 @@ export class Tilemap {
   }
 
   loadFromData(data: MapData) {
-    this.tiles = data.tiles;
-    this.offGridTiles = data.off_grid_tiles;
+    this.tiles = Object.fromEntries(
+      Object.entries(data.tiles).map(([location, tile]) => [
+        location,
+        { ...tile, loc: [...tile.loc] },
+      ])
+    );
+    this.offGridTiles = data.off_grid_tiles.map((tile) => ({
+      ...tile,
+      pos: [...tile.pos],
+    }));
   }
 
   save(): MapData {

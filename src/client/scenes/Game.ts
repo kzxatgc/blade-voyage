@@ -956,7 +956,7 @@ export class Game extends Phaser.Scene {
         throw new Error('The game iris transition was not initialized.');
       }
       transition.startClosing(this.getPlayerScreenFocus(), () => {
-        this.scene.start('Game', {
+        this.scene.restart({
           levelNumber: nextLevel.number,
           openIris: true,
         });
@@ -976,19 +976,21 @@ export class Game extends Phaser.Scene {
       return;
     }
 
-    this.deathTransitionScheduled = true;
     this.levelTransitionTimer?.remove(false);
     this.levelTransitionTimer = undefined;
     const transition = this.irisTransition;
     if (!transition) {
       throw new Error('The game iris transition was not initialized.');
     }
-    transition.startClosing(this.getPlayerScreenFocus(), () => {
-      this.scene.start('Game', {
-        levelNumber: this.selectedLevelNumber,
-        openIris: true,
-      });
-    });
+    this.deathTransitionScheduled = transition.startClosing(
+      this.getPlayerScreenFocus(),
+      () => {
+        this.scene.restart({
+          levelNumber: this.selectedLevelNumber,
+          openIris: true,
+        });
+      }
+    );
   }
 
   private returnToLevelPicker(focus: IrisFocus): void {

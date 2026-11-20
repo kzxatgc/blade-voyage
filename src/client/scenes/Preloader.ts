@@ -253,7 +253,9 @@ export class Preloader extends Scene {
 
   create() {
     this.scene.start(
-      DEBUG_CONFIG.startAtLevelPicker ? 'LevelSelectScene' : 'TitleScene'
+      DEBUG_CONFIG.enabled && DEBUG_CONFIG.startAtLevelPicker
+        ? 'LevelSelectScene'
+        : 'TitleScene'
     );
   }
 }

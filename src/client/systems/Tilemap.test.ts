@@ -85,6 +85,19 @@ void describe('Tilemap', () => {
     assert.deepEqual(removed, retained);
     assert.equal(tilemap.tiles['5;7'], undefined);
   });
+
+  void it('preserves cached spawners when runtime extraction removes them', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    const map = createMockMap();
+
+    tilemap.loadFromData(map);
+    assert.equal(tilemap.extract([['spawner', 0]], false).length, 1);
+    assert.equal(map.tiles['5;7']?.variant, 0);
+
+    tilemap.loadFromData(map);
+    assert.equal(tilemap.extract([['spawner', 0]], false).length, 1);
+  });
 });
 
 void describe('Tilemap collision queries', () => {
@@ -152,8 +165,8 @@ void describe('Tilemap collision queries', () => {
       off_grid_tiles: [],
     });
 
-    assert.equal(tilemap.solidCheck([64, 96]), grass);
-    assert.equal(tilemap.solidCheck([95, 127]), grass);
+    assert.deepEqual(tilemap.solidCheck([64, 96]), grass);
+    assert.deepEqual(tilemap.solidCheck([95, 127]), grass);
     assert.equal(tilemap.solidCheck([96, 96]), undefined);
     assert.equal(tilemap.solidCheck([0, 0]), undefined);
   });

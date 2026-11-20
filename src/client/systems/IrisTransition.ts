@@ -10,7 +10,6 @@ type TransitionState = 'inactive' | 'opening' | 'closing' | 'closed';
 
 const TRANSITION_DURATION_FRAMES = 30;
 const TRANSITION_DURATION_MS = (TRANSITION_DURATION_FRAMES * 1000) / TICK_RATE;
-const CLOSED_FRAME_DELAY_MS = 1000 / TICK_RATE;
 const TRANSITION_DEPTH = 1000;
 
 let textureSequence = 0;
@@ -25,7 +24,6 @@ export class IrisTransition {
   private elapsedMs = 0;
   private maxRadius = 0;
   private onComplete: (() => void) | undefined;
-  private closeTimer: Phaser.Time.TimerEvent | undefined;
   private inputWasEnabled = true;
   private destroyed = false;
 
@@ -68,7 +66,14 @@ export class IrisTransition {
   }
 
   update(delta: number): void {
-    if (this.state === 'inactive' || this.state === 'closed') {
+    if (this.state === 'inactive') {
+      return;
+    }
+
+    if (this.state === 'closed') {
+      const onComplete = this.onComplete;
+      this.onComplete = undefined;
+      onComplete?.();
       return;
     }
 
@@ -93,15 +98,6 @@ export class IrisTransition {
     }
 
     this.state = 'closed';
-    const onComplete = this.onComplete;
-    this.onComplete = undefined;
-    this.closeTimer = this.scene.time.delayedCall(
-      CLOSED_FRAME_DELAY_MS,
-      () => {
-        this.closeTimer = undefined;
-        onComplete?.();
-      }
-    );
   }
 
   destroy(): void {
@@ -109,7 +105,6 @@ export class IrisTransition {
       return;
     }
     this.destroyed = true;
-    this.closeTimer?.remove(false);
     this.scene.events.off('shutdown', this.destroy, this);
     this.image.destroy();
     this.scene.textures.remove(this.textureKey);
