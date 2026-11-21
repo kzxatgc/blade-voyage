@@ -52,4 +52,11 @@ void describe('Potions', () => {
     assert.equal(potions.collect(player), false);
     assert.equal(potions.potions.length, 1);
   });
+
+  void it('keeps a potion afloat without falling', () => {
+    const potion = new Potion([100, 200]);
+
+    assert.equal(potion.landed, true);
+    assert.equal(potion.velocity[1], 0);
+  });
 });

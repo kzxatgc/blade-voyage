@@ -50,17 +50,11 @@ export class Potion extends PhysicsEntity {
         'potion/idle': new Animation('potion/idle', 7, 8),
       }
     );
+    this.landed = true;
+    this.velocity[1] = 0;
   }
 
-  override update(tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>) {
-    super.update(tilemap, [0, 0]);
-    if (!this.landed) {
-      this.velocity[1] = Math.min(3.5, this.velocity[1] + 0.2);
-    }
-    if (this.collision.bottom) {
-      this.landed = true;
-      this.velocity[1] = 0;
-    }
+  override update(_tilemap: Pick<Tilemap, 'physicalRectsAround' | 'platformsAround'>) {
     this.animation?.update();
     this.timer += 1;
   }
@@ -68,7 +62,8 @@ export class Potion extends PhysicsEntity {
   render(scene: PotionRenderScene, offset: readonly [number, number] = [0, 0]) {
     const texture = this.animation?.img() ?? 'potion/idle/0';
     const renderX = this.pos[0] - offset[0] + 8;
-    const renderY = this.pos[1] - offset[1] + 8;
+    const bobY = Math.floor(Math.sin(this.timer * 0.12) * 2);
+    const renderY = this.pos[1] - offset[1] + 8 + bobY;
     if (!this.image) {
       this.image = scene.add.image(renderX, renderY, texture);
       this.image.setOrigin(0.5, 0.5);
@@ -159,7 +154,7 @@ export class Potions {
 
     const potion = new Potion([
       selected[0] + tilemap.tileSize * 0.5 - 8,
-      selected[1] - 14,
+      selected[1] - 21,
     ]);
     this.potions.push(potion);
     return potion;
