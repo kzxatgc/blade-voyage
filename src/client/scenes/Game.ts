@@ -84,13 +84,10 @@ const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const PLAYER_HIT_SHAKE_DURATION_MS = 100;
 const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
-const ATTACK_COOLDOWN_INDICATOR_SQUARES = 5;
-const ATTACK_COOLDOWN_INDICATOR_SIZE = 1.5;
-const ATTACK_COOLDOWN_INDICATOR_GAP = 1.5;
+const ATTACK_COOLDOWN_INDICATOR_SQUARES = 4;
+const ATTACK_COOLDOWN_INDICATOR_SIZE = 2;
+const ATTACK_COOLDOWN_INDICATOR_GAP = 1;
 const ATTACK_COOLDOWN_READY_COLOR = 0xffd700;
-const ATTACK_COOLDOWN_INDICATOR_WIDTH =
-  ATTACK_COOLDOWN_INDICATOR_SQUARES * ATTACK_COOLDOWN_INDICATOR_SIZE +
-  (ATTACK_COOLDOWN_INDICATOR_SQUARES - 1) * ATTACK_COOLDOWN_INDICATOR_GAP;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -939,6 +936,20 @@ export class Game extends Phaser.Scene {
       this.playerEntity.swordState && !this.playerEntity.dead;
     if (showAttackCooldownIndicator) {
       const isReady = this.playerEntity.attackHandler.isReady;
+      const camera = this.cameras.main;
+      const indicatorSizePixels = Math.max(
+        2,
+        Math.round(ATTACK_COOLDOWN_INDICATOR_SIZE * renderZoom / 2) * 2
+      );
+      const indicatorGapPixels = Math.max(
+        1,
+        Math.round(ATTACK_COOLDOWN_INDICATOR_GAP * renderZoom)
+      );
+      const indicatorSize = indicatorSizePixels / renderZoom;
+      const indicatorPitchPixels = indicatorSizePixels + indicatorGapPixels;
+      const indicatorWidthPixels =
+        ATTACK_COOLDOWN_INDICATOR_SQUARES * indicatorSizePixels +
+        (ATTACK_COOLDOWN_INDICATOR_SQUARES - 1) * indicatorGapPixels;
       const rechargedSquares = isReady
         ? ATTACK_COOLDOWN_INDICATOR_SQUARES
         : Math.min(
@@ -953,29 +964,37 @@ export class Game extends Phaser.Scene {
       ) {
         for (let index = 0; index < this.attackCooldownIndicators.length; index += 1) {
           this.attackCooldownIndicators[index]?.setFillStyle(
-             isReady
-               ? ATTACK_COOLDOWN_READY_COLOR
-               : index < rechargedSquares
-                 ? 0xffffff
-                 : 0x000000
+            isReady
+              ? ATTACK_COOLDOWN_READY_COLOR
+              : index < rechargedSquares
+                ? 0xffffff
+                : 0x000000
           );
         }
         this.attackCooldownIndicatorRechargedSquares = rechargedSquares;
       }
 
-      const firstSquareCenterX =
-        renderedPlayerX +
-        32 -
-        ATTACK_COOLDOWN_INDICATOR_WIDTH / 2 +
-        ATTACK_COOLDOWN_INDICATOR_SIZE / 2;
+      const indicatorLeftPixel = Math.round(
+        (renderedPlayerX + 32 - camera.scrollX) * renderZoom +
+          camera.x -
+          indicatorWidthPixels / 2
+      );
+      const indicatorCenterYPixel = Math.round(
+        (renderedPlayerY - 2 - camera.scrollY) * renderZoom + camera.y
+      );
+      const indicatorLeft =
+        camera.scrollX + (indicatorLeftPixel - camera.x) / renderZoom;
+      const indicatorCenterY =
+        camera.scrollY +
+        (indicatorCenterYPixel - camera.y) / renderZoom;
       for (let index = 0; index < this.attackCooldownIndicators.length; index += 1) {
         this.attackCooldownIndicators[index]
-          ?.setPosition(
-            firstSquareCenterX +
-              index *
-                (ATTACK_COOLDOWN_INDICATOR_SIZE +
-                  ATTACK_COOLDOWN_INDICATOR_GAP),
-            renderedPlayerY - 2
+          ?.setSize(indicatorSize, indicatorSize)
+          .setPosition(
+            indicatorLeft +
+              (index * indicatorPitchPixels + indicatorSizePixels / 2) /
+                renderZoom,
+            indicatorCenterY
           )
           .setVisible(true);
       }
