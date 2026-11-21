@@ -555,20 +555,24 @@ void describe('SpinningSword entity', () => {
     assert.deepEqual(sword.pos, posAfterEmbed);
   });
 
-  void it('blinks only when embedded and timer >= 900', () => {
+  void it('fades embedded swords instead of blinking', () => {
     const sword = new SpinningSword([100, 100], false);
     sword.timer = 900;
-    assert.equal(sword.isBlinking(), false); // Not embedded yet
+    assert.equal(sword.isBlinking(), false);
 
     sword.action = 'embedded';
     sword.timer = 899;
     assert.equal(sword.isBlinking(), false);
+    assert.equal(sword.fadeAlpha, null);
 
-    sword.timer = 912; // 912 // 12 = 76 (even) -> true
-    assert.equal(sword.isBlinking(), true);
+    sword.timer = 1140;
+    assert.equal(sword.fadeAlpha, 1);
 
-    sword.timer = 1080; // 1080 // 7 = 154 (even) -> true
-    assert.equal(sword.isBlinking(), true);
+    sword.timer = 1170;
+    assert.equal(sword.fadeAlpha, 0.5);
+
+    sword.timer = 1200;
+    assert.equal(sword.fadeAlpha, 0);
   });
 
   void it('renders with flip and correct offset', () => {

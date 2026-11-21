@@ -5,17 +5,21 @@ import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 
-export const POTION_SPAWN_CHANCE = 0.1;
+export const POTION_SPAWN_CHANCE = 0.001;
 export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
 export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
 export const POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
 export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
 export const POTION_HEAL_AMOUNT = 1;
+export const POTION_LIFETIME_TICKS = 2400;
+export const POTION_BLINK_START_TICKS = 2100;
 
 export interface PotionRenderImage {
   setOrigin(x: number, y: number): void;
   setPosition(x: number, y: number): void;
   setTexture(texture: string): void;
+  setVisible?(visible: boolean): void;
+  setAlpha?(alpha: number): void;
   setDepth?(depth: number): void;
   destroy(): void;
 }
@@ -62,7 +66,27 @@ export class Potion extends PhysicsEntity {
     this.timer += 1;
   }
 
+  get isExpired(): boolean {
+    return this.timer >= POTION_LIFETIME_TICKS;
+  }
+
+  isBlinking(): boolean {
+    if (this.timer < POTION_BLINK_START_TICKS) {
+      return false;
+    }
+    const blinkRate = this.timer >= 280 ? 7 : 12;
+    return Math.floor(this.timer / blinkRate) % 2 === 0;
+  }
+
+  get isBlinkHidden(): boolean {
+    return this.isBlinking();
+  }
+
   render(scene: PotionRenderScene, offset: readonly [number, number] = [0, 0]) {
+    if (this.isBlinking()) {
+      this.image?.setVisible?.(false);
+      return;
+    }
     const texture = this.animation?.img() ?? 'potion/idle/0';
     const renderX = this.pos[0] - offset[0] + 8;
     const bobY = Math.floor(Math.sin(this.timer * 0.12) * 2);
@@ -71,6 +95,7 @@ export class Potion extends PhysicsEntity {
       this.image = scene.add.image(renderX, renderY, texture);
       this.image.setOrigin(0.5, 0.5);
       this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
+      this.image.setVisible?.(true);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
@@ -79,6 +104,7 @@ export class Potion extends PhysicsEntity {
       }
       this.image.setPosition(renderX, renderY);
       this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
+      this.image.setVisible?.(true);
     }
   }
 
@@ -209,6 +235,13 @@ export class Potions {
     playerPos?: readonly [number, number]
   ): void {
     this.spawnPotion(tilemap, playerPos);
+    this.potions = this.potions.filter((potion) => {
+      if (potion.isExpired) {
+        potion.destroy();
+        return false;
+      }
+      return true;
+    });
     for (const potion of this.potions) {
       potion.update(tilemap);
     }

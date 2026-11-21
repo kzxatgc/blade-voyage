@@ -2,7 +2,13 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { Potion, Potions, POTION_SPAWN_CHANCE } from './Potions.ts';
+import {
+  Potion,
+  Potions,
+  POTION_SPAWN_CHANCE,
+  POTION_LIFETIME_TICKS,
+  POTION_BLINK_START_TICKS,
+} from './Potions.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
 
@@ -84,5 +90,23 @@ void describe('Potions', () => {
 
     assert.equal(potion.landed, true);
     assert.equal(potion.velocity[1], 0);
+  });
+
+  void it('blinks during the final 300 ticks and expires after its lifetime', () => {
+    const potion = new Potion([100, 200]);
+
+    potion.timer = POTION_BLINK_START_TICKS - 1;
+    assert.equal(potion.isBlinking(), false);
+
+    potion.timer = POTION_BLINK_START_TICKS;
+    assert.equal(
+      potion.isBlinking(),
+      Math.floor(POTION_BLINK_START_TICKS / 12) % 2 === 0
+    );
+
+    potion.timer = POTION_LIFETIME_TICKS - 1;
+    assert.equal(potion.isExpired, false);
+    potion.timer = POTION_LIFETIME_TICKS;
+    assert.equal(potion.isExpired, true);
   });
 });

@@ -35,6 +35,7 @@ export interface SwordRenderImage {
   setFlipX?(flip: boolean): void;
   setVisible?(visible: boolean): void;
   setDepth?(depth: number): void;
+  setAlpha?(alpha: number): void;
   destroy(): void;
 }
 
@@ -266,10 +267,6 @@ export class SpinningSword extends PhysicsEntity {
   }
 
   isBlinking(): boolean {
-    if (this.action === 'embedded' && this.timer >= 900) {
-      const blinkRate = this.timer >= 1080 ? 7 : 12;
-      return Math.floor(this.timer / blinkRate) % 2 === 0;
-    }
     return false;
   }
 
@@ -281,17 +278,19 @@ export class SpinningSword extends PhysicsEntity {
     return !this.isBlinking();
   }
 
+  get fadeAlpha(): number | null {
+    if (this.action !== 'embedded' || this.timer < 1140) {
+      return null;
+    }
+    const remaining = Math.max(0, 1200 - this.timer);
+    const fadeFrames = 60;
+    return Math.max(0, Math.min(1, remaining / fadeFrames));
+  }
+
   render(
     scene: SwordRenderScene,
     offset: readonly [number, number] = [0, 0]
   ) {
-    if (this.isBlinking()) {
-      if (this.image) {
-        this.image.setVisible?.(false);
-      }
-      return;
-    }
-
     const texture =
       this.animation?.img() ??
       (this.action === 'embedded' ? 'sword/embedded/0' : 'sword/spinning/0');
@@ -307,6 +306,8 @@ export class SpinningSword extends PhysicsEntity {
       this.image.setOrigin(0, 0);
       this.image.setFlipX?.(this.flip);
       this.image.setDepth?.(targetDepth);
+      this.image.setVisible?.(true);
+      this.image.setAlpha?.(this.fadeAlpha ?? 1);
       this.imageTexture = texture;
     } else {
       if (this.imageTexture !== texture) {
@@ -317,6 +318,7 @@ export class SpinningSword extends PhysicsEntity {
       this.image.setFlipX?.(this.flip);
       this.image.setDepth?.(targetDepth);
       this.image.setVisible?.(true);
+      this.image.setAlpha?.(this.fadeAlpha ?? 1);
     }
   }
 
