@@ -457,7 +457,7 @@ export class Game extends Phaser.Scene {
     this.playerQuestionMarkSprite = this.add
       .image(0, 0, 'dialogue/question/0')
       .setOrigin(0, 0)
-      .setDepth(RENDER_DEPTH.ENTITIES - 1)
+      .setDepth(RENDER_DEPTH.ENTITIES)
       .setVisible(false);
     this.attackCooldownIndicators = Array.from(
       { length: ATTACK_COOLDOWN_INDICATOR_SQUARES },
