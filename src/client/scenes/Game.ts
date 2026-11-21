@@ -88,6 +88,9 @@ const ATTACK_COOLDOWN_INDICATOR_SQUARES = 4;
 const ATTACK_COOLDOWN_INDICATOR_SIZE = 2;
 const ATTACK_COOLDOWN_INDICATOR_GAP = 1;
 const ATTACK_COOLDOWN_READY_COLOR = 0xffd700;
+const ATTACK_COOLDOWN_INDICATOR_WIDTH =
+  ATTACK_COOLDOWN_INDICATOR_SQUARES * ATTACK_COOLDOWN_INDICATOR_SIZE +
+  (ATTACK_COOLDOWN_INDICATOR_SQUARES - 1) * ATTACK_COOLDOWN_INDICATOR_GAP;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -936,20 +939,6 @@ export class Game extends Phaser.Scene {
       this.playerEntity.swordState && !this.playerEntity.dead;
     if (showAttackCooldownIndicator) {
       const isReady = this.playerEntity.attackHandler.isReady;
-      const camera = this.cameras.main;
-      const indicatorSizePixels = Math.max(
-        2,
-        Math.round(ATTACK_COOLDOWN_INDICATOR_SIZE * renderZoom / 2) * 2
-      );
-      const indicatorGapPixels = Math.max(
-        1,
-        Math.round(ATTACK_COOLDOWN_INDICATOR_GAP * renderZoom)
-      );
-      const indicatorSize = indicatorSizePixels / renderZoom;
-      const indicatorPitchPixels = indicatorSizePixels + indicatorGapPixels;
-      const indicatorWidthPixels =
-        ATTACK_COOLDOWN_INDICATOR_SQUARES * indicatorSizePixels +
-        (ATTACK_COOLDOWN_INDICATOR_SQUARES - 1) * indicatorGapPixels;
       const rechargedSquares = isReady
         ? ATTACK_COOLDOWN_INDICATOR_SQUARES
         : Math.min(
@@ -974,27 +963,23 @@ export class Game extends Phaser.Scene {
         this.attackCooldownIndicatorRechargedSquares = rechargedSquares;
       }
 
-      const indicatorLeftPixel = Math.round(
-        (renderedPlayerX + 32 - camera.scrollX) * renderZoom +
-          camera.x -
-          indicatorWidthPixels / 2
-      );
-      const indicatorCenterYPixel = Math.round(
-        (renderedPlayerY - 2 - camera.scrollY) * renderZoom + camera.y
-      );
-      const indicatorLeft =
-        camera.scrollX + (indicatorLeftPixel - camera.x) / renderZoom;
-      const indicatorCenterY =
-        camera.scrollY +
-        (indicatorCenterYPixel - camera.y) / renderZoom;
+      const firstSquareCenterX =
+        renderedPlayerX +
+        32 -
+        ATTACK_COOLDOWN_INDICATOR_WIDTH / 2 +
+        ATTACK_COOLDOWN_INDICATOR_SIZE / 2;
       for (let index = 0; index < this.attackCooldownIndicators.length; index += 1) {
         this.attackCooldownIndicators[index]
-          ?.setSize(indicatorSize, indicatorSize)
+          ?.setSize(
+            ATTACK_COOLDOWN_INDICATOR_SIZE,
+            ATTACK_COOLDOWN_INDICATOR_SIZE
+          )
           .setPosition(
-            indicatorLeft +
-              (index * indicatorPitchPixels + indicatorSizePixels / 2) /
-                renderZoom,
-            indicatorCenterY
+            firstSquareCenterX +
+              index *
+                (ATTACK_COOLDOWN_INDICATOR_SIZE +
+                  ATTACK_COOLDOWN_INDICATOR_GAP),
+            renderedPlayerY - 2
           )
           .setVisible(true);
       }
