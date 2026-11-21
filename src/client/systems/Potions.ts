@@ -13,6 +13,7 @@ export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
 export const POTION_HEAL_AMOUNT = 1;
 export const POTION_LIFETIME_TICKS = 2400;
 export const POTION_BLINK_START_TICKS = 2100;
+export const POTION_FAST_BLINK_START_TICKS = POTION_LIFETIME_TICKS - 120;
 
 export interface PotionRenderImage {
   setOrigin(x: number, y: number): void;
@@ -36,6 +37,61 @@ export interface PotionPlayerTarget {
   maxHealth: number;
   rect(): EntityRect;
   playSfx?: ((name: string) => void) | undefined;
+}
+
+export class PotionEffect {
+  timer = 0;
+  private image: PotionRenderImage | null = null;
+  private imageTexture: string | null = null;
+  private readonly player: Pick<PotionPlayerTarget, 'rect'>;
+
+  constructor(player: Pick<PotionPlayerTarget, 'rect'>) {
+    this.player = player;
+  }
+
+  update(): boolean {
+    this.timer += 1;
+    return this.timer >= 24;
+  }
+
+  render(
+    scene: PotionRenderScene,
+    offset: readonly [number, number] = [0, 0],
+    playerInterpolationOffset: readonly [number, number] = [0, 0]
+  ) {
+    const frame = Math.min(3, Math.floor(this.timer / 6));
+    const texture = `potion/effect/${frame}`;
+    const playerRect = this.player.rect();
+    const renderX =
+      playerRect.x +
+      playerRect.width / 2 -
+      offset[0] +
+      playerInterpolationOffset[0];
+    const renderY =
+      playerRect.y +
+      playerRect.height / 2 -
+      offset[1] +
+      playerInterpolationOffset[1];
+    if (!this.image) {
+      this.image = scene.add.image(renderX, renderY, texture);
+      this.image.setOrigin(0.5, 0.5);
+      this.image.setDepth?.(RENDER_DEPTH.EFFECTS);
+      this.imageTexture = texture;
+    } else {
+      if (this.imageTexture !== texture) {
+        this.image.setTexture(texture);
+        this.imageTexture = texture;
+      }
+      this.image.setPosition(renderX, renderY);
+      this.image.setDepth?.(RENDER_DEPTH.EFFECTS);
+    }
+  }
+
+  destroy() {
+    this.image?.destroy();
+    this.image = null;
+    this.imageTexture = null;
+  }
 }
 
 export class Potion extends PhysicsEntity {
@@ -74,7 +130,7 @@ export class Potion extends PhysicsEntity {
     if (this.timer < POTION_BLINK_START_TICKS) {
       return false;
     }
-    const blinkRate = this.timer >= 280 ? 7 : 12;
+    const blinkRate = this.timer >= POTION_FAST_BLINK_START_TICKS ? 7 : 12;
     return Math.floor(this.timer / blinkRate) % 2 === 0;
   }
 
@@ -116,6 +172,7 @@ export class Potion extends PhysicsEntity {
 
 export class Potions {
   potions: Potion[] = [];
+  effects: PotionEffect[] = [];
   private validSpawnPos: readonly (readonly [number, number])[] | null = null;
   private readonly random: () => number;
   private readonly sparksEffect: Sparks[] | undefined;
@@ -245,6 +302,13 @@ export class Potions {
     for (const potion of this.potions) {
       potion.update(tilemap);
     }
+    this.effects = this.effects.filter((effect) => {
+      if (effect.update()) {
+        effect.destroy();
+        return false;
+      }
+      return true;
+    });
   }
 
   collect(player: PotionPlayerTarget): boolean {
@@ -269,6 +333,7 @@ export class Potions {
           player.maxHealth,
           player.health + POTION_HEAL_AMOUNT
         );
+        this.effects.push(new PotionEffect(player));
         potion.destroy();
         this.potions.splice(index, 1);
         return true;
@@ -277,9 +342,16 @@ export class Potions {
     return false;
   }
 
-  render(scene: PotionRenderScene, offset: readonly [number, number] = [0, 0]) {
+  render(
+    scene: PotionRenderScene,
+    offset: readonly [number, number] = [0, 0],
+    playerInterpolationOffset: readonly [number, number] = [0, 0]
+  ) {
     for (const potion of this.potions) {
       potion.render(scene, offset);
+    }
+    for (const effect of this.effects) {
+      effect.render(scene, offset, playerInterpolationOffset);
     }
   }
 
@@ -288,5 +360,9 @@ export class Potions {
       potion.destroy();
     }
     this.potions = [];
+    for (const effect of this.effects) {
+      effect.destroy();
+    }
+    this.effects = [];
   }
 }

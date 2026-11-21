@@ -998,7 +998,10 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
-    this.potions?.render(this);
+    this.potions?.render(this, [0, 0], [
+      renderedPlayerX - this.playerEntity.pos[0],
+      renderedPlayerY - this.playerEntity.pos[1],
+    ]);
     this.updateActionPromptHUD();
     for (let i = 0; i < this.enemies.length; i++) {
       const enemy = this.enemies[i];

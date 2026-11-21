@@ -4,10 +4,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   Potion,
+  PotionEffect,
   Potions,
   POTION_SPAWN_CHANCE,
   POTION_LIFETIME_TICKS,
   POTION_BLINK_START_TICKS,
+  POTION_FAST_BLINK_START_TICKS,
 } from './Potions.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
@@ -68,6 +70,62 @@ void describe('Potions', () => {
     assert.equal(potions.collect(player), true);
     assert.equal(player.health, 3);
     assert.equal(potions.potions.length, 0);
+    assert.equal(potions.effects.length, 1);
+  });
+
+  void it('destroys active pickup-effect sprites when the system is destroyed', () => {
+    let spriteDestroyed = false;
+    const playerRect = { x: 100, y: 200, width: 20, height: 28 };
+    const potions = new Potions();
+    potions.effects = [new PotionEffect({ rect: () => playerRect })];
+
+    potions.render({
+      add: {
+        image: () => ({
+          setOrigin() {},
+          setPosition() {},
+          setTexture() {},
+          setDepth() {},
+          destroy() {
+            spriteDestroyed = true;
+          },
+        }),
+      },
+    });
+    potions.destroy();
+
+    assert.equal(spriteDestroyed, true);
+    assert.equal(potions.effects.length, 0);
+  });
+
+  void it('keeps the pickup effect centered on the moving player', () => {
+    let renderedPosition: [number, number] = [0, 0];
+    const playerRect = { x: 100, y: 200, width: 20, height: 28 };
+    const effect = new PotionEffect({ rect: () => playerRect });
+    const scene = {
+      add: {
+        image(x: number, y: number) {
+          renderedPosition = [x, y];
+          return {
+            setOrigin() {},
+            setPosition(nextX: number, nextY: number) {
+              renderedPosition = [nextX, nextY];
+            },
+            setTexture() {},
+            setDepth() {},
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    effect.render(scene);
+    assert.deepEqual(renderedPosition, [110, 214]);
+
+    playerRect.x = 150;
+    playerRect.y = 250;
+    effect.render(scene, [0, 0], [1.5, -2.5]);
+    assert.deepEqual(renderedPosition, [161.5, 261.5]);
   });
 
   void it('does not collect a potion at full health', () => {
@@ -103,6 +161,9 @@ void describe('Potions', () => {
       potion.isBlinking(),
       Math.floor(POTION_BLINK_START_TICKS / 12) % 2 === 0
     );
+
+    potion.timer = POTION_FAST_BLINK_START_TICKS;
+    assert.equal(potion.isBlinking(), Math.floor(potion.timer / 7) % 2 === 0);
 
     potion.timer = POTION_LIFETIME_TICKS - 1;
     assert.equal(potion.isExpired, false);

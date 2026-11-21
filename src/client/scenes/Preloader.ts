@@ -236,6 +236,12 @@ export class Preloader extends Scene {
         `img/potion/${frame}.png`
       );
     }
+    for (let frame = 0; frame < 4; frame += 1) {
+      this.load.image(
+        `potion/effect/${frame}`,
+        `img/potion-effect/${frame}.png`
+      );
+    }
 
     const enemyAnimationFrameCounts: Record<string, Record<string, number>> = {
       pink_star: {
