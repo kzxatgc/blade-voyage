@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Press Start 2P";
+  src: url("/assets/fonts/PressStart2P.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 .action-prompt-hud {
   position: absolute;
   z-index: 20;
@@ -145,6 +153,55 @@
   text-shadow:
     0 1px 2px rgb(0 0 0 / 95%),
     0 0 5px rgb(0 0 0 / 80%);
+}
+
+.action-prompt-pixel-text {
+  display: flex;
+  align-items: center;
+  height: 14px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.action-prompt-pixel-text.is-gold {
+  color: #ffd700;
+}
+
+.action-prompt-pixel-text.is-white {
+  color: #fffaf0;
+}
+
+.action-prompt-pixel-text.is-two-row {
+  display: flex;
+  height: 32px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  line-height: 10px;
+  font-size: 8px;
+}
+
+.action-prompt-pixel-word-row {
+  display: block;
+  height: 10px;
+  line-height: 10px;
+}
+
+.action-prompt-pixel-word-row.is-centered {
+  width: 24px;
+  text-align: center;
+}
+
+
+.action-prompt-pixel-space {
+  display: block;
+  flex: 0 0 6px;
+  width: 6px;
 }
 
 .action-prompt-action {

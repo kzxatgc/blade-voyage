@@ -367,13 +367,15 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/level-select/level-nav-arrows.png`
   - `public/assets/img/ui/health/player-health.png`
 
-## 3. Project-authored level data
+## 3. Press Start 2P Font
 
+- **Author**: CodeMan38
+- **Source**: https://fonts.google.com/specimen/Press+Start+2P
+- **License**: SIL Open Font License 1.1
+- Used for `OR`, `ATTACK`, `THROW`, `PICKUP`, and other action-prompt text.
 - **Files**:
-  - `public/assets/maps/-1.json`
-  - `public/assets/maps/0.json`
-  - `public/assets/maps/1.json`
-- These maps were authored for this project and contain no third-party art assets.
+  - `public/assets/fonts/PressStart2P.ttf`
+  - `public/assets/fonts/PressStart2P-OFL.txt`
 
 ## 4. Kenney UI Audio
 

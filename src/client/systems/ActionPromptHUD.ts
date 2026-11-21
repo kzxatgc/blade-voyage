@@ -214,7 +214,7 @@ export class ActionPromptHUD {
         if (inputIndex > 0) {
           const or = this.host.ownerDocument.createElement('span');
           or.className = 'action-prompt-or';
-          or.textContent = 'OR';
+          or.append(this.createPixelText('OR', 'white'));
           inputGroup.append(or);
         }
         inputGroup.append(this.renderInput(input));
@@ -224,12 +224,12 @@ export class ActionPromptHUD {
       copy.className = 'action-prompt-copy';
       const action = this.host.ownerDocument.createElement('span');
       action.className = 'action-prompt-action';
-      action.textContent = row.actionText;
+      action.append(this.createPixelText(row.actionText, 'gold'));
       copy.append(action);
       if (row.itemName) {
         const item = this.host.ownerDocument.createElement('span');
         item.className = 'action-prompt-item';
-        item.textContent = row.itemName;
+        item.append(this.createPixelText(row.itemName, 'white'));
         copy.append(item);
       }
 
@@ -307,6 +307,38 @@ export class ActionPromptHUD {
     const element = this.host.ownerDocument.createElement('span');
     element.className = 'action-prompt-sprite';
     element.style.backgroundImage = `url("${PROMPT_SPRITE_URL}")`;
+    return element;
+  }
+
+  private createPixelText(
+    text: string,
+    tone: 'gold' | 'white'
+  ): HTMLSpanElement {
+    const element = this.host.ownerDocument.createElement('span');
+    element.className = `action-prompt-pixel-text is-${tone}`;
+    element.setAttribute('aria-label', text);
+
+    const normalizedText = text.toUpperCase();
+    const fragments =
+      normalizedText === 'ATTACK'
+        ? ['ATT', 'ACK']
+        : normalizedText === 'THROW'
+          ? ['THR', 'OW']
+          : normalizedText === 'PICKUP'
+            ? ['PIC', 'KUP']
+            : [];
+    if (fragments.length === 2) {
+      element.classList.add('is-two-row');
+      for (const fragment of fragments) {
+        const row = this.host.ownerDocument.createElement('span');
+        row.className = 'action-prompt-pixel-word-row';
+        row.classList.toggle('is-centered', fragment === 'OW');
+        row.textContent = fragment;
+        element.append(row);
+      }
+      return element;
+    }
+    element.textContent = normalizedText;
     return element;
   }
 
