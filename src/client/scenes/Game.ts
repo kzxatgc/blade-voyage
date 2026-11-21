@@ -28,7 +28,11 @@ import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
-import { Potions } from '../systems/Potions';
+import {
+  Potions,
+  POTION_HORIZONTAL_TILE_RANGE,
+  POTION_VERTICAL_TILE_RANGE,
+} from '../systems/Potions';
 import {
   createHeartSparkParticles,
   getDamageSparkCount,
@@ -1028,6 +1032,24 @@ export class Game extends Phaser.Scene {
           const spawnBoxW = hRangeLeft + hRangeRight + 32;
           const spawnBoxH = vTop + vBottom + 32;
           this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
+        }
+
+        if (DEBUG_CONFIG.showPotionSpawnRange) {
+          const pX = this.playerEntity.pos[0];
+          const pY = this.playerEntity.pos[1];
+          const hRange = POTION_HORIZONTAL_TILE_RANGE * 32;
+          const vRange = POTION_VERTICAL_TILE_RANGE * 32;
+          const spawnBoxX = pX + 32 - hRange;
+          const spawnBoxY = pY - vRange;
+          const spawnBoxW = hRange * 2 + 32;
+          const spawnBoxH = vRange * 2 + 32;
+          this.sparksGraphics.lineStyle(2, 0x00ffff, 0.85);
+          this.sparksGraphics.strokeRect(
+            spawnBoxX,
+            spawnBoxY,
+            spawnBoxW,
+            spawnBoxH
+          );
         }
 
         if (

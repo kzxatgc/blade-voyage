@@ -305,6 +305,14 @@ export class Preloader extends Scene {
 
   create() {
     this.stopLoadingRunnerAnimation();
+    if (
+      DEBUG_CONFIG.enabled &&
+      (!DEBUG_CONFIG.startAtLevelPicker ||
+        DEBUG_CONFIG.startDirectlyAtMap0)
+    ) {
+      this.scene.start('Game', { levelNumber: 1, openIris: true });
+      return;
+    }
     this.scene.start(
       DEBUG_CONFIG.enabled && DEBUG_CONFIG.startAtLevelPicker
         ? 'LevelSelectScene'

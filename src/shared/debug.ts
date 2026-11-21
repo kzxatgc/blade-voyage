@@ -7,6 +7,8 @@ export interface DebugConfig {
   enabled: boolean;
   /** Start at the level picker instead of the title scene */
   startAtLevelPicker: boolean;
+  /** Skip the title and level picker and start the 0.json map directly */
+  startDirectlyAtMap0: boolean;
   /** Show virtual touch controls on non-touch devices when debug mode is enabled */
   showTouchControlsOnDesktop: boolean;
   /** Player health is infinite (cannot die) */
@@ -17,6 +19,8 @@ export interface DebugConfig {
   showPlayerAttackRange: boolean;
   /** Show sword spawn boundary box (lime green) around player */
   showSwordSpawnRange: boolean;
+  /** Show potion spawn boundary box (cyan) around player */
+  showPotionSpawnRange: boolean;
   /** Show enemy vision detection range (red outer box) */
   showEnemyDetectionRange: boolean;
   /** Show enemy melee attack range (red inner box) */
@@ -28,11 +32,13 @@ export interface DebugConfig {
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
   playerInfiniteHealth: false,
-  startAtLevelPicker: true,
+  startAtLevelPicker: false,
+  startDirectlyAtMap0: true,
   showTouchControlsOnDesktop: false,
   showEntityBodyRects: false,
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,
+  showPotionSpawnRange: true,
   showEnemyDetectionRange: false,
   showEnemyAttackRange: false,
   showCameraBounds: false,
