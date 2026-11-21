@@ -22,6 +22,9 @@ export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
   sfxFlags?: Record<string, boolean> | undefined;
 };
 
+const QUESTION_MARK_HEAD_OVERLAP = 4;
+const QUESTION_MARK_FACING_RIGHT_OFFSET = 3;
+
 export class Player extends PhysicsEntity {
   jumps = 2;
   airTime = 0;
@@ -30,6 +33,8 @@ export class Player extends PhysicsEntity {
   throwingFrameTriggered = false;
   preRunBoost = 0;
   throwingAnimation: Animation | null = null;
+  questionMarkAnimation: Animation | null = null;
+  private questionMarkPendingUntilLanding = false;
   swordsSystem: PlayerSwordsSystem | undefined;
   sparksEffect: Sparks[] | undefined;
   lastKey: string | null = null;
@@ -127,6 +132,38 @@ export class Player extends PhysicsEntity {
       return this.attackHandler.triggerAttack(this.airTime);
     }
     return false;
+  }
+
+  showQuestionMark(): void {
+    this.questionMarkPendingUntilLanding = false;
+    this.questionMarkAnimation = new Animation(
+      'dialogue/question',
+      5,
+      8,
+      false
+    );
+  }
+
+  showQuestionMarkWhenGrounded(): void {
+    if (this.dead) {
+      return;
+    }
+
+    if (this.collision.bottom) {
+      this.showQuestionMark();
+    } else {
+      this.questionMarkPendingUntilLanding = true;
+    }
+  }
+
+  questionMarkPosition(renderedPosition: EntityPosition): [number, number] {
+    return [
+      renderedPosition[0] +
+        this.rectPosAdjustment[0] +
+        this.size[0] +
+        QUESTION_MARK_FACING_RIGHT_OFFSET,
+      renderedPosition[1] - QUESTION_MARK_HEAD_OVERLAP,
+    ];
   }
 
   getAttackRangeRect(): EntityRect | null {
@@ -285,6 +322,18 @@ export class Player extends PhysicsEntity {
           : movement;
 
     super.update(tilemap, effectiveMovement);
+
+    if (
+      !this.dead &&
+      this.questionMarkPendingUntilLanding &&
+      this.collision.bottom
+    ) {
+      this.showQuestionMark();
+    }
+    this.questionMarkAnimation?.update();
+    if (this.questionMarkAnimation?.done) {
+      this.questionMarkAnimation = null;
+    }
 
     if (this.dead) {
       this.throwingAnimation = null;

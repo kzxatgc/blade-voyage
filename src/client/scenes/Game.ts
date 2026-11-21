@@ -82,6 +82,7 @@ export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerEntity?: Player;
   private playerSprite?: Phaser.GameObjects.Image;
+  private playerQuestionMarkSprite?: Phaser.GameObjects.Image;
   private healthIndicator: Phaser.GameObjects.Image | undefined;
   private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
   private healthIndicatorFrame = -1;
@@ -126,6 +127,7 @@ export class Game extends Phaser.Scene {
   private selectedLevelNumber = 1;
   private levelTransitionScheduled = false;
   private levelTransitionTimer: Phaser.Time.TimerEvent | undefined;
+  private swordKickQuestionMarkTimer: Phaser.Time.TimerEvent | undefined;
   private deathTransitionScheduled = false;
   private openIrisOnStart = false;
   private irisTransition?: IrisTransition;
@@ -167,6 +169,8 @@ export class Game extends Phaser.Scene {
     this.levelTransitionScheduled = false;
     this.levelTransitionTimer?.remove(false);
     this.levelTransitionTimer = undefined;
+    this.swordKickQuestionMarkTimer?.remove(false);
+    this.swordKickQuestionMarkTimer = undefined;
     this.deathTransitionScheduled = false;
     this.healthIndicator = undefined;
     this.healthIndicatorRoot = undefined;
@@ -441,6 +445,11 @@ export class Game extends Phaser.Scene {
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
     this.playerSprite.setDepth(RENDER_DEPTH.ENTITIES);
+    this.playerQuestionMarkSprite = this.add
+      .image(0, 0, 'dialogue/question/0')
+      .setOrigin(0, 0)
+      .setDepth(RENDER_DEPTH.ENTITIES - 1)
+      .setVisible(false);
     this.healthIndicator = this.add
       .image(0, 0, HEALTH_SPRITE_KEY, 0)
       .setOrigin(0.5, 0.5);
@@ -673,6 +682,15 @@ export class Game extends Phaser.Scene {
         );
       } else if (result.type === 'deflection') {
         this.soundSystem?.play('sword/kicked');
+        if (
+          result.enemy.enemyType === 'pink_star' &&
+          !this.swordKickQuestionMarkTimer
+        ) {
+          this.swordKickQuestionMarkTimer = this.time.delayedCall(1000, () => {
+            this.swordKickQuestionMarkTimer = undefined;
+            this.playerEntity?.showQuestionMarkWhenGrounded();
+          });
+        }
         this.sparksEffect.push(
           new Sparks(
             [
@@ -865,6 +883,22 @@ export class Game extends Phaser.Scene {
     this.renderWaterBackground();
     this.renderClouds();
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
+    const questionAnimation = this.playerEntity.questionMarkAnimation;
+    if (questionAnimation && this.playerQuestionMarkSprite) {
+      const questionTexture = questionAnimation.img();
+      const questionPosition = this.playerEntity.questionMarkPosition([
+        renderedPlayerX,
+        renderedPlayerY,
+      ]);
+      if (this.playerQuestionMarkSprite.texture.key !== questionTexture) {
+        this.playerQuestionMarkSprite.setTexture(questionTexture);
+      }
+      this.playerQuestionMarkSprite
+        .setPosition(questionPosition[0], questionPosition[1])
+        .setVisible(true);
+    } else {
+      this.playerQuestionMarkSprite?.setVisible(false);
+    }
 
     // Visual state: the dead_hit sprite frames ARE the white art (same as enemies),
     // so just let the animation play — no tint needed.

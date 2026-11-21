@@ -38,6 +38,103 @@ void describe('Player', () => {
     assert.equal(player.animation?.img(), 'player/idle/0');
   });
 
+  void it('plays and clears the question-mark reaction animation', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    player.showQuestionMark();
+    assert.equal(player.questionMarkAnimation?.img(), 'dialogue/question/0');
+
+    for (let frame = 0; frame < 40; frame += 1) {
+      player.update(tilemap, [0, 0]);
+    }
+
+    assert.equal(player.questionMarkAnimation, null);
+  });
+
+  void it('shows the sword-kick reaction when its delay ends while grounded', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 224]);
+    player.collision.bottom = true;
+
+    player.showQuestionMarkWhenGrounded();
+
+    assert.equal(
+      player.questionMarkAnimation?.img(),
+      'dialogue/question/0'
+    );
+  });
+
+  void it('waits for the player to land when the sword-kick delay ends midair', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 224]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 4, loc: [3, 8] },
+        '4;8': { type: 'grass', variant: 4, loc: [4, 8] },
+      },
+      off_grid_tiles: [],
+    });
+
+    player.update(tilemap, [0, 0]);
+    player.update(tilemap, [0, 0]);
+    player.jump();
+    player.update(tilemap, [0, 0]);
+    player.showQuestionMarkWhenGrounded();
+
+    assert.equal(player.questionMarkAnimation, null);
+
+    player.velocity[1] = 8;
+    for (let frame = 0; frame < 4; frame += 1) {
+      player.update(tilemap, [0, 0]);
+      if (player.questionMarkAnimation) {
+        break;
+      }
+    }
+
+    assert.equal(
+      player.questionMarkAnimation?.img(),
+      'dialogue/question/0'
+    );
+  });
+
+  void it('keeps the question marker on the right through turns, movement, and jumps', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    const standingPosition = player.questionMarkPosition(player.pos);
+    assert.deepEqual(standingPosition, [145, 196]);
+    player.flip = true;
+    assert.deepEqual(player.questionMarkPosition(player.pos), [145, 196]);
+    player.flip = false;
+
+    player.update(tilemap, [2, 0]);
+    const movingPosition = player.questionMarkPosition(player.pos);
+    const standingX = standingPosition[0];
+    const movingX = movingPosition[0];
+    assert.ok(standingX !== undefined && movingX !== undefined);
+    assert.equal(movingX, standingX + 2);
+
+    player.jump();
+    player.update(tilemap, [0, 0]);
+    const jumpingPosition = player.questionMarkPosition(player.pos);
+    const jumpingX = jumpingPosition[0];
+    assert.ok(jumpingX !== undefined);
+    assert.equal(jumpingX, movingX);
+    const movingY = movingPosition[1];
+    const jumpingY = jumpingPosition[1];
+    assert.ok(movingY !== undefined && jumpingY !== undefined);
+    assert.ok(jumpingY < movingY);
+  });
+
   void it('applies horizontal movement to the player position', async () => {
     const Player = await getPlayer();
     const Tilemap = await getTilemap();

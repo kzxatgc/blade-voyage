@@ -4,12 +4,12 @@ This document records credits for assets used in this project.
 
 ## 1. Treasure Hunters Sprite Pack
 
-- **Asset Type**: Backgrounds, clouds, grass tiles, icons, UI, and mobile controls
+- **Asset Type**: Backgrounds, clouds, grass tiles, dialogue effects, UI, and mobile controls
 - **Asset Name**: Treasure Hunters
 - **Author / Creator**: Pixel Frog
 - **Source Link**: https://pixelfrog-assets.itch.io/treasure-hunters
 - **License**: CC0 1.0 Universal (Public Domain) / Free for Personal & Commercial Use
-- The inline splash prompt displays `OPEN` using the shared Big Text bitmap font in `public/assets/img/font/`, also used by the settings UI. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
+- The inline splash prompt displays `OPEN` using the shared Big Text bitmap font (`font.png` and `font.fnt`), also used by the settings UI. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - **Files**:
@@ -56,19 +56,12 @@ This document records credits for assets used in this project.
   - `public/assets/img/map/grass/13.png`
   - `public/assets/img/map/grass/14.png`
   - `public/assets/img/map/grass/15.png`
-  - `public/assets/img/icon.png`
   - `public/assets/img/ui/touch/left.png`
   - `public/assets/img/ui/touch/right.png`
   - `public/assets/img/ui/touch/down.png`
   - `public/assets/img/ui/touch/jump.png`
   - `public/assets/img/ui/touch/attack.png`
   - `public/assets/img/ui/touch/throw.png`
-  - `public/assets/img/ui/title/player-avatar.png`
-  - `public/assets/img/ui/title/next-button.png`
-  - `public/assets/img/ui/title/next-button-pressed.png`
-  - `public/assets/img/ui/settings/sound-on.png`
-  - `public/assets/img/ui/settings/sound-off.png`
-  - `public/assets/img/ui/settings/button.png`
   - `public/assets/img/ui/settings/panel.png`
   - `public/assets/img/font/font.png`
   - `public/assets/img/font/font.fnt`
@@ -205,6 +198,11 @@ This document records credits for assets used in this project.
   - `public/assets/img/dialogue/dead/2.png`
   - `public/assets/img/dialogue/dead/3.png`
   - `public/assets/img/dialogue/dead/4.png`
+  - `public/assets/img/dialogue/question/0.png`
+  - `public/assets/img/dialogue/question/1.png`
+  - `public/assets/img/dialogue/question/2.png`
+  - `public/assets/img/dialogue/question/3.png`
+  - `public/assets/img/dialogue/question/4.png`
   - `public/assets/img/entities/enemy/pink_star/anticipation/0.png`
   - `public/assets/img/entities/enemy/pink_star/anticipation/1.png`
   - `public/assets/img/entities/enemy/pink_star/anticipation/2.png`
@@ -351,7 +349,7 @@ This document records credits for assets used in this project.
 - **Creator / License**: Created with PixelLab by the project owner. PixelLab's [Terms of Service](https://www.pixellab.ai/termsofservice) state that users own copyrights to their creations and may use them commercially or non-commercially without permission. The terms also require compliance with OpenRAIL-M, prohibit using creations to train other models without PixelLab's permission, and make users responsible for third-party rights. This is PixelLab's output-use grant, not a CC0 declaration.
 - The in-game sword interaction HUD uses this sheet for its keyboard and mouse prompts.
 - **Files**:
-  - `full_asset/Pixellab/1795183831946.png`
+  - `public/assets/img/ui/action-prompt-keycaps.png`
   - `public/assets/img/ui/settings/gear.png`
   - `public/assets/img/ui/settings/gear-open.png`
   - `public/assets/img/ui/settings/home.png`
@@ -369,7 +367,15 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/level-select/level-nav-arrows.png`
   - `public/assets/img/ui/health/player-health.png`
 
-## 3. Kenney UI Audio
+## 3. Project-authored level data
+
+- **Files**:
+  - `public/assets/maps/-1.json`
+  - `public/assets/maps/0.json`
+  - `public/assets/maps/1.json`
+- These maps were authored for this project and contain no third-party art assets.
+
+## 4. Kenney UI Audio
 
 - **Author**: Kenney (Kenney Vleugels)
 - **Source**: [Kenney UI Audio](https://github.com/Calinou/kenney-ui-audio)
@@ -378,7 +384,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 4. Player Jump (`player/jump`)
+## 5. Player Jump (`player/jump`)
 
 - **SFX Key**: `'player/jump'`
 - **Files**:
@@ -391,7 +397,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 5. Player Run on Grass (`player/run/grass`)
+## 6. Player Run on Grass (`player/run/grass`)
 
 - **SFX Key**: `'player/run/grass'`
 - **Files**:
@@ -406,7 +412,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 6. Player Land on Grass (`player/land/grass`)
+## 7. Player Land on Grass (`player/land/grass`)
 
 - **SFX Key**: `'player/land/grass'`
 - **Files**:
@@ -419,7 +425,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 7. Player Land on Palm Tree (`player/land/palm_tree`)
+## 8. Player Land on Palm Tree (`player/land/palm_tree`)
 
 - **SFX Key**: `'player/land/palm_tree'`
 - **Files**:
@@ -432,7 +438,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 8. Player Run on Palm Tree (`player/run/palm_tree`)
+## 9. Player Run on Palm Tree (`player/run/palm_tree`)
 
 - **SFX Key**: `'player/run/palm_tree'`
 - **Files**:
@@ -445,7 +451,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 9. Player Pickup Sword (`player/pickup_sword`)
+## 10. Player Pickup Sword (`player/pickup_sword`)
 
 - **SFX Key**: `'player/pickup_sword'`
 - **Files**:
@@ -457,7 +463,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 10. Player Sword Attack (`player/sword/attack`)
+## 11. Player Sword Attack (`player/sword/attack`)
 
 - **SFX Key**: `'player/sword/attack'`
 - **Files**:
@@ -481,7 +487,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 11. Player Sword Air Attack (`player/sword/air_attack`)
+## 12. Player Sword Air Attack (`player/sword/air_attack`)
 
 - **SFX Key**: `'player/sword/air_attack'`
 - **Files**:
@@ -495,7 +501,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 12. Player Throw Sword (`player/throw_sword`)
+## 13. Player Throw Sword (`player/throw_sword`)
 
 - **SFX Key**: `'player/throw_sword'`
 - **Files**:
@@ -507,7 +513,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 13. Player Hit (`player/hit`)
+## 14. Player Hit (`player/hit`)
 
 - **SFX Key**: `'player/hit'`
 - **Files**:
@@ -519,7 +525,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 14. Player Last Hit / Death Blow (`player/dead_hit`)
+## 15. Player Last Hit / Death Blow (`player/dead_hit`)
 
 - **SFX Key**: `'player/dead_hit'`
 - **Files**:
@@ -531,7 +537,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 15. Sword Strike Stone (`sword/strike/stone`)
+## 16. Sword Strike Stone (`sword/strike/stone`)
 
 - **SFX Key**: `'sword/strike/stone'`
 - **Files**:
@@ -543,7 +549,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 16. Sword Spinning (`sword/spinning`)
+## 17. Sword Spinning (`sword/spinning`)
 
 - **SFX Key**: `'sword/spinning'`
 - **Files**:
@@ -557,7 +563,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 17. Sword Kicked (`sword/kicked`)
+## 18. Sword Kicked (`sword/kicked`)
 
 - **SFX Key**: `'sword/kicked'`
 - **Files**:
@@ -569,7 +575,7 @@ This document records credits for assets used in this project.
 
 ---
 
-## 18. Dialogue Exclamation (`dialogue/exclamation`)
+## 19. Dialogue Exclamation (`dialogue/exclamation`)
 
 - **SFX Key**: `'dialogue/exclamation'`
 - **Files**:

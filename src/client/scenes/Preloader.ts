@@ -153,8 +153,6 @@ export class Preloader extends Scene {
       );
     }
 
-    this.load.image('icon', 'img/icon.png');
-
     for (let variant = 0; variant < 16; variant++) {
       const fileName = `${String(variant).padStart(2, '0')}.png`;
       this.load.image(`grass/${variant}`, `img/map/grass/${fileName}`);
@@ -220,6 +218,7 @@ export class Preloader extends Scene {
       'particle/land_dust': ['0.png', '1.png', '2.png', '3.png', '4.png'],
       'dialogue/exclamation': ['0.png', '1.png', '2.png', '3.png', '4.png'],
       'dialogue/dead': ['0.png', '1.png', '2.png', '3.png', '4.png'],
+      'dialogue/question': ['0.png', '1.png', '2.png', '3.png', '4.png'],
     };
 
     for (const [animation, files] of Object.entries(spriteAnimationFiles)) {

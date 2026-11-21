@@ -33,10 +33,7 @@ type ScreenPoint = { x: number; y: number };
 type WorldToScreen = (point: NonNullable<ActionPromptOptions['worldPosition']>) => ScreenPoint;
 
 const MOUSE_BUTTON_CODE = { left: 0, middle: 1, right: 2 } as const;
-const PROMPT_SPRITE_URL = new URL(
-  '../../../full_asset/Pixellab/1795183831946.png',
-  import.meta.url
-).href;
+const PROMPT_SPRITE_URL = '/assets/img/ui/action-prompt-keycaps.png';
 const KEY_SPRITE_CELLS: Readonly<Record<string, { column: number; row: number }>> = {
   A: { column: 0, row: 0 },
   B: { column: 1, row: 0 },
