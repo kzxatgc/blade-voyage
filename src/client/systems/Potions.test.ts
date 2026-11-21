@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Potion, Potions, POTION_SPAWN_CHANCE } from './Potions.ts';
 import { Tilemap } from './Tilemap.ts';
+import type { Sparks } from './Sparks.ts';
 
 void describe('Potions', () => {
   void it('uses 0.1 percent spawn chance and only allows one potion', () => {
@@ -20,6 +21,31 @@ void describe('Potions', () => {
     assert.equal(manager.spawnPotion(tilemap, [100, 224]) !== null, true);
     assert.equal(manager.potions.length, 1);
     assert.equal(manager.spawnPotion(tilemap, [100, 224]), null);
+  });
+
+  void it('uses the sword-style celestial burst in pink and white when spawning', () => {
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    const sparksEffect: Sparks[] = [];
+    const manager = new Potions(() => 0.0001, sparksEffect);
+
+    assert.ok(manager.spawnPotion(tilemap, [100, 224]) !== null);
+    assert.equal(sparksEffect.length, 2);
+    assert.equal(sparksEffect[0]?.shape, 'diamond');
+    assert.equal(sparksEffect[0]?.sparks.length, 22);
+    assert.equal(sparksEffect[0]?.speed, 2.8);
+    assert.deepEqual(sparksEffect[0]?.size, [3, 3]);
+    assert.deepEqual(sparksEffect[0]?.color, [255, 210, 215]);
+    assert.equal(sparksEffect[0]?.direction, 'burst');
+    assert.equal(sparksEffect[1]?.sparks.length, 13);
+    assert.equal(sparksEffect[1]?.speed, 1.8);
+    assert.deepEqual(sparksEffect[1]?.size, [2, 2]);
+    assert.deepEqual(sparksEffect[1]?.color, [255, 255, 255]);
   });
 
   void it('heals one health point and removes the potion on pickup', () => {

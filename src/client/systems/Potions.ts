@@ -3,10 +3,13 @@ import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.
 import { RENDER_DEPTH } from '../../shared/constants.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
+import { Sparks } from './Sparks.ts';
 
-export const POTION_SPAWN_CHANCE = 1;
-export const POTION_HORIZONTAL_TILE_RANGE = 3;
-export const POTION_VERTICAL_TILE_RANGE = 2;
+export const POTION_SPAWN_CHANCE = 0.1;
+export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
+export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
+export const POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
+export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
 export const POTION_HEAL_AMOUNT = 1;
 
 export interface PotionRenderImage {
@@ -89,9 +92,14 @@ export class Potions {
   potions: Potion[] = [];
   private validSpawnPos: readonly (readonly [number, number])[] | null = null;
   private readonly random: () => number;
+  private readonly sparksEffect: Sparks[] | undefined;
 
-  constructor(random: () => number = Math.random) {
+  constructor(
+    random: () => number = Math.random,
+    sparksEffect?: Sparks[]
+  ) {
     this.random = random;
+    this.sparksEffect = sparksEffect;
   }
 
   getValidSpawnPositions(
@@ -128,16 +136,22 @@ export class Potions {
       const playerX = playerPos[0];
       const playerY = playerPos[1];
       const tileSize = tilemap.tileSize;
-      const horizontalRange = POTION_HORIZONTAL_TILE_RANGE * tileSize;
-      const verticalRange = POTION_VERTICAL_TILE_RANGE * tileSize;
+      const horizontalRangeLeft =
+        POTION_HORIZONTAL_TILE_RANGE_LEFT * tileSize;
+      const horizontalRangeRight =
+        POTION_HORIZONTAL_TILE_RANGE_RIGHT * tileSize;
+      const verticalRangeTop =
+        POTION_VERTICAL_TILE_RANGE_TOP * tileSize;
+      const verticalRangeBottom =
+        POTION_VERTICAL_TILE_RANGE_BOTTOM * tileSize;
       availablePositions = availablePositions.filter((pos) => {
         const horizontalDistance = pos[0] - (playerX + 32);
         const verticalDistance = pos[1] - playerY;
         return (
-          horizontalDistance >= -horizontalRange &&
-          horizontalDistance <= horizontalRange &&
-          verticalDistance >= -verticalRange &&
-          verticalDistance <= verticalRange
+          horizontalDistance >= -horizontalRangeLeft &&
+          horizontalDistance <= horizontalRangeRight &&
+          verticalDistance >= -verticalRangeTop &&
+          verticalDistance <= verticalRangeBottom
         );
       });
     }
@@ -157,6 +171,36 @@ export class Potions {
       selected[1] - 21,
     ]);
     this.potions.push(potion);
+    const center: [number, number] = [
+      potion.pos[0] + 6,
+      potion.pos[1] + 7,
+    ];
+    this.sparksEffect?.push(
+      new Sparks(
+        center,
+        false,
+        2.8,
+        22,
+        [255, 210, 215],
+        'burst',
+        'diamond',
+        [3, 3],
+        this.random
+      )
+    );
+    this.sparksEffect?.push(
+      new Sparks(
+        center,
+        false,
+        1.8,
+        13,
+        [255, 255, 255],
+        'burst',
+        'diamond',
+        [2, 2],
+        this.random
+      )
+    );
     return potion;
   }
 

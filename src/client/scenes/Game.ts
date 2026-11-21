@@ -30,8 +30,10 @@ import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
 import {
   Potions,
-  POTION_HORIZONTAL_TILE_RANGE,
-  POTION_VERTICAL_TILE_RANGE,
+  POTION_HORIZONTAL_TILE_RANGE_LEFT,
+  POTION_HORIZONTAL_TILE_RANGE_RIGHT,
+  POTION_VERTICAL_TILE_RANGE_TOP,
+  POTION_VERTICAL_TILE_RANGE_BOTTOM,
 } from '../systems/Potions';
 import {
   createHeartSparkParticles,
@@ -339,7 +341,7 @@ export class Game extends Phaser.Scene {
     this.particles = new Particles();
     this.sparksEffect = [];
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
-    this.potions = new Potions(Math.random);
+    this.potions = new Potions(Math.random, this.sparksEffect);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
     this.touchControls = new TouchControls(this, {
@@ -1037,12 +1039,14 @@ export class Game extends Phaser.Scene {
         if (DEBUG_CONFIG.showPotionSpawnRange) {
           const pX = this.playerEntity.pos[0];
           const pY = this.playerEntity.pos[1];
-          const hRange = POTION_HORIZONTAL_TILE_RANGE * 32;
-          const vRange = POTION_VERTICAL_TILE_RANGE * 32;
-          const spawnBoxX = pX + 32 - hRange;
-          const spawnBoxY = pY - vRange;
-          const spawnBoxW = hRange * 2 + 32;
-          const spawnBoxH = vRange * 2 + 32;
+          const hRangeLeft = POTION_HORIZONTAL_TILE_RANGE_LEFT * 32;
+          const hRangeRight = POTION_HORIZONTAL_TILE_RANGE_RIGHT * 32;
+          const vTop = POTION_VERTICAL_TILE_RANGE_TOP * 32;
+          const vBottom = POTION_VERTICAL_TILE_RANGE_BOTTOM * 32;
+          const spawnBoxX = pX + 32 - hRangeLeft;
+          const spawnBoxY = pY - vTop;
+          const spawnBoxW = hRangeLeft + hRangeRight + 32;
+          const spawnBoxH = vTop + vBottom + 32;
           this.sparksGraphics.lineStyle(2, 0x00ffff, 0.85);
           this.sparksGraphics.strokeRect(
             spawnBoxX,
