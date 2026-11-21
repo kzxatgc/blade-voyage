@@ -12,6 +12,7 @@ This document records credits for assets used in this project.
 - The inline splash prompt displays `OPEN` using the shared Big Text bitmap font (`font.png` and `font.fnt`), also used by the settings UI. Its interactive chest uses the Merchant Ship Chest Idle and Unlocked frames.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
+- The red potion drop uses seven `Red Potion (7 items)` animation frames.
 - **Files**:
   - `public/assets/img/background/background.png`
   - `public/assets/img/background/water/base.png`
@@ -62,6 +63,13 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/touch/jump.png`
   - `public/assets/img/ui/touch/attack.png`
   - `public/assets/img/ui/touch/throw.png`
+  - `public/assets/img/potion/0.png`
+  - `public/assets/img/potion/1.png`
+  - `public/assets/img/potion/2.png`
+  - `public/assets/img/potion/3.png`
+  - `public/assets/img/potion/4.png`
+  - `public/assets/img/potion/5.png`
+  - `public/assets/img/potion/6.png`
   - `public/assets/img/ui/settings/panel.png`
   - `public/assets/img/font/font.png`
   - `public/assets/img/font/font.fnt`

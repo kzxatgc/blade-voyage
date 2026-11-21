@@ -7,6 +7,7 @@ export type TouchControlsMode = 'on' | 'off';
 export type EntityType =
   | 'player'
   | 'sword'
+  | 'potion'
   | 'enemy/pink_star'
   | 'enemy/crabby'
   | 'enemy/fierce_tooth';

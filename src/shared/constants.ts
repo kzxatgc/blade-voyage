@@ -27,6 +27,7 @@ export const RECT_POS_ADJUSTMENT: Readonly<
 > = {
   player: [22, 4],
   sword: [0, 0],
+  potion: [0, 0],
   'enemy/pink_star': [4, 6],
   'enemy/crabby': [20, 3],
   'enemy/fierce_tooth': [5, 8],

@@ -230,6 +230,13 @@ export class Preloader extends Scene {
       });
     }
 
+    for (let frame = 0; frame < 7; frame += 1) {
+      this.load.image(
+        `potion/idle/${frame}`,
+        `img/potion/${frame}.png`
+      );
+    }
+
     const enemyAnimationFrameCounts: Record<string, Record<string, number>> = {
       pink_star: {
         anticipation: 3,

@@ -28,6 +28,7 @@ import { Player } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
+import { Potions } from '../systems/Potions';
 import {
   createHeartSparkParticles,
   getDamageSparkCount,
@@ -106,6 +107,7 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
   private swords?: Swords;
+  private potions?: Potions;
   private enemies: Enemy[] = [];
   private sparksEffect: Sparks[] = [];
   private sparksGraphics?: Phaser.GameObjects.Graphics;
@@ -180,6 +182,7 @@ export class Game extends Phaser.Scene {
     this.levelTransitionTimer = undefined;
     this.swordKickQuestionMarkTimer?.remove(false);
     this.swordKickQuestionMarkTimer = undefined;
+    this.potions?.destroy();
     this.deathTransitionScheduled = false;
     this.healthIndicator = undefined;
     this.healthIndicatorRoot = undefined;
@@ -332,6 +335,7 @@ export class Game extends Phaser.Scene {
     this.particles = new Particles();
     this.sparksEffect = [];
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
+    this.potions = new Potions(Math.random);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
     this.touchControls = new TouchControls(this, {
@@ -591,6 +595,8 @@ export class Game extends Phaser.Scene {
     this.displayWidth = WINDOW_WIDTH / this.currentZoom;
     this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
     this.particles?.update();
+    this.potions?.update(this.tilemap, this.playerEntity.pos);
+    this.potions?.collect(this.playerEntity);
     const swordHits =
       this.swords?.update(
         this.tilemap,
@@ -986,6 +992,7 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
+    this.potions?.render(this);
     this.updateActionPromptHUD();
     for (let i = 0; i < this.enemies.length; i++) {
       const enemy = this.enemies[i];

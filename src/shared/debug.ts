@@ -27,7 +27,7 @@ export interface DebugConfig {
 
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
-  playerInfiniteHealth: true,
+  playerInfiniteHealth: false,
   startAtLevelPicker: true,
   showTouchControlsOnDesktop: false,
   showEntityBodyRects: false,
