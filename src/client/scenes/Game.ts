@@ -77,12 +77,21 @@ const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const PLAYER_HIT_SHAKE_DURATION_MS = 100;
 const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
+const ATTACK_COOLDOWN_INDICATOR_SQUARES = 5;
+const ATTACK_COOLDOWN_INDICATOR_SIZE = 1.5;
+const ATTACK_COOLDOWN_INDICATOR_GAP = 1.5;
+const ATTACK_COOLDOWN_READY_COLOR = 0xffd700;
+const ATTACK_COOLDOWN_INDICATOR_WIDTH =
+  ATTACK_COOLDOWN_INDICATOR_SQUARES * ATTACK_COOLDOWN_INDICATOR_SIZE +
+  (ATTACK_COOLDOWN_INDICATOR_SQUARES - 1) * ATTACK_COOLDOWN_INDICATOR_GAP;
 
 export class Game extends Phaser.Scene {
   private leftKeys: Phaser.Input.Keyboard.Key[] = [];
   private playerEntity?: Player;
   private playerSprite?: Phaser.GameObjects.Image;
   private playerQuestionMarkSprite?: Phaser.GameObjects.Image;
+  private attackCooldownIndicators: Phaser.GameObjects.Rectangle[] = [];
+  private attackCooldownIndicatorRechargedSquares: number | undefined;
   private healthIndicator: Phaser.GameObjects.Image | undefined;
   private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
   private healthIndicatorFrame = -1;
@@ -450,6 +459,21 @@ export class Game extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(RENDER_DEPTH.ENTITIES - 1)
       .setVisible(false);
+    this.attackCooldownIndicators = Array.from(
+      { length: ATTACK_COOLDOWN_INDICATOR_SQUARES },
+      () =>
+        this.add
+          .rectangle(
+            0,
+            0,
+            ATTACK_COOLDOWN_INDICATOR_SIZE,
+            ATTACK_COOLDOWN_INDICATOR_SIZE,
+            0x000000
+          )
+          .setDepth(RENDER_DEPTH.EFFECTS)
+          .setVisible(false)
+    );
+    this.attackCooldownIndicatorRechargedSquares = undefined;
     this.healthIndicator = this.add
       .image(0, 0, HEALTH_SPRITE_KEY, 0)
       .setOrigin(0.5, 0.5);
@@ -898,6 +922,56 @@ export class Game extends Phaser.Scene {
         .setVisible(true);
     } else {
       this.playerQuestionMarkSprite?.setVisible(false);
+    }
+    const showAttackCooldownIndicator =
+      this.playerEntity.swordState && !this.playerEntity.dead;
+    if (showAttackCooldownIndicator) {
+      const isReady = this.playerEntity.attackHandler.isReady;
+      const rechargedSquares = isReady
+        ? ATTACK_COOLDOWN_INDICATOR_SQUARES
+        : Math.min(
+            ATTACK_COOLDOWN_INDICATOR_SQUARES - 1,
+            Math.floor(
+              this.playerEntity.attackHandler.cooldownProgress *
+                ATTACK_COOLDOWN_INDICATOR_SQUARES
+            )
+          );
+      if (
+        this.attackCooldownIndicatorRechargedSquares !== rechargedSquares
+      ) {
+        for (let index = 0; index < this.attackCooldownIndicators.length; index += 1) {
+          this.attackCooldownIndicators[index]?.setFillStyle(
+             isReady
+               ? ATTACK_COOLDOWN_READY_COLOR
+               : index < rechargedSquares
+                 ? 0xffffff
+                 : 0x000000
+          );
+        }
+        this.attackCooldownIndicatorRechargedSquares = rechargedSquares;
+      }
+
+      const firstSquareCenterX =
+        renderedPlayerX +
+        32 -
+        ATTACK_COOLDOWN_INDICATOR_WIDTH / 2 +
+        ATTACK_COOLDOWN_INDICATOR_SIZE / 2;
+      for (let index = 0; index < this.attackCooldownIndicators.length; index += 1) {
+        this.attackCooldownIndicators[index]
+          ?.setPosition(
+            firstSquareCenterX +
+              index *
+                (ATTACK_COOLDOWN_INDICATOR_SIZE +
+                  ATTACK_COOLDOWN_INDICATOR_GAP),
+            renderedPlayerY - 2
+          )
+          .setVisible(true);
+      }
+    } else {
+      for (const square of this.attackCooldownIndicators) {
+        square.setVisible(false);
+      }
+      this.attackCooldownIndicatorRechargedSquares = undefined;
     }
 
     // Visual state: the dead_hit sprite frames ARE the white art (same as enemies),

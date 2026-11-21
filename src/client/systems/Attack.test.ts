@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   AIR_ATTACK_TYPES,
+  AIR_ATTACK_COOLDOWN_TICKS,
   Attack,
   ATTACK_TYPES,
+  GROUND_ATTACK_COOLDOWN_TICKS,
   type AttackPlayerTarget,
   type AttackRenderScene,
 } from './Attack.ts';
@@ -28,12 +30,56 @@ void describe('Attack', () => {
     assert.equal(attack.currentAttackType, firstType); // unchanged
   });
 
+  void it('enforces a ground-attack cooldown after the attack animation ends', () => {
+    const attack = new Attack();
+    assert.equal(attack.isReady, true);
+    assert.equal(attack.triggerAttack(0), true);
+    assert.equal(attack.isReady, false);
+    assert.equal(attack.cooldownProgress, 0);
+    attack.attackState = false;
+    attack.update();
+
+    const ticksPerSquare = Math.ceil(GROUND_ATTACK_COOLDOWN_TICKS / 5);
+    for (let tick = 0; tick < ticksPerSquare; tick += 1) {
+      attack.update();
+    }
+    assert.equal(Math.floor(attack.cooldownProgress * 5), 1);
+
+    for (
+      let tick = ticksPerSquare;
+      tick < GROUND_ATTACK_COOLDOWN_TICKS - 1;
+      tick += 1
+    ) {
+      attack.update();
+    }
+
+    assert.equal(attack.triggerAttack(0), false);
+    attack.update();
+    assert.equal(attack.isReady, true);
+    assert.equal(attack.triggerAttack(0), true);
+  });
+
   void it('triggers air attack when airTime > 1', () => {
     const attack = new Attack();
     attack.triggerAttack(5); // in air
     assert.ok(
       (AIR_ATTACK_TYPES as readonly string[]).includes(attack.currentAttackType)
     );
+  });
+
+  void it('shares the aerial cooldown with ground follow-up attempts', () => {
+    const attack = new Attack();
+    assert.equal(attack.triggerAttack(5), true);
+    attack.attackState = false;
+    attack.update();
+
+    for (let tick = 0; tick < AIR_ATTACK_COOLDOWN_TICKS - 1; tick += 1) {
+      attack.update();
+    }
+
+    assert.equal(attack.triggerAttack(0), false);
+    attack.update();
+    assert.equal(attack.triggerAttack(0), true);
   });
 
   void it('updates player action and ends attack when animation is done', () => {

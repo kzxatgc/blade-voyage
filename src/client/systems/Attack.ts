@@ -1,6 +1,6 @@
 import { Animation } from '../utils/Animation.ts';
 import type { EntityPosition } from '../../shared/types.ts';
-import { RENDER_DEPTH } from '../../shared/constants.ts';
+import { RENDER_DEPTH, TICK_RATE } from '../../shared/constants.ts';
 
 export const ATTACK_TYPES = ['attack_1', 'attack_2', 'attack_3'] as const;
 export type AttackType = typeof ATTACK_TYPES[number];
@@ -9,6 +9,15 @@ export const AIR_ATTACK_TYPES = ['air_attack_1', 'air_attack_2'] as const;
 export type AirAttackType = typeof AIR_ATTACK_TYPES[number];
 
 export type AnyAttackType = AttackType | AirAttackType;
+
+export const GROUND_ATTACK_COOLDOWN_SECONDS = 0.75;
+export const AIR_ATTACK_COOLDOWN_SECONDS = 0.75;
+export const GROUND_ATTACK_COOLDOWN_TICKS = Math.round(
+  GROUND_ATTACK_COOLDOWN_SECONDS * TICK_RATE
+);
+export const AIR_ATTACK_COOLDOWN_TICKS = Math.round(
+  AIR_ATTACK_COOLDOWN_SECONDS * TICK_RATE
+);
 
 export const POS_ADJUSTMENT: Readonly<
   Record<string, readonly [number, number, number, number]>
@@ -70,6 +79,9 @@ export class Attack {
   private readonly random: () => number;
   private effectImage: AttackRenderImage | null = null;
   private effectTexture: string | null = null;
+  private cooldownTicksRemaining = 0;
+  private cooldownDurationTicks = 0;
+  private cooldownStartedThisTick = false;
 
   constructor(
     player?: AttackPlayerTarget,
@@ -79,14 +91,38 @@ export class Attack {
     this.random = random;
   }
 
+  get isReady(): boolean {
+    return !this.attackState && this.cooldownTicksRemaining === 0;
+  }
+
+  get cooldownProgress(): number {
+    if (this.isReady) {
+      return 1;
+    }
+
+    if (this.cooldownDurationTicks === 0) {
+      return 0;
+    }
+
+    return (
+      this.cooldownDurationTicks - this.cooldownTicksRemaining
+    ) / this.cooldownDurationTicks;
+  }
+
   triggerAttack(airTime?: number): boolean {
-    if (this.attackState) {
+    if (this.attackState || this.cooldownTicksRemaining > 0) {
       return false;
     }
 
     this.attackState = true;
     this.hitEntities.clear();
     const effectiveAirTime = airTime ?? this.player?.airTime ?? 0;
+    this.cooldownDurationTicks =
+      effectiveAirTime <= 1
+        ? GROUND_ATTACK_COOLDOWN_TICKS
+        : AIR_ATTACK_COOLDOWN_TICKS;
+    this.cooldownTicksRemaining = this.cooldownDurationTicks;
+    this.cooldownStartedThisTick = true;
 
     if (effectiveAirTime <= 1) {
       const index = Math.floor(this.random() * ATTACK_TYPES.length);
@@ -117,6 +153,12 @@ export class Attack {
   }
 
   update() {
+    if (this.cooldownStartedThisTick) {
+      this.cooldownStartedThisTick = false;
+    } else if (this.cooldownTicksRemaining > 0) {
+      this.cooldownTicksRemaining -= 1;
+    }
+
     if (this.effect) {
       this.effect.update();
       if (this.effect.done) {
@@ -128,6 +170,9 @@ export class Attack {
 
   cancelAttack() {
     this.attackState = false;
+    this.cooldownTicksRemaining = 0;
+    this.cooldownDurationTicks = 0;
+    this.cooldownStartedThisTick = false;
     this.currentAttackType = '';
     this.effect = null;
     this.hitEntities.clear();
