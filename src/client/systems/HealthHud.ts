@@ -3,6 +3,8 @@ export const HEALTH_SPRITE_FRAME_SIZE = 32;
 export const HEALTH_SPRITE_FRAME_COUNT = 5;
 export const HEALTH_SPRITE_VISIBLE_TOP_PX = 5;
 export const HEALTH_INDICATOR_SIZE_CSS = 84;
+export const HEALTH_GAIN_PULSE_SCALE = 1.18;
+export const HEALTH_GAIN_PULSE_DURATION_MS = 140;
 
 export function getHealthSpriteFrame(health: number, maxHealth: number): number {
   if (

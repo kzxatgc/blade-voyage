@@ -47,6 +47,8 @@ import { DEBUG_CONFIG } from '../../shared/debug';
 import { SoundSystem } from '../systems/Audio';
 import { TouchControls } from '../systems/TouchControls';
 import {
+  HEALTH_GAIN_PULSE_DURATION_MS,
+  HEALTH_GAIN_PULSE_SCALE,
   getHealthSpriteFrame,
   HEALTH_INDICATOR_SIZE_CSS,
   HEALTH_SPRITE_KEY,
@@ -110,6 +112,8 @@ export class Game extends Phaser.Scene {
   private healthIndicator: Phaser.GameObjects.Image | undefined;
   private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
   private healthIndicatorFrame = -1;
+  private healthIndicatorHealth: number | undefined;
+  private healthIndicatorPulseTween: Phaser.Tweens.Tween | undefined;
   private frenzyIndicator: Phaser.GameObjects.Image | undefined;
   private frenzyIndicatorFrame = -1;
   private healthIndicatorZoom = 0;
@@ -209,6 +213,30 @@ export class Game extends Phaser.Scene {
     this.healthIndicatorZoom = zoom;
   }
 
+  private pulseHealthIndicator(): void {
+    const indicator = this.healthIndicator;
+    if (!indicator) {
+      return;
+    }
+
+    this.healthIndicatorPulseTween?.stop();
+    this.layoutHealthIndicator();
+    const baseScaleX = indicator.scaleX;
+    const baseScaleY = indicator.scaleY;
+    this.healthIndicatorPulseTween = this.tweens.add({
+      targets: indicator,
+      scaleX: baseScaleX * HEALTH_GAIN_PULSE_SCALE,
+      scaleY: baseScaleY * HEALTH_GAIN_PULSE_SCALE,
+      duration: HEALTH_GAIN_PULSE_DURATION_MS,
+      ease: 'Back.Out',
+      yoyo: true,
+      onComplete: () => {
+        indicator.setScale(baseScaleX, baseScaleY);
+        this.healthIndicatorPulseTween = undefined;
+      },
+    });
+  }
+
   init(data: unknown): void {
     this.levelTransitionScheduled = false;
     this.levelTransitionTimer?.remove(false);
@@ -217,9 +245,12 @@ export class Game extends Phaser.Scene {
     this.swordKickQuestionMarkTimer = undefined;
     this.potionSystem?.destroy();
     this.deathTransitionScheduled = false;
+    this.healthIndicatorPulseTween?.stop();
+    this.healthIndicatorPulseTween = undefined;
     this.healthIndicator = undefined;
     this.healthIndicatorRoot = undefined;
     this.healthIndicatorFrame = -1;
+    this.healthIndicatorHealth = undefined;
     this.frenzyIndicator = undefined;
     this.frenzyIndicatorFrame = -1;
     this.healthIndicatorZoom = 0;
@@ -920,6 +951,13 @@ export class Game extends Phaser.Scene {
       this.healthIndicator?.setFrame(healthFrame);
       this.healthIndicatorFrame = healthFrame;
     }
+    if (
+      this.healthIndicatorHealth !== undefined &&
+      this.playerEntity.health > this.healthIndicatorHealth
+    ) {
+      this.pulseHealthIndicator();
+    }
+    this.healthIndicatorHealth = this.playerEntity.health;
     const attackHandler = this.playerEntity.attackHandler;
     const showFrenzyIndicator =
       attackHandler.isFrenzyActive && !this.playerEntity.dead;
