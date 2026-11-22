@@ -18,6 +18,7 @@ export const GROUND_ATTACK_COOLDOWN_TICKS = Math.round(
 export const AIR_ATTACK_COOLDOWN_TICKS = Math.round(
   AIR_ATTACK_COOLDOWN_SECONDS * TICK_RATE
 );
+export const FRENZY_DURATION_TICKS = 10 * TICK_RATE;
 
 export const POS_ADJUSTMENT: Readonly<
   Record<string, readonly [number, number, number, number]>
@@ -82,6 +83,7 @@ export class Attack {
   private cooldownTicksRemaining = 0;
   private cooldownDurationTicks = 0;
   private cooldownStartedThisTick = false;
+  private frenzyTicksRemaining = 0;
 
   constructor(
     player?: AttackPlayerTarget,
@@ -92,7 +94,14 @@ export class Attack {
   }
 
   get isReady(): boolean {
-    return !this.attackState && this.cooldownTicksRemaining === 0;
+    return (
+      !this.attackState &&
+      (this.cooldownTicksRemaining === 0 || this.isFrenzyActive)
+    );
+  }
+
+  get isFrenzyActive(): boolean {
+    return this.frenzyTicksRemaining > 0;
   }
 
   get cooldownProgress(): number {
@@ -110,7 +119,10 @@ export class Attack {
   }
 
   triggerAttack(airTime?: number): boolean {
-    if (this.attackState || this.cooldownTicksRemaining > 0) {
+    if (
+      this.attackState ||
+      (this.cooldownTicksRemaining > 0 && !this.isFrenzyActive)
+    ) {
       return false;
     }
 
@@ -142,6 +154,14 @@ export class Attack {
     return true;
   }
 
+  /** Enables cooldown bypass without interrupting an attack already in progress. */
+  activateFrenzy(): void {
+    this.frenzyTicksRemaining = FRENZY_DURATION_TICKS;
+    this.cooldownTicksRemaining = 0;
+    this.cooldownDurationTicks = 0;
+    this.cooldownStartedThisTick = false;
+  }
+
   setAction() {
     if (!this.player) {
       return;
@@ -157,6 +177,9 @@ export class Attack {
       this.cooldownStartedThisTick = false;
     } else if (this.cooldownTicksRemaining > 0) {
       this.cooldownTicksRemaining -= 1;
+    }
+    if (this.frenzyTicksRemaining > 0) {
+      this.frenzyTicksRemaining -= 1;
     }
 
     if (this.effect) {

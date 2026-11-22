@@ -7,6 +7,7 @@ import {
   AIR_ATTACK_COOLDOWN_TICKS,
   Attack,
   ATTACK_TYPES,
+  FRENZY_DURATION_TICKS,
   GROUND_ATTACK_COOLDOWN_TICKS,
   type AttackPlayerTarget,
   type AttackRenderScene,
@@ -80,6 +81,40 @@ void describe('Attack', () => {
     assert.equal(attack.triggerAttack(0), false);
     attack.update();
     assert.equal(attack.triggerAttack(0), true);
+  });
+
+  void it('bypasses cooldown during Frenzy without interrupting attacks and restores cooldown on expiry', () => {
+    const attack = new Attack(undefined, () => 0);
+    assert.equal(FRENZY_DURATION_TICKS, 600);
+    assert.equal(attack.triggerAttack(0), true);
+    attack.attackState = false;
+    attack.update();
+    assert.equal(attack.isReady, false);
+
+    attack.activateFrenzy();
+    assert.equal(attack.isFrenzyActive, true);
+    assert.equal(attack.isReady, true);
+    assert.equal(attack.triggerAttack(0), true);
+    assert.equal(attack.attackState, true);
+    assert.equal(attack.triggerAttack(0), false);
+
+    attack.attackState = false;
+    for (let tick = 0; tick < FRENZY_DURATION_TICKS - 1; tick += 1) {
+      attack.update();
+    }
+    assert.equal(attack.isFrenzyActive, true);
+    assert.equal(attack.triggerAttack(0), true);
+
+    attack.attackState = false;
+    attack.update();
+    assert.equal(attack.isFrenzyActive, false);
+    assert.equal(attack.isReady, false);
+    assert.equal(attack.triggerAttack(0), false);
+
+    for (let tick = 0; tick < GROUND_ATTACK_COOLDOWN_TICKS; tick += 1) {
+      attack.update();
+    }
+    assert.equal(attack.isReady, true);
   });
 
   void it('updates player action and ends attack when animation is done', () => {
