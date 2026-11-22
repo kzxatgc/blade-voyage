@@ -51,6 +51,7 @@ import {
   HEALTH_INDICATOR_SIZE_CSS,
   HEALTH_SPRITE_KEY,
 } from '../systems/HealthHud';
+import { shouldShowAttackCooldownIndicator } from '../systems/AttackCooldownHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
   getResponsiveSettingsScale,
@@ -937,10 +938,11 @@ export class Game extends Phaser.Scene {
     } else {
       this.playerQuestionMarkSprite?.setVisible(false);
     }
-    const showAttackCooldownIndicator =
-      this.playerEntity.swordState &&
-      !this.playerEntity.dead &&
-      !this.playerEntity.attackHandler.isFrenzyActive;
+    const showAttackCooldownIndicator = shouldShowAttackCooldownIndicator(
+      this.playerEntity.swordState,
+      this.playerEntity.dead,
+      this.playerEntity.attackHandler.isFrenzyActive
+    );
     if (showAttackCooldownIndicator) {
       const isReady = this.playerEntity.attackHandler.isReady;
       const rechargedSquares = isReady
