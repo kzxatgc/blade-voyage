@@ -15,15 +15,17 @@ import {
   ShieldPotion,
   HEALTH_POTION_SPAWN_CHANCE,
   HEALTH_POTION_LIFETIME_TICKS,
-  HEALTH_POTION_BLINK_START_TICKS,
-  HEALTH_POTION_FAST_BLINK_START_TICKS,
-  POTION_LIFETIME_TICKS,
+  FRENZY_POTION_LIFETIME_TICKS,
+  SHIELD_POTION_LIFETIME_TICKS,
+  POTION_BLINK_LEAD_TICKS,
+  POTION_FAST_BLINK_LEAD_TICKS,
   createFrenzyPotionIdleAnimation,
   createShieldPotionIdleAnimation,
 } from './PotionSystem.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
 import { DEBUG_CONFIG, setDebugMode } from '../../shared/debug.ts';
+import { TICK_RATE } from '../../shared/constants.ts';
 
 void describe('PotionSystem', () => {
   void it('creates a seven-frame Frenzy Potion idle animation at the potion cadence', () => {
@@ -223,16 +225,13 @@ void describe('PotionSystem', () => {
     assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
   });
 
-  void it('collects Frenzy at full health, activates or refreshes it, and plays feedback', () => {
+  void it('collects Frenzy without requiring health stats and plays feedback', () => {
     const potion = new FrenzyPotion([100, 200]);
     const potions = new PotionSystem();
     potions.frenzyPotions = [potion];
     const playedSounds: string[] = [];
     let activationCount = 0;
     const player = {
-      pos: [100, 200] as [number, number],
-      health: 4,
-      maxHealth: 4,
       rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
       activateFrenzy: () => {
         activationCount += 1;
@@ -241,14 +240,13 @@ void describe('PotionSystem', () => {
     };
 
     assert.equal(potions.collectFrenzyPotion(player), true);
-    assert.equal(player.health, 4);
     assert.equal(activationCount, 1);
     assert.equal(potions.frenzyPotions.length, 0);
     assert.equal(potions.frenzyPotionEffects.length, 1);
     assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
   });
 
-  void it('activates Shield at full health and emits light-green-dominant sparks', () => {
+  void it('collects Shield without requiring health stats and emits light-green-dominant sparks', () => {
     const potion = new ShieldPotion([100, 200]);
     const sparksEffect: Sparks[] = [];
     const potions = new PotionSystem(Math.random, sparksEffect);
@@ -256,9 +254,6 @@ void describe('PotionSystem', () => {
     const playedSounds: string[] = [];
     let activationCount = 0;
     const player = {
-      pos: [100, 200] as [number, number],
-      health: 4,
-      maxHealth: 4,
       rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
       activateShield: () => {
         activationCount += 1;
@@ -267,7 +262,6 @@ void describe('PotionSystem', () => {
     };
 
     assert.equal(potions.collectShieldPotion(player), true);
-    assert.equal(player.health, 4);
     assert.equal(activationCount, 1);
     assert.equal(potions.shieldPotions.length, 0);
     assert.equal(sparksEffect.length, 2);
@@ -286,9 +280,6 @@ void describe('PotionSystem', () => {
     let activationCount = 0;
     const playedSounds: string[] = [];
     const player = {
-      pos: [500, 500] as [number, number],
-      health: 2,
-      maxHealth: 4,
       rect: () => ({ x: 500, y: 500, width: 20, height: 28 }),
       activateShield: () => {
         activationCount += 1;
@@ -308,9 +299,6 @@ void describe('PotionSystem', () => {
     let activationCount = 0;
     const playedSounds: string[] = [];
     const player = {
-      pos: [500, 500] as [number, number],
-      health: 2,
-      maxHealth: 4,
       rect: () => ({ x: 500, y: 500, width: 20, height: 28 }),
       activateFrenzy: () => {
         activationCount += 1;
@@ -447,24 +435,48 @@ void describe('PotionSystem', () => {
     assert.equal(potion.velocity[1], 0);
   });
 
+  void it('uses each potion lifetime and starts blinking 300 ticks before expiry', () => {
+    assert.equal(HEALTH_POTION_LIFETIME_TICKS, 40 * TICK_RATE);
+    assert.equal(SHIELD_POTION_LIFETIME_TICKS, 30 * TICK_RATE);
+    assert.equal(FRENZY_POTION_LIFETIME_TICKS, 20 * TICK_RATE);
+
+    const potions = [
+      [new HealthPotion([100, 200]), HEALTH_POTION_LIFETIME_TICKS],
+      [new FrenzyPotion([140, 200]), FRENZY_POTION_LIFETIME_TICKS],
+      [new ShieldPotion([180, 200]), SHIELD_POTION_LIFETIME_TICKS],
+    ] as const;
+
+    for (const [potion, lifetimeTicks] of potions) {
+      assert.equal(potion.lifetimeTicks, lifetimeTicks);
+      assert.equal(
+        potion.blinkStartTicks,
+        lifetimeTicks - POTION_BLINK_LEAD_TICKS
+      );
+      assert.equal(
+        potion.fastBlinkStartTicks,
+        lifetimeTicks - POTION_FAST_BLINK_LEAD_TICKS
+      );
+    }
+  });
+
   void it('blinks during the final 300 ticks and expires after its lifetime', () => {
     const potion = new HealthPotion([100, 200]);
 
-    potion.timer = HEALTH_POTION_BLINK_START_TICKS - 1;
+    potion.timer = potion.blinkStartTicks - 1;
     assert.equal(potion.isBlinking(), false);
 
-    potion.timer = HEALTH_POTION_BLINK_START_TICKS;
+    potion.timer = potion.blinkStartTicks;
     assert.equal(
       potion.isBlinking(),
-      Math.floor(HEALTH_POTION_BLINK_START_TICKS / 12) % 2 === 0
+      Math.floor(potion.blinkStartTicks / 12) % 2 === 0
     );
 
-    potion.timer = HEALTH_POTION_FAST_BLINK_START_TICKS;
+    potion.timer = potion.fastBlinkStartTicks;
     assert.equal(potion.isBlinking(), Math.floor(potion.timer / 7) % 2 === 0);
 
-    potion.timer = HEALTH_POTION_LIFETIME_TICKS - 1;
+    potion.timer = potion.lifetimeTicks - 1;
     assert.equal(potion.isExpired, false);
-    potion.timer = HEALTH_POTION_LIFETIME_TICKS;
+    potion.timer = potion.lifetimeTicks;
     assert.equal(potion.isExpired, true);
   });
 
@@ -497,9 +509,9 @@ void describe('PotionSystem', () => {
     healthPotion.render(scene);
     frenzyPotion.render(scene);
     shieldPotion.render(scene);
-    healthPotion.timer = POTION_LIFETIME_TICKS;
-    frenzyPotion.timer = POTION_LIFETIME_TICKS;
-    shieldPotion.timer = POTION_LIFETIME_TICKS;
+    healthPotion.timer = healthPotion.lifetimeTicks;
+    frenzyPotion.timer = frenzyPotion.lifetimeTicks;
+    shieldPotion.timer = shieldPotion.lifetimeTicks;
 
     potions.update(tilemap);
 
