@@ -1,7 +1,8 @@
 export const HEALTH_SPRITE_KEY = 'player-health';
 export const HEALTH_SPRITE_FRAME_SIZE = 32;
 export const HEALTH_SPRITE_FRAME_COUNT = 5;
-export const HEALTH_INDICATOR_SIZE_CSS = 72;
+export const HEALTH_SPRITE_VISIBLE_TOP_PX = 5;
+export const HEALTH_INDICATOR_SIZE_CSS = 84;
 
 export function getHealthSpriteFrame(health: number, maxHealth: number): number {
   if (

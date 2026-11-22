@@ -51,6 +51,13 @@ import {
   HEALTH_INDICATOR_SIZE_CSS,
   HEALTH_SPRITE_KEY,
 } from '../systems/HealthHud';
+import {
+  FRENZY_HUD_ICON_GAP_CSS,
+  FRENZY_HUD_ICON_SIZE_CSS,
+  FRENZY_HUD_SPRITE_KEY,
+  getFrenzyHudFrame,
+  getFrenzyHudTopAlignedCenterY,
+} from '../systems/FrenzyHud';
 import { shouldShowAttackCooldownIndicator } from '../systems/AttackCooldownHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
@@ -103,6 +110,8 @@ export class Game extends Phaser.Scene {
   private healthIndicator: Phaser.GameObjects.Image | undefined;
   private healthIndicatorRoot: Phaser.GameObjects.Container | undefined;
   private healthIndicatorFrame = -1;
+  private frenzyIndicator: Phaser.GameObjects.Image | undefined;
+  private frenzyIndicatorFrame = -1;
   private healthIndicatorZoom = 0;
   private actionPromptHUD?: ActionPromptHUD;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -167,6 +176,9 @@ export class Game extends Phaser.Scene {
     const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
     const responsiveScale = getResponsiveSettingsScale(canvasWidth);
     const iconSize = HEALTH_INDICATOR_SIZE_CSS * unitScale * responsiveScale;
+    const frenzyIconSize =
+      FRENZY_HUD_ICON_SIZE_CSS * unitScale * responsiveScale;
+    const frenzyIconGap = FRENZY_HUD_ICON_GAP_CSS * unitScale * responsiveScale;
     const margin =
       SETTINGS_BUTTON_MARGIN_CSS * unitScale * responsiveScale;
     const zoom = this.cameras.main.zoom;
@@ -180,6 +192,20 @@ export class Game extends Phaser.Scene {
         -height / 2 + margin + iconSize / 2
       )
       .setDisplaySize(iconSize, iconSize);
+    this.frenzyIndicator
+      ?.setPosition(
+        -width / 2 +
+          margin +
+          iconSize +
+          frenzyIconGap +
+          frenzyIconSize / 2,
+        getFrenzyHudTopAlignedCenterY(
+          -height / 2 + margin,
+          iconSize,
+          frenzyIconSize
+        )
+      )
+      .setDisplaySize(frenzyIconSize, frenzyIconSize);
     this.healthIndicatorZoom = zoom;
   }
 
@@ -194,6 +220,8 @@ export class Game extends Phaser.Scene {
     this.healthIndicator = undefined;
     this.healthIndicatorRoot = undefined;
     this.healthIndicatorFrame = -1;
+    this.frenzyIndicator = undefined;
+    this.frenzyIndicatorFrame = -1;
     this.healthIndicatorZoom = 0;
     this.settingsPaused = false;
     this.tickAccumulator = 0;
@@ -489,6 +517,11 @@ export class Game extends Phaser.Scene {
       .container(0, 0, [this.healthIndicator])
       .setScrollFactor(0)
       .setDepth(RENDER_DEPTH.DEBUG + 1);
+    this.frenzyIndicator = this.add
+      .image(0, 0, FRENZY_HUD_SPRITE_KEY, 0)
+      .setOrigin(0.5, 0.5)
+      .setVisible(false);
+    this.healthIndicatorRoot.add(this.frenzyIndicator);
     this.healthIndicatorFrame = 0;
     this.layoutHealthIndicator();
     this.scale.on('resize', this.layoutHealthIndicator, this);
@@ -886,6 +919,20 @@ export class Game extends Phaser.Scene {
     if (healthFrame !== this.healthIndicatorFrame) {
       this.healthIndicator?.setFrame(healthFrame);
       this.healthIndicatorFrame = healthFrame;
+    }
+    const attackHandler = this.playerEntity.attackHandler;
+    const showFrenzyIndicator =
+      attackHandler.isFrenzyActive && !this.playerEntity.dead;
+    this.frenzyIndicator?.setVisible(showFrenzyIndicator);
+    if (showFrenzyIndicator) {
+      const frenzyFrame = getFrenzyHudFrame(
+        attackHandler.frenzyProgress,
+        attackHandler.frenzyElapsedTicks
+      );
+      if (frenzyFrame !== this.frenzyIndicatorFrame) {
+        this.frenzyIndicator?.setFrame(frenzyFrame);
+        this.frenzyIndicatorFrame = frenzyFrame;
+      }
     }
 
     const renderedPlayerX =

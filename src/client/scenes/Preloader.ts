@@ -5,6 +5,10 @@ import {
   HEALTH_SPRITE_FRAME_SIZE,
   HEALTH_SPRITE_KEY,
 } from '../systems/HealthHud';
+import {
+  FRENZY_HUD_FRAME_SIZE,
+  FRENZY_HUD_SPRITE_KEY,
+} from '../systems/FrenzyHud';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -95,6 +99,14 @@ export class Preloader extends Scene {
       {
         frameWidth: HEALTH_SPRITE_FRAME_SIZE,
         frameHeight: HEALTH_SPRITE_FRAME_SIZE,
+      }
+    );
+    this.load.spritesheet(
+      FRENZY_HUD_SPRITE_KEY,
+      'img/ui/frenzy/frenzy-bolt.png',
+      {
+        frameWidth: FRENZY_HUD_FRAME_SIZE,
+        frameHeight: FRENZY_HUD_FRAME_SIZE,
       }
     );
     this.load.image('touch-left', 'img/ui/touch/left.png');

@@ -104,6 +104,16 @@ export class Attack {
     return this.frenzyTicksRemaining > 0;
   }
 
+  get frenzyProgress(): number {
+    return this.frenzyTicksRemaining / FRENZY_DURATION_TICKS;
+  }
+
+  get frenzyElapsedTicks(): number {
+    return this.isFrenzyActive
+      ? FRENZY_DURATION_TICKS - this.frenzyTicksRemaining
+      : 0;
+  }
+
   get cooldownProgress(): number {
     if (this.isReady) {
       return 1;

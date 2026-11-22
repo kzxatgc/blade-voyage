@@ -140,6 +140,22 @@ void describe('Attack', () => {
     assert.equal(attack.isFrenzyActive, false);
   });
 
+  void it('exposes normalized Frenzy progress and elapsed ticks', () => {
+    const attack = new Attack();
+    assert.equal(attack.frenzyProgress, 0);
+    assert.equal(attack.frenzyElapsedTicks, 0);
+
+    attack.activateFrenzy();
+    assert.equal(attack.frenzyProgress, 1);
+    assert.equal(attack.frenzyElapsedTicks, 0);
+
+    for (let tick = 0; tick < FRENZY_DURATION_TICKS / 2; tick += 1) {
+      attack.update();
+    }
+    assert.equal(attack.frenzyProgress, 0.5);
+    assert.equal(attack.frenzyElapsedTicks, FRENZY_DURATION_TICKS / 2);
+  });
+
   void it('refreshes Frenzy to its full duration when activated again', () => {
     const attack = new Attack();
     attack.activateFrenzy();
