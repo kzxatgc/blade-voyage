@@ -117,6 +117,20 @@ void describe('Attack', () => {
     assert.equal(attack.isReady, true);
   });
 
+  void it('preserves an in-progress swing when Frenzy activates', () => {
+    const attack = new Attack(undefined, () => 0);
+    assert.equal(attack.triggerAttack(0), true);
+    const attackType = attack.currentAttackType;
+    const effect = attack.effect;
+
+    attack.activateFrenzy();
+
+    assert.equal(attack.isFrenzyActive, true);
+    assert.equal(attack.attackState, true);
+    assert.equal(attack.currentAttackType, attackType);
+    assert.equal(attack.effect, effect);
+  });
+
   void it('clears active Frenzy when the attack system is cancelled', () => {
     const attack = new Attack();
     attack.activateFrenzy();
