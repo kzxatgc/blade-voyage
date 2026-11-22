@@ -14,6 +14,7 @@ This document records credits for assets used in this project.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - The red potion drop uses seven `Red Potion (7 items)` animation frames.
 - The blue Frenzy Potion uses seven `Blue Potion` animation frames.
+- The green shield potion uses seven `Green Bottle` animation frames.
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
 - The Frenzy pickup effect uses gold recolors of those four `Potion Effect (4 items)` frames.
 - **Files**:
@@ -80,6 +81,13 @@ This document records credits for assets used in this project.
   - `public/assets/img/potion/frenzy/4.png`
   - `public/assets/img/potion/frenzy/5.png`
   - `public/assets/img/potion/frenzy/6.png`
+  - `public/assets/img/potion/shield/0.png`
+  - `public/assets/img/potion/shield/1.png`
+  - `public/assets/img/potion/shield/2.png`
+  - `public/assets/img/potion/shield/3.png`
+  - `public/assets/img/potion/shield/4.png`
+  - `public/assets/img/potion/shield/5.png`
+  - `public/assets/img/potion/shield/6.png`
   - `public/assets/img/potion/health-effect/0.png`
   - `public/assets/img/potion/health-effect/1.png`
   - `public/assets/img/potion/health-effect/2.png`
