@@ -938,7 +938,9 @@ export class Game extends Phaser.Scene {
       this.playerQuestionMarkSprite?.setVisible(false);
     }
     const showAttackCooldownIndicator =
-      this.playerEntity.swordState && !this.playerEntity.dead;
+      this.playerEntity.swordState &&
+      !this.playerEntity.dead &&
+      !this.playerEntity.attackHandler.isFrenzyActive;
     if (showAttackCooldownIndicator) {
       const isReady = this.playerEntity.attackHandler.isReady;
       const rechargedSquares = isReady
