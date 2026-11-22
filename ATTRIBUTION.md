@@ -599,3 +599,15 @@ This document records credits for assets used in this project.
 - **Author / Creator**: Universfield / Pixabay
 - **Source Link**: https://pixabay.com/sound-effects/technology-new-notification-040-493469/
 - **License**: Pixabay Content License (Free for commercial & non-commercial use; standalone redistribution prohibited)
+
+---
+
+## 20. Health Potion Pickup (`player/pickup_potion`)
+
+- **SFX Key**: `'player/pickup_potion'`
+- **Files**:
+  - `public/assets/sfx/player/pickup_potion.mp3`
+- **Asset Name**: RetroSFX_Synth_Potion
+- **Author / Creator**: loganzsound / Freesound
+- **Source Link**: https://freesound.org/people/loganzsound/sounds/872793/
+- **License**: CC0 1.0 Universal (Public Domain)

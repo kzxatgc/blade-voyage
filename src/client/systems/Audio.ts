@@ -42,6 +42,10 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     volume: 0.4,
     files: ['sfx/player/pickup_sword.wav'],
   },
+  'player/pickup_potion': {
+    volume: 1.5,
+    files: ['sfx/player/pickup_potion.mp3'],
+  },
   'player/sword/attack': {
     volume: 1.2,
     files: [

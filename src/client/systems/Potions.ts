@@ -334,6 +334,7 @@ export class Potions {
           player.health + POTION_HEAL_AMOUNT
         );
         this.effects.push(new PotionEffect(player));
+        player.playSfx?.('player/pickup_potion');
         potion.destroy();
         this.potions.splice(index, 1);
         return true;

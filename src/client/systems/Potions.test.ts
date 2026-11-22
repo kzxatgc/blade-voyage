@@ -60,17 +60,20 @@ void describe('Potions', () => {
     const potion = new Potion([100, 200]);
     const potions = new Potions();
     potions.potions = [potion];
+    const playedSounds: string[] = [];
     const player = {
       pos: [100, 200] as [number, number],
       health: 2,
       maxHealth: 4,
       rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
+      playSfx: (name: string) => playedSounds.push(name),
     };
 
     assert.equal(potions.collect(player), true);
     assert.equal(player.health, 3);
     assert.equal(potions.potions.length, 0);
     assert.equal(potions.effects.length, 1);
+    assert.deepEqual(playedSounds, ['player/pickup_potion']);
   });
 
   void it('destroys active pickup-effect sprites when the system is destroyed', () => {
@@ -137,6 +140,7 @@ void describe('Potions', () => {
       health: 4,
       maxHealth: 4,
       rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
+      playSfx: () => assert.fail('Full-health potion must not play pickup sound'),
     };
 
     assert.equal(potions.collect(player), false);

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { SFX_DEFINITIONS, SoundSystem, type SoundPlayer } from './Audio.ts';
 
 void describe('SoundSystem and SFX_DEFINITIONS', () => {
-  void it('defines all 15 sound categories from game.py', () => {
+  void it('defines every sound category', () => {
     const expectedKeys = [
       'player/jump',
       'player/run/grass',
@@ -11,6 +11,7 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
       'player/land/grass',
       'player/land/palm_tree',
       'player/pickup_sword',
+      'player/pickup_potion',
       'player/sword/attack',
       'player/sword/air_attack',
       'player/throw_sword',
@@ -26,12 +27,19 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
     }
   });
 
-  void it('contains exactly 38 total audio files across all definitions', () => {
+  void it('contains exactly 39 total audio files across all definitions', () => {
     let totalFiles = 0;
     for (const def of Object.values(SFX_DEFINITIONS)) {
       totalFiles += def.files.length;
     }
-    assert.equal(totalFiles, 38);
+    assert.equal(totalFiles, 39);
+  });
+
+  void it('defines the health-potion pickup sound', () => {
+    assert.deepEqual(SFX_DEFINITIONS['player/pickup_potion'], {
+      volume: 0.4,
+      files: ['sfx/player/pickup_potion.mp3'],
+    });
   });
 
   void it('plays single-file sounds with exact tuned volume', () => {
