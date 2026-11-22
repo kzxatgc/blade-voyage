@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import {
   HealthPotion,
   HealthPotionEffect,
+  FrenzyPotionEffect,
   PotionSystem,
   HEALTH_POTION_SPAWN_CHANCE,
   HEALTH_POTION_LIFETIME_TICKS,
@@ -146,6 +147,40 @@ void describe('PotionSystem', () => {
     playerRect.y = 250;
     effect.render(scene, [0, 0], [1.5, -2.5]);
     assert.deepEqual(renderedPosition, [161.5, 261.5]);
+  });
+
+  void it('renders the Frenzy pickup effect with its gold-effect textures', () => {
+    const textures: string[] = [];
+    const effect = new FrenzyPotionEffect({
+      rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
+    });
+    const scene = {
+      add: {
+        image(_x: number, _y: number, texture: string) {
+          textures.push(texture);
+          return {
+            setOrigin() {},
+            setPosition() {},
+            setTexture(nextTexture: string) {
+              textures.push(nextTexture);
+            },
+            setDepth() {},
+            destroy() {},
+          };
+        },
+      },
+    };
+
+    effect.render(scene);
+    for (let tick = 0; tick < 6; tick += 1) {
+      effect.update();
+    }
+    effect.render(scene);
+
+    assert.deepEqual(textures, [
+      'potion/frenzy-effect/0',
+      'potion/frenzy-effect/1',
+    ]);
   });
 
   void it('does not collect a potion at full health', () => {

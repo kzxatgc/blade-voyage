@@ -5,7 +5,7 @@ import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 
-export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
+export const HEALTH_POTION_SPAWN_CHANCE = 0.1;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
 export const HEALTH_POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
@@ -43,14 +43,19 @@ export interface PotionPlayerTarget {
   playSfx?: ((name: string) => void) | undefined;
 }
 
-export class HealthPotionEffect {
+class PotionPickupEffect {
   timer = 0;
   private image: PotionRenderImage | null = null;
   private imageTexture: string | null = null;
   private readonly player: Pick<PotionPlayerTarget, 'rect'>;
+  private readonly texturePrefix: string;
 
-  constructor(player: Pick<PotionPlayerTarget, 'rect'>) {
+  constructor(
+    player: Pick<PotionPlayerTarget, 'rect'>,
+    texturePrefix: string
+  ) {
     this.player = player;
+    this.texturePrefix = texturePrefix;
   }
 
   update(): boolean {
@@ -64,7 +69,7 @@ export class HealthPotionEffect {
     playerInterpolationOffset: readonly [number, number] = [0, 0]
   ) {
     const frame = Math.min(3, Math.floor(this.timer / 6));
-    const texture = `potion/health-effect/${frame}`;
+    const texture = `${this.texturePrefix}/${frame}`;
     const playerRect = this.player.rect();
     const renderX =
       playerRect.x +
@@ -95,6 +100,18 @@ export class HealthPotionEffect {
     this.image?.destroy();
     this.image = null;
     this.imageTexture = null;
+  }
+}
+
+export class HealthPotionEffect extends PotionPickupEffect {
+  constructor(player: Pick<PotionPlayerTarget, 'rect'>) {
+    super(player, 'potion/health-effect');
+  }
+}
+
+export class FrenzyPotionEffect extends PotionPickupEffect {
+  constructor(player: Pick<PotionPlayerTarget, 'rect'>) {
+    super(player, 'potion/frenzy-effect');
   }
 }
 

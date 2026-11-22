@@ -15,6 +15,7 @@ This document records credits for assets used in this project.
 - The red potion drop uses seven `Red Potion (7 items)` animation frames.
 - The blue Frenzy Potion uses seven `Blue Potion` animation frames.
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
+- The Frenzy pickup effect uses gold recolors of those four `Potion Effect (4 items)` frames.
 - **Files**:
   - `public/assets/img/background/background.png`
   - `public/assets/img/background/water/base.png`
@@ -83,6 +84,10 @@ This document records credits for assets used in this project.
   - `public/assets/img/potion/health-effect/1.png`
   - `public/assets/img/potion/health-effect/2.png`
   - `public/assets/img/potion/health-effect/3.png`
+  - `public/assets/img/potion/frenzy-effect/0.png`
+  - `public/assets/img/potion/frenzy-effect/1.png`
+  - `public/assets/img/potion/frenzy-effect/2.png`
+  - `public/assets/img/potion/frenzy-effect/3.png`
   - `public/assets/img/ui/settings/panel.png`
   - `public/assets/img/font/font.png`
   - `public/assets/img/font/font.fnt`

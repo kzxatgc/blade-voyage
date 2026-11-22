@@ -245,6 +245,10 @@ export class Preloader extends Scene {
         `potion/health-effect/${frame}`,
         `img/potion/health-effect/${frame}.png`
       );
+      this.load.image(
+        `potion/frenzy-effect/${frame}`,
+        `img/potion/frenzy-effect/${frame}.png`
+      );
     }
 
     const enemyAnimationFrameCounts: Record<string, Record<string, number>> = {
