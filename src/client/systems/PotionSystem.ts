@@ -13,11 +13,63 @@ export const SHIELD_PARTICLE_COLORS = {
   lightGreen: [213, 255, 213],
   white: [255, 255, 255],
 } as const;
+export type ShieldParticleEffect = 'pickup' | 'break';
+const SHIELD_PARTICLE_PROFILES = {
+  pickup: [
+    {
+      color: SHIELD_PARTICLE_COLORS.lightGreen,
+      speed: 2.6,
+      density: 28,
+      size: [2.5, 0.75],
+    },
+    {
+      color: SHIELD_PARTICLE_COLORS.white,
+      speed: 1.5,
+      density: 6,
+      size: [1.5, 0.5],
+    },
+  ],
+  break: [
+    {
+      color: SHIELD_PARTICLE_COLORS.lightGreen,
+      speed: 4,
+      density: 40,
+      size: [3.4, 0.9],
+    },
+    {
+      color: SHIELD_PARTICLE_COLORS.white,
+      speed: 2.8,
+      density: 8,
+      size: [2, 0.7],
+    },
+  ],
+} as const;
 export const DEBUG_POTION_SPAWN_CHANCE = 0.5;
 export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
 export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
 export const POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
 export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
+
+export function createShieldParticleBurst(
+  position: readonly [number, number],
+  effect: ShieldParticleEffect,
+  random: () => number = Math.random
+): Sparks[] {
+  return SHIELD_PARTICLE_PROFILES[effect].map(
+    ({ color, speed, density, size }) =>
+      new Sparks(
+        position,
+        false,
+        speed,
+        density,
+        color,
+        'burst',
+        'diamond',
+        size,
+        random
+      )
+  );
+}
 export const HEALTH_POTION_HEAL_AMOUNT = 1;
 const DEFAULT_POTION_LIFETIME_TICKS = 40 * TICK_RATE;
 export const HEALTH_POTION_LIFETIME_TICKS = 40 * TICK_RATE;
@@ -581,30 +633,7 @@ export class PotionSystem {
         playerRect.y + playerRect.height / 2,
       ];
       this.sparksEffect?.push(
-        new Sparks(
-          center,
-          false,
-          2.8,
-          32,
-          SHIELD_PARTICLE_COLORS.lightGreen,
-          'burst',
-          'diamond',
-          [3, 3],
-          this.random
-        )
-      );
-      this.sparksEffect?.push(
-        new Sparks(
-          center,
-          false,
-          1.2,
-          8,
-          SHIELD_PARTICLE_COLORS.white,
-          'burst',
-          'diamond',
-          [1.5, 1.5],
-          this.random
-        )
+        ...createShieldParticleBurst(center, 'pickup', this.random)
       );
       player.playSfx?.('player/pickup_health_potion');
     });

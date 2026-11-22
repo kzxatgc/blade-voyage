@@ -34,7 +34,7 @@ import {
   POTION_HORIZONTAL_TILE_RANGE_RIGHT,
   POTION_VERTICAL_TILE_RANGE_TOP,
   POTION_VERTICAL_TILE_RANGE_BOTTOM,
-  SHIELD_PARTICLE_COLORS,
+  createShieldParticleBurst,
 } from '../systems/PotionSystem';
 import {
   createHeartSparkParticles,
@@ -715,26 +715,7 @@ export class Game extends Phaser.Scene {
                 playerRect.y + playerRect.height / 2,
               ];
               this.sparksEffect.push(
-                new Sparks(
-                  shieldBreakPosition,
-                  false,
-                  2.8,
-                  32,
-                  SHIELD_PARTICLE_COLORS.lightGreen,
-                  'burst',
-                  'diamond',
-                  [3, 3]
-                ),
-                new Sparks(
-                  shieldBreakPosition,
-                  false,
-                  1.2,
-                  8,
-                  SHIELD_PARTICLE_COLORS.white,
-                  'burst',
-                  'diamond',
-                  [1.5, 1.5]
-                )
+                ...createShieldParticleBurst(shieldBreakPosition, 'break')
               );
             } else {
               this.sparksEffect.push(

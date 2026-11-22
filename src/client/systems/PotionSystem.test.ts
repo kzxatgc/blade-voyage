@@ -12,6 +12,7 @@ import {
   PotionSystem,
   SHIELD_POTION_SPAWN_CHANCE,
   SHIELD_PARTICLE_COLORS,
+  createShieldParticleBurst,
   ShieldPotion,
   HEALTH_POTION_SPAWN_CHANCE,
   HEALTH_POTION_LIFETIME_TICKS,
@@ -203,11 +204,46 @@ void describe('PotionSystem', () => {
 
     assert.ok(manager.spawnShieldPotion(tilemap) !== null);
     assert.equal(sparksEffect.length, 2);
+    assert.equal(sparksEffect[0]?.shape, 'diamond');
+    assert.equal(sparksEffect[0]?.sparks.length, 22);
+    assert.equal(sparksEffect[0]?.speed, 2.8);
+    assert.deepEqual(sparksEffect[0]?.size, [3, 3]);
     assert.deepEqual(sparksEffect[0]?.color, SHIELD_PARTICLE_COLORS.lightGreen);
+    assert.equal(sparksEffect[0]?.direction, 'burst');
+    assert.equal(sparksEffect[1]?.sparks.length, 13);
+    assert.equal(sparksEffect[1]?.speed, 1.8);
+    assert.deepEqual(sparksEffect[1]?.size, [2, 2]);
     assert.deepEqual(sparksEffect[1]?.color, SHIELD_PARTICLE_COLORS.white);
     assert.ok(
       (sparksEffect[0]?.sparks.length ?? 0) >
         (sparksEffect[1]?.sparks.length ?? 0)
+    );
+  });
+
+  void it('makes shield pickup and break bursts visibly distinct', () => {
+    const pickup = createShieldParticleBurst([100, 200], 'pickup', () => 0.5);
+    const shieldBreak = createShieldParticleBurst(
+      [100, 200],
+      'break',
+      () => 0.5
+    );
+
+    assert.equal(pickup[0]?.color, SHIELD_PARTICLE_COLORS.lightGreen);
+    assert.equal(pickup[0]?.sparks.length, 28);
+    assert.equal(pickup[0]?.speed, 2.6);
+    assert.equal(pickup[1]?.color, SHIELD_PARTICLE_COLORS.white);
+    assert.equal(pickup[1]?.sparks.length, 6);
+    assert.equal(shieldBreak[0]?.color, SHIELD_PARTICLE_COLORS.lightGreen);
+    assert.equal(shieldBreak[0]?.sparks.length, 40);
+    assert.equal(shieldBreak[0]?.speed, 4);
+    assert.equal(shieldBreak[1]?.color, SHIELD_PARTICLE_COLORS.white);
+    assert.equal(shieldBreak[1]?.sparks.length, 8);
+    assert.ok(
+      (pickup[0]?.sparks.length ?? 0) > (pickup[1]?.sparks.length ?? 0)
+    );
+    assert.ok(
+      (shieldBreak[0]?.sparks.length ?? 0) >
+        (shieldBreak[1]?.sparks.length ?? 0)
     );
   });
 
