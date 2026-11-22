@@ -1,10 +1,15 @@
-import {
-  SETTINGS_UI_SCALE_BREAKPOINT_CSS,
-} from './SettingsUI';
+import * as Phaser from 'phaser';
+import { RENDER_DEPTH } from '../../shared/constants';
+import { SETTINGS_UI_SCALE_BREAKPOINT_CSS } from './SettingsUI';
 
 const ACTION_PROMPT_MIN_EDGE_PADDING_CSS = 11;
 const ACTION_PROMPT_EDGE_PADDING_RANGE_CSS = 3;
-const ACTION_PROMPT_TRANSITION_PHASE_DURATION_MS = 240;
+const ACTION_PROMPT_TRANSITION_DURATION_MS = 160;
+const ACTION_PROMPT_ROW_GAP_CSS = 7;
+const ACTION_PROMPT_INPUT_GAP_CSS = 5;
+const ACTION_PROMPT_COPY_GAP_CSS = 9;
+const ACTION_PROMPT_SPRITE_SIZE_CSS = 32;
+const ACTION_PROMPT_KEY_SPRITE_KEY = 'action-prompt-keycaps';
 
 export type ActionPromptOptions = {
   inputType: 'key' | 'mouse';
@@ -30,11 +35,25 @@ export type ActionPromptRow = {
 };
 
 type ScreenPoint = { x: number; y: number };
-type WorldToScreen = (point: NonNullable<ActionPromptOptions['worldPosition']>) => ScreenPoint;
+type WorldToScreen = (
+  point: NonNullable<ActionPromptOptions['worldPosition']>
+) => ScreenPoint;
+type SpriteCell = { column: number; row: number };
+type TrackedInput = {
+  image: Phaser.GameObjects.Image;
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+};
+type PromptRowLayout = {
+  container: Phaser.GameObjects.Container;
+  width: number;
+  height: number;
+  firstInputCenterX: number;
+};
 
-const MOUSE_BUTTON_CODE = { left: 0, middle: 1, right: 2 } as const;
-const PROMPT_SPRITE_URL = '/assets/img/ui/action-prompt-keycaps.png';
-const KEY_SPRITE_CELLS: Readonly<Record<string, { column: number; row: number }>> = {
+const KEY_SPRITE_CELLS: Readonly<Record<string, SpriteCell>> = {
   A: { column: 0, row: 0 },
   B: { column: 1, row: 0 },
   K: { column: 2, row: 0 },
@@ -50,58 +69,75 @@ const MOUSE_SPRITE_COLUMN: Readonly<
   right: 6,
   middle: 7,
 };
+const MOUSE_BUTTON_CODE = { left: 0, middle: 1, right: 2 } as const;
 
 export class ActionPromptHUD {
-  private readonly root: HTMLDivElement;
-  private readonly prompt: HTMLDivElement;
-  private readonly rows: HTMLDivElement;
-  private resizeObserver: ResizeObserver | undefined;
-  private mutationObserver: MutationObserver | undefined;
-  private canvas: HTMLCanvasElement | undefined;
+  private readonly root: Phaser.GameObjects.Container;
+  private readonly announcer: HTMLDivElement;
+  private readonly rowLayouts: PromptRowLayout[] = [];
+  private readonly inputImages = new Map<string, TrackedInput[]>();
+  private readonly pressedKeys = new Set<string>();
+  private readonly pressedMouseButtons = new Set<string>();
+  private readonly pressedTouchActions = new Set<'attack' | 'throw'>();
+  private progressGraphics: Phaser.GameObjects.Graphics | undefined;
+  private progressCenter: ScreenPoint | undefined;
   private worldPosition: ActionPromptOptions['worldPosition'];
   private worldToScreen: WorldToScreen | undefined;
-  private readonly keyCodes = new Set<string>();
+  private currentOptions: ActionPromptOptions | undefined;
   private signature = '';
-  private raf = 0;
-  private transitionTimeout = 0;
+  private announcedText = '';
+  private unitScale = 1;
+  private lastWidth = 0;
+  private lastHeight = 0;
+  private lastZoom = 0;
   private holdProgress = 0;
+  private isShown = false;
+  private destroyed = false;
 
-  constructor(private readonly host: HTMLElement) {
-    const doc = host.ownerDocument;
-    this.root = doc.createElement('div');
-    this.root.className = 'action-prompt-hud';
-    this.root.setAttribute('aria-live', 'polite');
-    this.root.setAttribute('aria-hidden', 'true');
-
-    this.prompt = doc.createElement('div');
-    this.prompt.className = 'action-prompt is-hidden';
-    this.rows = doc.createElement('div');
-    this.rows.className = 'action-prompt-rows';
-    this.prompt.append(this.rows);
-    this.root.append(this.prompt);
-    host.append(this.root);
-
-    const view = doc.defaultView;
-    view?.addEventListener('keydown', this.handleKeyDown);
-    view?.addEventListener('keyup', this.handleKeyUp);
-    view?.addEventListener('pointerdown', this.handlePointerDown);
-    view?.addEventListener('pointerup', this.clearPressed);
-    view?.addEventListener('pointercancel', this.clearPressed);
-    view?.addEventListener('blur', this.clearPressed);
-    view?.addEventListener('resize', this.layout);
-    if (view?.ResizeObserver) {
-      this.resizeObserver = new view.ResizeObserver(this.layout);
-      this.resizeObserver.observe(host);
+  constructor(private readonly scene: Phaser.Scene) {
+    const host = scene.game.canvas.parentElement;
+    if (!host) {
+      throw new Error('The game canvas must be attached before creating the action prompt HUD.');
     }
-    if (view?.MutationObserver) {
-      this.mutationObserver = new view.MutationObserver(this.layout);
-      this.mutationObserver.observe(host, { childList: true });
-    }
+
+    this.root = scene.add
+      .container(scene.scale.width / 2, scene.scale.height / 2)
+      .setScrollFactor(0)
+      .setDepth(RENDER_DEPTH.HUD)
+      .setScale(1 / scene.cameras.main.zoom)
+      .setAlpha(0)
+      .setVisible(false);
+
+    this.announcer = host.ownerDocument.createElement('div');
+    this.announcer.setAttribute('aria-live', 'polite');
+    this.announcer.setAttribute('aria-hidden', 'false');
+    Object.assign(this.announcer.style, {
+      position: 'absolute',
+      width: '1px',
+      height: '1px',
+      padding: '0',
+      margin: '-1px',
+      overflow: 'hidden',
+      clip: 'rect(0, 0, 0, 0)',
+      whiteSpace: 'nowrap',
+      border: '0',
+    });
+    host.append(this.announcer);
+
+    this.scene.scale.on('resize', this.layout, this);
+    this.scene.input.keyboard?.on('keydown', this.handleKeyDown);
+    this.scene.input.keyboard?.on('keyup', this.handleKeyUp);
+    this.scene.input.on('pointerdown', this.handlePointerDown);
+    this.scene.input.on('pointerup', this.handlePointerUp);
+    this.scene.input.on('pointerupoutside', this.handlePointerUp);
+    host.ownerDocument.defaultView?.addEventListener('blur', this.handleBlur);
     this.layout();
   }
 
   show(options: ActionPromptOptions): void {
+    this.layout();
     this.worldPosition = options.worldPosition;
+    this.currentOptions = options;
     const nextSignature = JSON.stringify({
       inputType: options.inputType,
       keyLabel: options.keyLabel,
@@ -115,82 +151,129 @@ export class ActionPromptHUD {
     });
 
     if (nextSignature !== this.signature) {
-      const animate =
-        this.signature.length > 0 &&
-        !this.prompt.classList.contains('is-hidden');
-      this.holdProgress = 0;
-      this.render(options, animate);
       this.signature = nextSignature;
+      this.holdProgress = 0;
+      this.buildRows(options);
     }
-    this.prompt.classList.remove('is-hidden');
-    this.root.setAttribute('aria-hidden', 'false');
-    this.updatePosition();
+    this.positionRows();
     this.setHoldProgress(this.holdProgress);
-    this.trackWorldPosition();
+    const accessibleText = this.getAccessibleText(options);
+    if (accessibleText !== this.announcedText) {
+      this.announcer.textContent = accessibleText;
+      this.announcedText = accessibleText;
+    }
+
+    if (!this.isShown) {
+      this.isShown = true;
+      this.scene.tweens.killTweensOf(this.root);
+      this.root.setVisible(true).setAlpha(0);
+      this.scene.tweens.add({
+        targets: this.root,
+        alpha: 1,
+        duration: ACTION_PROMPT_TRANSITION_DURATION_MS,
+        ease: 'Sine.Out',
+      });
+    }
   }
 
   hide(): void {
-    this.clearContentTransition();
-    this.worldPosition = undefined;
-    this.prompt.classList.add('is-hidden');
-    this.root.setAttribute('aria-hidden', 'true');
-    this.stopTracking();
+    if (!this.isShown) {
+      return;
+    }
+    this.isShown = false;
+    this.announcer.textContent = '';
+    this.announcedText = '';
+    this.scene.tweens.killTweensOf(this.root);
+    this.scene.tweens.add({
+      targets: this.root,
+      alpha: 0,
+      duration: ACTION_PROMPT_TRANSITION_DURATION_MS,
+      ease: 'Sine.Out',
+      onComplete: () => {
+        if (!this.isShown) {
+          this.root.setVisible(false);
+        }
+      },
+    });
   }
 
   setHoldProgress(progress0to1: number): void {
-    this.holdProgress = Math.max(0, Math.min(1, progress0to1));
-    this.prompt.style.setProperty('--action-prompt-progress', String(this.holdProgress));
-    this.prompt.classList.toggle(
-      'is-holding',
-      this.holdProgress > 0 && this.holdProgress < 1
-    );
-    this.prompt.classList.toggle('is-hold-complete', this.holdProgress >= 1);
+    const progress = Math.max(0, Math.min(1, progress0to1));
+    if (progress === this.holdProgress) {
+      return;
+    }
+    this.holdProgress = progress;
+    this.drawHoldProgress();
+  }
+
+  setTouchButtonPressed(button: 'attack' | 'throw', pressed: boolean): void {
+    if (pressed) {
+      this.pressedTouchActions.add(button);
+    } else {
+      this.pressedTouchActions.delete(button);
+    }
+    this.setInputPressed(`touch:${button}`, pressed);
   }
 
   setWorldToScreen(project: WorldToScreen): void {
     this.worldToScreen = project;
-    this.updatePosition();
+    this.positionRows();
   }
 
   destroy(): void {
-    this.hide();
-    const view = this.host.ownerDocument.defaultView;
-    view?.removeEventListener('keydown', this.handleKeyDown);
-    view?.removeEventListener('keyup', this.handleKeyUp);
-    view?.removeEventListener('pointerdown', this.handlePointerDown);
-    view?.removeEventListener('pointerup', this.clearPressed);
-    view?.removeEventListener('pointercancel', this.clearPressed);
-    view?.removeEventListener('blur', this.clearPressed);
-    view?.removeEventListener('resize', this.layout);
-    this.resizeObserver?.disconnect();
-    this.mutationObserver?.disconnect();
-    this.root.remove();
+    if (this.destroyed) {
+      return;
+    }
+    this.destroyed = true;
+    this.scene.scale.off('resize', this.layout, this);
+    this.scene.input.keyboard?.off('keydown', this.handleKeyDown);
+    this.scene.input.keyboard?.off('keyup', this.handleKeyUp);
+    this.scene.input.off('pointerdown', this.handlePointerDown);
+    this.scene.input.off('pointerup', this.handlePointerUp);
+    this.scene.input.off('pointerupoutside', this.handlePointerUp);
+    this.scene.game.canvas.ownerDocument.defaultView?.removeEventListener(
+      'blur',
+      this.handleBlur
+    );
+    this.scene.tweens.killTweensOf(this.root);
+    this.root.destroy(true);
+    this.announcer.remove();
   }
 
-  private render(options: ActionPromptOptions, animate = false): void {
-    this.clearContentTransition();
-    if (animate) {
-      const exitingRows = this.host.ownerDocument.createElement('div');
-      exitingRows.className = 'action-prompt-rows action-prompt-rows-exiting';
-      exitingRows.setAttribute('aria-hidden', 'true');
-      for (const row of this.rows.children) {
-        exitingRows.append(row.cloneNode(true));
-      }
-      exitingRows
-        .querySelectorAll('[data-key-code], [data-mouse-button]')
-        .forEach((input) => {
-          input.removeAttribute('data-key-code');
-          input.removeAttribute('data-mouse-button');
-        });
-      this.prompt.insertBefore(exitingRows, this.rows);
-    }
+  private layout(): void {
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const canvasBounds = this.scene.game.canvas.getBoundingClientRect();
+    const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
+    const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
+    const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
+    const zoom = this.scene.cameras.main.zoom;
+    const changed =
+      width !== this.lastWidth ||
+      height !== this.lastHeight ||
+      unitScale !== this.unitScale ||
+      zoom !== this.lastZoom;
 
-    this.rows.replaceChildren();
-    this.rows.classList.remove('is-entering');
-    this.prompt.classList.toggle('is-key-prompt', options.inputType === 'key');
-    this.prompt.classList.toggle('is-mouse-prompt', options.inputType === 'mouse');
-    this.prompt.classList.toggle('has-hold', (options.holdDuration ?? 0) > 0);
-    this.keyCodes.clear();
+    this.unitScale = unitScale;
+    this.lastWidth = width;
+    this.lastHeight = height;
+    this.lastZoom = zoom;
+    this.root.setPosition(width / 2, height / 2).setScale(1 / zoom);
+
+    if (changed && this.currentOptions && this.signature) {
+      this.buildRows(this.currentOptions);
+      this.positionRows();
+      this.drawHoldProgress();
+    }
+  }
+
+  private buildRows(options: ActionPromptOptions): void {
+    this.root.removeAll(true);
+    this.rowLayouts.length = 0;
+    this.inputImages.clear();
+    this.progressGraphics = undefined;
+    this.progressCenter = undefined;
+
     const rows: ActionPromptRow[] = [
       {
         actionText: options.actionText,
@@ -203,65 +286,230 @@ export class ActionPromptHUD {
       ...(options.additionalRows ?? []),
     ];
 
-    for (const [index, row] of rows.entries()) {
-      const rowElement = this.host.ownerDocument.createElement('div');
-      rowElement.className = 'action-prompt-row';
-      const inputGroup = this.host.ownerDocument.createElement('div');
-      inputGroup.className = 'action-prompt-input';
-      inputGroup.setAttribute('aria-hidden', 'true');
-
-      row.inputs.forEach((input, inputIndex) => {
-        if (inputIndex > 0) {
-          const or = this.host.ownerDocument.createElement('span');
-          or.className = 'action-prompt-or';
-          or.append(this.createPixelText('OR', 'white'));
-          inputGroup.append(or);
-        }
-        inputGroup.append(this.renderInput(input));
-      });
-
-      const copy = this.host.ownerDocument.createElement('span');
-      copy.className = 'action-prompt-copy';
-      const action = this.host.ownerDocument.createElement('span');
-      action.className = 'action-prompt-action';
-      action.append(this.createPixelText(row.actionText, 'gold'));
-      copy.append(action);
-      if (row.itemName) {
-        const item = this.host.ownerDocument.createElement('span');
-        item.className = 'action-prompt-item';
-        item.append(this.createPixelText(row.itemName, 'white'));
-        copy.append(item);
-      }
-
-      rowElement.append(inputGroup, copy);
-      rowElement.classList.toggle('is-primary-row', index === 0);
-      this.rows.append(rowElement);
+    for (const row of rows) {
+      this.rowLayouts.push(this.createRow(row));
     }
 
-    if (animate) {
-      void this.rows.offsetWidth;
-      this.rows.classList.add('is-entering');
-      const view = this.host.ownerDocument.defaultView;
-      if (view) {
-        this.transitionTimeout = view.setTimeout(
-          this.clearContentTransition,
-          ACTION_PROMPT_TRANSITION_PHASE_DURATION_MS * 2
+    this.progressGraphics = this.scene.add.graphics();
+    this.root.add(this.progressGraphics);
+    this.drawHoldProgress();
+    this.restorePressedInputs();
+  }
+
+  private createRow(row: ActionPromptRow): PromptRowLayout {
+    const scale = this.unitScale;
+    const container = this.scene.add.container(0, 0);
+    const inputGroup = this.scene.add.container(0, 0);
+    let inputWidth = 0;
+    let firstInputCenterX = ACTION_PROMPT_SPRITE_SIZE_CSS * scale / 2;
+
+    row.inputs.forEach((input, index) => {
+      if (index > 0) {
+        const separator = this.createText('OR', 9, '#ffffff', 'Arial', true);
+        separator.setOrigin(0, 0.5).setPosition(
+          inputWidth,
+          0
         );
+        inputGroup.add(separator);
+        inputWidth += separator.width + 3 * scale;
       }
+
+      const { frame, pressedKey } = this.getInputFrame(input);
+      const image = this.scene.add
+        .image(0, 0, ACTION_PROMPT_KEY_SPRITE_KEY, frame)
+        .setOrigin(0, 0.5)
+        .setDisplaySize(
+          ACTION_PROMPT_SPRITE_SIZE_CSS * scale,
+          ACTION_PROMPT_SPRITE_SIZE_CSS * scale
+        )
+        .setPosition(inputWidth, 0);
+      inputGroup.add(image);
+      if (pressedKey) {
+        const tracked: TrackedInput = {
+          image,
+          x: image.x,
+          y: image.y,
+          scaleX: image.scaleX,
+          scaleY: image.scaleY,
+        };
+        this.inputImages.set(pressedKey, [
+          ...(this.inputImages.get(pressedKey) ?? []),
+          tracked,
+        ]);
+      }
+      if (index === 0) {
+        firstInputCenterX = inputWidth + ACTION_PROMPT_SPRITE_SIZE_CSS * scale / 2;
+      }
+      inputWidth += (ACTION_PROMPT_SPRITE_SIZE_CSS + ACTION_PROMPT_INPUT_GAP_CSS) * scale;
+    });
+    if (row.inputs.length > 0) {
+      inputWidth -= ACTION_PROMPT_INPUT_GAP_CSS * scale;
+    }
+    container.add(inputGroup);
+
+    const fragments = this.getActionFragments(row.actionText);
+    const actionText = this.createText(
+      fragments ? fragments.join('\n') : row.actionText.toUpperCase(),
+      fragments ? 8 : 10,
+      '#ffd700',
+      '"Press Start 2P", monospace'
+    );
+    actionText.setOrigin(0, 0.5);
+    const actionHeight = (fragments ? 20 : 14) * scale;
+    const itemText = row.itemName
+      ? this.createText(row.itemName.toUpperCase(), 13, '#fffaf0', 'Segoe UI', true)
+      : undefined;
+    const itemHeight = itemText ? 16 * scale : 0;
+    const copyHeight = actionHeight + (itemText ? 2 * scale + itemHeight : 0);
+    const copyX = inputWidth + ACTION_PROMPT_COPY_GAP_CSS * scale;
+    actionText.setPosition(copyX, -copyHeight / 2 + actionHeight / 2);
+    container.add(actionText);
+    let copyWidth = actionText.width;
+    if (itemText) {
+      itemText
+        .setOrigin(0, 0.5)
+        .setPosition(copyX, -copyHeight / 2 + actionHeight + 2 * scale + itemHeight / 2);
+      container.add(itemText);
+      copyWidth = Math.max(copyWidth, itemText.width);
+    }
+
+    const height = Math.max(ACTION_PROMPT_SPRITE_SIZE_CSS * scale, copyHeight);
+    this.root.add(container);
+    return {
+      container,
+      width: inputWidth + (copyWidth > 0 ? ACTION_PROMPT_COPY_GAP_CSS * scale + copyWidth : 0),
+      height,
+      firstInputCenterX,
+    };
+  }
+
+  private createText(
+    text: string,
+    fontSizeCss: number,
+    color: string,
+    fontFamily: string,
+    bold = false
+  ): Phaser.GameObjects.Text {
+    const scale = this.unitScale;
+    return this.scene.add.text(0, 0, text, {
+      color,
+      fontFamily,
+      fontSize: `${fontSizeCss * scale}px`,
+      fontStyle: bold ? 'bold' : '',
+      lineSpacing: 2 * scale,
+      stroke: '#000000',
+      strokeThickness: scale,
+      padding: { x: scale, y: scale },
+    });
+  }
+
+  private positionRows(): void {
+    if (this.rowLayouts.length === 0) {
+      return;
+    }
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    const totalHeight =
+      this.rowLayouts.reduce((sum, row) => sum + row.height, 0) +
+      ACTION_PROMPT_ROW_GAP_CSS * this.unitScale *
+        Math.max(0, this.rowLayouts.length - 1);
+    const worldPoint =
+      this.worldPosition && this.worldToScreen
+        ? this.worldToScreen(this.worldPosition)
+        : undefined;
+    const edgePadding =
+      ACTION_PROMPT_MIN_EDGE_PADDING_CSS +
+      ACTION_PROMPT_EDGE_PADDING_RANGE_CSS *
+        Math.min(1, width / SETTINGS_UI_SCALE_BREAKPOINT_CSS);
+    const x = worldPoint
+      ? worldPoint.x - width / 2 - this.getMaxRowWidth() / 2
+      : -width / 2 + edgePadding * this.unitScale;
+    const top = worldPoint
+      ? worldPoint.y - height / 2 - totalHeight - 4 * this.unitScale
+      : -totalHeight / 2;
+
+    let nextY = top;
+    for (const row of this.rowLayouts) {
+      row.container.setPosition(x, nextY + row.height / 2);
+      nextY += row.height + ACTION_PROMPT_ROW_GAP_CSS * this.unitScale;
+    }
+
+    const firstRow = this.rowLayouts[0];
+    if (firstRow && this.currentOptions?.holdDuration) {
+      this.progressCenter = {
+        x: x + firstRow.firstInputCenterX,
+        y: top + firstRow.height / 2,
+      };
+    } else {
+      this.progressCenter = undefined;
+    }
+    this.drawHoldProgress();
+  }
+
+  private getMaxRowWidth(): number {
+    return Math.max(...this.rowLayouts.map((row) => row.width));
+  }
+
+  private drawHoldProgress(): void {
+    const graphics = this.progressGraphics;
+    const center = this.progressCenter;
+    if (!graphics) {
+      return;
+    }
+    graphics.clear();
+    if (!center || !this.currentOptions?.holdDuration) {
+      return;
+    }
+    const radius = ACTION_PROMPT_SPRITE_SIZE_CSS * this.unitScale * 0.56;
+    graphics.lineStyle(2 * this.unitScale, 0xffffff, 0.25);
+    graphics.strokeCircle(center.x, center.y, radius);
+    if (this.holdProgress > 0) {
+      graphics.lineStyle(
+        2 * this.unitScale,
+        0xffd16b,
+        this.holdProgress >= 1 ? 1 : 0.9
+      );
+      graphics.beginPath();
+      graphics.arc(
+        center.x,
+        center.y,
+        radius,
+        -Math.PI / 2,
+        -Math.PI / 2 + this.holdProgress * Math.PI * 2,
+        false
+      );
+      graphics.strokePath();
     }
   }
 
-  private clearContentTransition = (): void => {
-    const view = this.host.ownerDocument.defaultView;
-    if (this.transitionTimeout && view) {
-      view.clearTimeout(this.transitionTimeout);
+  private getInputFrame(input: ActionPromptInput): {
+    frame: number;
+    pressedKey?: string;
+  } {
+    if (input.inputType === 'key') {
+      const keyName = input.keyLabel.toUpperCase();
+      const cell = KEY_SPRITE_CELLS[keyName];
+      if (!cell) {
+        throw new Error(`No action prompt sprite is configured for "${keyName}".`);
+      }
+      const pressedKey =
+        input.keyCode
+          ? `key:${input.keyCode}`
+          : keyName === 'A'
+            ? 'touch:attack'
+            : keyName === 'B'
+              ? 'touch:throw'
+              : undefined;
+      return {
+        frame: cell.row * 8 + cell.column,
+        ...(pressedKey ? { pressedKey } : {}),
+      };
     }
-    this.transitionTimeout = 0;
-    this.rows.classList.remove('is-entering');
-    this.prompt
-      .querySelectorAll('.action-prompt-rows-exiting')
-      .forEach((rows) => rows.remove());
-  };
+    return {
+      frame: 3 * 8 + MOUSE_SPRITE_COLUMN[input.mouseButton],
+      pressedKey: `mouse:${input.mouseButton}`,
+    };
+  }
 
   private getPrimaryInput(options: ActionPromptOptions): ActionPromptInput {
     if (options.inputType === 'key') {
@@ -277,174 +525,108 @@ export class ActionPromptHUD {
     };
   }
 
-  private renderInput(input: ActionPromptInput): HTMLSpanElement {
-    const element = this.createSprite();
-    if (input.inputType === 'key') {
-      const keyName = input.keyLabel.toUpperCase();
-      const cell = KEY_SPRITE_CELLS[keyName];
-      if (!cell) {
-        throw new Error(`No action prompt sprite is configured for "${keyName}".`);
+  private getActionFragments(actionText: string): [string, string] | undefined {
+    const normalized = actionText.toUpperCase();
+    if (normalized === 'ATTACK') {
+      return ['ATT', 'ACK'];
+    }
+    if (normalized === 'PICKUP') {
+      return ['PIC', 'KUP'];
+    }
+    if (normalized === 'THROW') {
+      return ['THR', 'OW'];
+    }
+    return undefined;
+  }
+
+  private getAccessibleText(options: ActionPromptOptions): string {
+    const rows: ActionPromptRow[] = [
+      {
+        actionText: options.actionText,
+        ...(options.itemName ? { itemName: options.itemName } : {}),
+        inputs: [
+          this.getPrimaryInput(options),
+          ...(options.additionalInputs ?? []),
+        ],
+      },
+      ...(options.additionalRows ?? []),
+    ];
+    return rows
+      .map((row) => {
+        const inputs = row.inputs
+          .map((input) =>
+            input.inputType === 'key'
+              ? input.keyLabel
+              : `${input.mouseButton} mouse button`
+          )
+          .join(' or ');
+        return `${row.actionText}${row.itemName ? ` ${row.itemName}` : ''}: ${inputs}`;
+      })
+      .join('. ');
+  }
+
+  private restorePressedInputs(): void {
+    for (const key of this.pressedKeys) {
+      this.setInputPressed(`key:${key}`, true);
+    }
+    for (const button of this.pressedMouseButtons) {
+      this.setInputPressed(`mouse:${button}`, true);
+    }
+    for (const action of this.pressedTouchActions) {
+      this.setInputPressed(`touch:${action}`, true);
+    }
+  }
+
+  private setInputPressed(key: string, pressed: boolean): void {
+    for (const tracked of this.inputImages.get(key) ?? []) {
+      tracked.image
+        .setPosition(tracked.x, tracked.y + (pressed ? 2 * this.unitScale : 0))
+        .setScale(
+          tracked.scaleX * (pressed ? 0.96 : 1),
+          tracked.scaleY * (pressed ? 0.96 : 1)
+        );
+      if (pressed) {
+        tracked.image.setTint(0xffe6a3);
+      } else {
+        tracked.image.clearTint();
       }
-      element.classList.add('action-prompt-key');
-      if (input.keyCode) {
-        element.dataset.keyCode = input.keyCode;
-        this.keyCodes.add(input.keyCode);
-      }
-      this.setSpriteCell(element, cell.column, cell.row);
-    } else {
-      element.classList.add('action-prompt-mouse');
-      element.dataset.mouseButton = input.mouseButton;
-      this.setSpriteCell(
-        element,
-        MOUSE_SPRITE_COLUMN[input.mouseButton],
-        3
-      );
     }
-    return element;
   }
 
-  private createSprite(): HTMLSpanElement {
-    const element = this.host.ownerDocument.createElement('span');
-    element.className = 'action-prompt-sprite';
-    element.style.backgroundImage = `url("${PROMPT_SPRITE_URL}")`;
-    return element;
-  }
-
-  private createPixelText(
-    text: string,
-    tone: 'gold' | 'white'
-  ): HTMLSpanElement {
-    const element = this.host.ownerDocument.createElement('span');
-    element.className = `action-prompt-pixel-text is-${tone}`;
-    element.setAttribute('aria-label', text);
-
-    const normalizedText = text.toUpperCase();
-    const fragments =
-      normalizedText === 'ATTACK'
-        ? ['ATT', 'ACK']
-        : normalizedText === 'THROW'
-          ? ['THR', 'OW']
-          : normalizedText === 'PICKUP'
-            ? ['PIC', 'KUP']
-            : [];
-    if (fragments.length === 2) {
-      element.classList.add('is-two-row');
-      for (const fragment of fragments) {
-        const row = this.host.ownerDocument.createElement('span');
-        row.className = 'action-prompt-pixel-word-row';
-        row.classList.toggle('is-centered', fragment === 'OW');
-        row.textContent = fragment;
-        element.append(row);
-      }
-      return element;
-    }
-    element.textContent = normalizedText;
-    return element;
-  }
-
-  private setSpriteCell(
-    element: HTMLSpanElement,
-    column: number,
-    row: number
-  ): void {
-    element.style.backgroundPosition = `${-column * 32}px ${-row * 32}px`;
-  }
-
-  private layout = (): void => {
-    const canvas = this.host.querySelector('canvas') ?? undefined;
-    if (canvas && canvas !== this.canvas) {
-      this.canvas = canvas;
-      this.resizeObserver?.observe(canvas);
-    }
-    const hostRect = this.host.getBoundingClientRect();
-    const canvasRect = canvas?.getBoundingClientRect();
-    this.root.style.left = `${canvasRect ? canvasRect.left - hostRect.left : 0}px`;
-    this.root.style.top = `${canvasRect ? canvasRect.top - hostRect.top : 0}px`;
-    this.root.style.width = `${canvasRect?.width ?? hostRect.width}px`;
-    this.root.style.height = `${canvasRect?.height ?? hostRect.height}px`;
-    this.updatePosition();
-  };
-
-  private updatePosition(): void {
-    if (this.worldPosition && this.worldToScreen) {
-      const point = this.worldToScreen(this.worldPosition);
-      this.prompt.style.left = `${point.x}px`;
-      this.prompt.style.top = `${point.y}px`;
-      this.prompt.classList.add('is-world-positioned');
-      return;
-    }
-    const edgePadding =
-      ACTION_PROMPT_MIN_EDGE_PADDING_CSS +
-      ACTION_PROMPT_EDGE_PADDING_RANGE_CSS *
-        Math.min(1, this.root.clientWidth / SETTINGS_UI_SCALE_BREAKPOINT_CSS);
-    this.prompt.style.left = `${edgePadding}px`;
-    this.prompt.style.top = '50%';
-    this.prompt.classList.remove('is-world-positioned');
-  }
-
-  private trackWorldPosition(): void {
-    if (this.raf || !this.worldPosition) {
-      return;
-    }
-    const view = this.host.ownerDocument.defaultView;
-    if (!view) {
-      return;
-    }
-    const update = () => {
-      if (!this.worldPosition) {
-        this.raf = 0;
-        return;
-      }
-      this.updatePosition();
-      this.raf = view.requestAnimationFrame(update);
-    };
-    this.raf = view.requestAnimationFrame(update);
-  }
-
-  private stopTracking(): void {
-    const view = this.host.ownerDocument.defaultView;
-    if (this.raf && view) {
-      view.cancelAnimationFrame(this.raf);
-    }
-    this.raf = 0;
-  }
-
-  private handleKeyDown = (event: KeyboardEvent): void => {
-    if (this.keyCodes.has(event.code)) {
-      this.prompt
-        .querySelector(`[data-key-code="${event.code}"]`)
-        ?.classList.add('is-pressed');
+  private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    if (this.inputImages.has(`key:${event.code}`)) {
+      this.pressedKeys.add(event.code);
+      this.setInputPressed(`key:${event.code}`, true);
     }
   };
 
-  private handleKeyUp = (event: KeyboardEvent): void => {
-    if (this.keyCodes.has(event.code)) {
-      this.prompt
-        .querySelector(`[data-key-code="${event.code}"]`)
-        ?.classList.remove('is-pressed');
-    }
+  private readonly handleKeyUp = (event: KeyboardEvent): void => {
+    this.pressedKeys.delete(event.code);
+    this.setInputPressed(`key:${event.code}`, false);
   };
 
-  private handlePointerDown = (event: PointerEvent): void => {
+  private readonly handlePointerDown = (pointer: Phaser.Input.Pointer): void => {
     const button = Object.entries(MOUSE_BUTTON_CODE).find(
-      ([, code]) => code === event.button
+      ([, code]) => code === pointer.button
     )?.[0];
-    if (button) {
-      this.prompt
-        .querySelector(`[data-mouse-button="${button}"]`)
-        ?.classList.add('is-pressed');
+    if (button && this.inputImages.has(`mouse:${button}`)) {
+      this.pressedMouseButtons.add(button);
+      this.setInputPressed(`mouse:${button}`, true);
     }
   };
 
-  private clearPressed = (): void => {
-    this.prompt.querySelectorAll('.is-pressed').forEach((element) => {
-      element.classList.remove('is-pressed');
-    });
+  private readonly handlePointerUp = (): void => {
+    for (const button of this.pressedMouseButtons) {
+      this.setInputPressed(`mouse:${button}`, false);
+    }
+    this.pressedMouseButtons.clear();
   };
-}
 
-declare global {
-  interface Window {
-    ActionPromptHUD: ActionPromptHUD;
-  }
+  private readonly handleBlur = (): void => {
+    for (const key of this.pressedKeys) {
+      this.setInputPressed(`key:${key}`, false);
+    }
+    this.pressedKeys.clear();
+    this.handlePointerUp();
+  };
 }

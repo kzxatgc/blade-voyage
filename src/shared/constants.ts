@@ -59,6 +59,9 @@ export const RENDER_DEPTH = {
   EFFECTS: 6,
   PARTICLES: 7,
   DEBUG: 10,
+  HUD: 11,
+  HUD_OVERLAY: 12,
+  HUD_MODAL: 13,
 } as const;
 
 export const HEART_COLORS: RgbColor[] = [

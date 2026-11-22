@@ -6,7 +6,6 @@ import { AUTO, Game } from 'phaser';
 import { Preloader } from './scenes/Preloader';
 import { LevelSelectScene } from './scenes/LevelSelectScene';
 import { TARGET_FPS, WINDOW_HEIGHT, WINDOW_WIDTH } from '../shared/constants';
-import { ActionPromptHUD } from './systems/ActionPromptHUD';
 
 //  Find out more information about the Game Config at:
 //  https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
@@ -42,6 +41,5 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!gameContainer) {
     throw new Error('The game container is missing.');
   }
-  window.ActionPromptHUD = new ActionPromptHUD(gameContainer);
   StartGame('game-container');
 });

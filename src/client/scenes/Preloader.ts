@@ -138,6 +138,11 @@ export class Preloader extends Scene {
     );
     this.load.image('touch-settings-hint-on', 'img/ui/settings/hint-on.png');
     this.load.image('touch-settings-hint-off', 'img/ui/settings/hint-off.png');
+    this.load.spritesheet(
+      'action-prompt-keycaps',
+      'img/ui/action-prompt-keycaps.png',
+      { frameWidth: 32, frameHeight: 32 }
+    );
     this.load.image('touch-settings-panel', 'img/ui/settings/panel.png');
     this.load.image('touch-settings-button', 'img/ui/settings/button.png');
     this.load.image('touch-settings-home', 'img/ui/settings/home.png');

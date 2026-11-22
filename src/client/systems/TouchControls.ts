@@ -19,6 +19,10 @@ export type TouchControlActions = {
   jump: () => void;
   attack: () => void;
   throw: () => void;
+  setActionButtonPressed: (
+    button: 'attack' | 'throw',
+    pressed: boolean
+  ) => void;
   setSoundEnabled: (enabled: boolean) => void;
   setPickupHintEnabled: (enabled: boolean) => void;
   setGamePaused: (paused: boolean) => void;
@@ -211,6 +215,7 @@ export class TouchControls {
       (this.activePointers.size > 0 || this.pointersDown.size > 0)
     ) {
       const hadActiveButtons = this.activePointers.size > 0;
+      this.releaseActionButtonHints();
       this.activePointers.clear();
       this.pointersDown.clear();
       this.movement.left = false;
@@ -246,6 +251,7 @@ export class TouchControls {
   }
 
   destroy(): void {
+    this.releaseActionButtonHints();
     this.touchPrimaryInputQuery.removeEventListener(
       'change',
       this.handleInputModeChange
@@ -265,6 +271,7 @@ export class TouchControls {
     for (const button of this.buttons.values()) {
       button.destroy();
     }
+    this.settingsBackdrop.destroy();
     this.settingsRoot.destroy();
     this.buttons.clear();
     this.buttonImages.clear();
@@ -302,7 +309,7 @@ export class TouchControls {
         .container(0, 0, [image])
         .setSize(BUTTON_WIDTH, BUTTON_HEIGHT)
         .setScrollFactor(0)
-        .setDepth(RENDER_DEPTH.DEBUG + 1)
+        .setDepth(RENDER_DEPTH.HUD)
         .setAlpha(0.78);
 
       this.buttons.set(kind, button);
@@ -314,6 +321,7 @@ export class TouchControls {
 
   private disable(): void {
     this.enabled = false;
+    this.releaseActionButtonHints();
     this.activePointers.clear();
     this.pointersDown.clear();
     this.movement.left = false;
@@ -477,7 +485,10 @@ export class TouchControls {
   private createSettingsUI(): void {
     this.settingsBackdrop = this.scene.add
       .rectangle(0, 0, 1, 1, 0x17121c, 0.68)
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(RENDER_DEPTH.HUD_OVERLAY)
+      .setVisible(false);
     this.settingsPanelImage = this.scene.add.image(
       0,
       0,
@@ -507,7 +518,6 @@ export class TouchControls {
       .setOrigin(0.5);
 
     const menuChildren: Phaser.GameObjects.GameObject[] = [
-      this.settingsBackdrop,
       this.settingsPanelImage,
       this.settingsTitle,
       this.settingsHomeIcon,
@@ -544,7 +554,7 @@ export class TouchControls {
         this.settingsButtonIcon,
       ])
       .setScrollFactor(0)
-      .setDepth(RENDER_DEPTH.DEBUG + 2);
+      .setDepth(RENDER_DEPTH.HUD_MODAL);
     this.updateSettingsUI();
   }
 
@@ -602,8 +612,9 @@ export class TouchControls {
     const panelWidth = SETTINGS_PANEL_WIDTH_CSS * uiScale;
     const panelHeight = SETTINGS_PANEL_HEIGHT_CSS * uiScale;
     this.settingsBackdrop
-      .setPosition(0, 0)
+      .setPosition(width / 2, height / 2)
       .setSize(width, height)
+      .setScale(1 / zoom)
       .setFillStyle(0x17121c, 0.68);
     this.settingsPanelImage
       .setPosition(0, 0)
@@ -848,9 +859,11 @@ export class TouchControls {
     }
     this.settingsOpen = open;
     this.actions.setGamePaused(open);
+    this.settingsBackdrop.setVisible(open);
     this.settingsMenu.setVisible(open).setAlpha(1).setScale(1);
     this.animateSettingsButton(open);
     if (open) {
+      this.releaseActionButtonHints();
       this.activePointers.clear();
       this.pointersDown.clear();
       this.movement.left = false;
@@ -972,9 +985,23 @@ export class TouchControls {
       return;
     }
 
+    const attackWasPressed = [...this.activePointers.values()].includes('attack');
+    const throwWasPressed = [...this.activePointers.values()].includes('throw');
     this.activePointers.delete(pointerId);
     if (nextButton) {
       this.activePointers.set(pointerId, nextButton);
+    }
+
+    const attackIsPressed = [...this.activePointers.values()].includes('attack');
+    const throwIsPressed = [...this.activePointers.values()].includes('throw');
+    if (attackWasPressed !== attackIsPressed) {
+      this.actions.setActionButtonPressed('attack', attackIsPressed);
+    }
+    if (throwWasPressed !== throwIsPressed) {
+      this.actions.setActionButtonPressed('throw', throwIsPressed);
+    }
+
+    if (nextButton) {
       if (nextButton === 'jump') {
         this.actions.jump();
       } else if (nextButton === 'down') {
@@ -989,6 +1016,18 @@ export class TouchControls {
     this.movement.left = [...this.activePointers.values()].includes('left');
     this.movement.right = [...this.activePointers.values()].includes('right');
     this.updateButtonStates();
+  }
+
+  private releaseActionButtonHints(): void {
+    const activeButtons = [...this.activePointers.values()];
+    const pressedAttack = activeButtons.includes('attack');
+    const pressedThrow = activeButtons.includes('throw');
+    if (pressedAttack) {
+      this.actions.setActionButtonPressed('attack', false);
+    }
+    if (pressedThrow) {
+      this.actions.setActionButtonPressed('throw', false);
+    }
   }
 
   private updateButtonStates(): void {

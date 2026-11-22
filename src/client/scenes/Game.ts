@@ -66,9 +66,9 @@ import {
   getResponsiveSettingsScale,
   SETTINGS_BUTTON_MARGIN_CSS,
 } from '../systems/SettingsUI';
-import type {
+import {
   ActionPromptHUD,
-  ActionPromptOptions,
+  type ActionPromptOptions,
 } from '../systems/ActionPromptHUD';
 
 const TILE_ANIMATION_TYPES = [
@@ -409,6 +409,9 @@ export class Game extends Phaser.Scene {
       jump: () => this.playerEntity?.jump(),
       attack: () => this.triggerAttackOrPickup(),
       throw: () => this.playerEntity?.throwSword(),
+      setActionButtonPressed: (button, pressed) => {
+        this.actionPromptHUD?.setTouchButtonPressed(button, pressed);
+      },
       setSoundEnabled: (enabled) => this.sound.setMute(!enabled),
       setPickupHintEnabled: (enabled) => {
         this.pickupHintEnabled = enabled;
@@ -547,7 +550,7 @@ export class Game extends Phaser.Scene {
     this.healthIndicatorRoot = this.add
       .container(0, 0, [this.healthIndicator])
       .setScrollFactor(0)
-      .setDepth(RENDER_DEPTH.DEBUG + 1);
+      .setDepth(RENDER_DEPTH.HUD);
     this.frenzyIndicator = this.add
       .image(0, 0, FRENZY_HUD_SPRITE_KEY, 0)
       .setOrigin(0.5, 0.5)
@@ -563,7 +566,7 @@ export class Game extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layoutHealthIndicator, this);
     });
-    this.actionPromptHUD = window.ActionPromptHUD;
+    this.actionPromptHUD = new ActionPromptHUD(this);
     this.actionPromptHUD.setWorldToScreen(({ x, y }) => {
       const currentCamera = this.cameras.main;
       const originX = currentCamera.width * currentCamera.originX;
@@ -576,13 +579,12 @@ export class Game extends Phaser.Scene {
         currentCamera.y +
         originY +
         (y - currentCamera.scrollY - originY) * currentCamera.zoomY;
-      const canvasBounds = this.game.canvas.getBoundingClientRect();
       return {
-        x: (screenX / this.scale.width) * canvasBounds.width,
-        y: (screenY / this.scale.height) * canvasBounds.height,
+        x: screenX,
+        y: screenY,
       };
     });
-    this.events.once('shutdown', () => this.actionPromptHUD?.hide());
+    this.events.once('shutdown', () => this.actionPromptHUD?.destroy());
     this.sparksGraphics = this.add.graphics().setDepth(RENDER_DEPTH.DEBUG);
     this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
 
