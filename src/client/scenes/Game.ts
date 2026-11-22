@@ -283,7 +283,10 @@ export class Game extends Phaser.Scene {
     if (player.shieldTicksRemaining > 0 && !player.dead) {
       const elapsedTicks = SHIELD_DURATION_TICKS - player.shieldTicksRemaining;
       frame = getShieldActiveFrame(elapsedTicks);
-      alpha = getTimedEffectWarningAlpha(player.shieldTicksRemaining);
+      alpha = getTimedEffectWarningAlpha(
+        player.shieldTicksRemaining,
+        SHIELD_DURATION_TICKS
+      );
       const playerRect = player.rect();
       position = [
         playerRect.x +
@@ -337,7 +340,8 @@ export class Game extends Phaser.Scene {
       );
       const frenzyElapsedTicks = player.attackHandler.frenzyElapsedTicks;
       alpha = getTimedEffectWarningAlpha(
-        FRENZY_DURATION_TICKS - frenzyElapsedTicks
+        FRENZY_DURATION_TICKS - frenzyElapsedTicks,
+        FRENZY_DURATION_TICKS
       );
     } else if (this.frenzySwordEffectFadeElapsedTicks >= 0) {
       frame = getFrenzySwordEffectDeactivationFrame(

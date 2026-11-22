@@ -441,7 +441,7 @@ void describe('Player', () => {
     assert.equal(swordPlayer.animationKey, 'player/sword/hit');
   });
 
-  void it('activates and refreshes a 10-second shield, then expires it', async () => {
+  void it('activates and refreshes a 12-second shield, then expires it', async () => {
     const { Player: PlayerClass, SHIELD_DURATION_TICKS } =
       await import(playerUrl);
     const Tilemap = await getTilemap();
@@ -449,7 +449,7 @@ void describe('Player', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
 
-    assert.equal(SHIELD_DURATION_TICKS, 600);
+    assert.equal(SHIELD_DURATION_TICKS, 720);
     player.activateShield();
     assert.equal(player.shieldTicksRemaining, SHIELD_DURATION_TICKS);
 
@@ -486,7 +486,7 @@ void describe('Player', () => {
 
     assert.equal(player.takeDamage(1), false);
     assert.equal(player.health, player.maxHealth);
-    assert.equal(player.shieldTicksRemaining, 600);
+    assert.equal(player.shieldTicksRemaining, 720);
     assert.equal(player.lastHitWasShielded, false);
   });
 

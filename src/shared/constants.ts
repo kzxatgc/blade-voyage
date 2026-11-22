@@ -15,6 +15,7 @@ export const CAMERA_BOUNDS_X = 7 * TILE_SIZE;       // ±224px horizontal
 export const CAMERA_BOUNDS_Y_UP = 2 * TILE_SIZE;    //  -64px above player center
 export const CAMERA_BOUNDS_Y_DOWN = 2 * TILE_SIZE;  // +64px below player center
 export const TICK_RATE = 60;
+export const POWER_UP_DURATION_TICKS = 12 * TICK_RATE;
 export const TARGET_FPS = 144;
 export const MAX_FRAME_DELTA = 100;
 // Camera zoom levels (matches game.py lines 152-198)

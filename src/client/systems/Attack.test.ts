@@ -85,7 +85,7 @@ void describe('Attack', () => {
 
   void it('bypasses cooldown during Frenzy without interrupting attacks and restores cooldown on expiry', () => {
     const attack = new Attack(undefined, () => 0);
-    assert.equal(FRENZY_DURATION_TICKS, 600);
+    assert.equal(FRENZY_DURATION_TICKS, 720);
     assert.equal(attack.triggerAttack(0), true);
     attack.attackState = false;
     attack.update();

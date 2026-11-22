@@ -1,6 +1,10 @@
 import { Animation } from '../utils/Animation.ts';
 import type { EntityPosition } from '../../shared/types.ts';
-import { RENDER_DEPTH, TICK_RATE } from '../../shared/constants.ts';
+import {
+  POWER_UP_DURATION_TICKS,
+  RENDER_DEPTH,
+  TICK_RATE,
+} from '../../shared/constants.ts';
 
 export const ATTACK_TYPES = ['attack_1', 'attack_2', 'attack_3'] as const;
 export type AttackType = typeof ATTACK_TYPES[number];
@@ -18,7 +22,7 @@ export const GROUND_ATTACK_COOLDOWN_TICKS = Math.round(
 export const AIR_ATTACK_COOLDOWN_TICKS = Math.round(
   AIR_ATTACK_COOLDOWN_SECONDS * TICK_RATE
 );
-export const FRENZY_DURATION_TICKS = 10 * TICK_RATE;
+export const FRENZY_DURATION_TICKS = POWER_UP_DURATION_TICKS;
 
 export const POS_ADJUSTMENT: Readonly<
   Record<string, readonly [number, number, number, number]>

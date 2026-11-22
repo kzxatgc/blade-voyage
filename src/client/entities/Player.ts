@@ -1,6 +1,9 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
 import type { EntityPosition, EntityRect } from '../../shared/types.ts';
-import { FIERY_BURST_COLORS, TICK_RATE } from '../../shared/constants.ts';
+import {
+  FIERY_BURST_COLORS,
+  POWER_UP_DURATION_TICKS,
+} from '../../shared/constants.ts';
 import { DEBUG_CONFIG } from '../../shared/debug.ts';
 import { Attack } from '../systems/Attack.ts';
 import type { Particles } from '../systems/Particles.ts';
@@ -25,7 +28,7 @@ export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
 
 const QUESTION_MARK_HEAD_OVERLAP = 4;
 const QUESTION_MARK_FACING_RIGHT_OFFSET = 3;
-export const SHIELD_DURATION_TICKS = 10 * TICK_RATE;
+export const SHIELD_DURATION_TICKS = POWER_UP_DURATION_TICKS;
 
 export class Player extends PhysicsEntity {
   jumps = 2;
