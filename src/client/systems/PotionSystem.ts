@@ -395,7 +395,7 @@ export class PotionSystem {
       selected[1] - 21,
     ]);
     this.frenzyPotions.push(potion);
-    this.addSpawnSparks(potion, [255, 196, 48], [122, 207, 255]);
+    this.addSpawnSparks(potion, [195, 233, 255], [255, 255, 255]);
     return potion;
   }
 

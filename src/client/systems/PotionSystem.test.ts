@@ -128,6 +128,23 @@ void describe('PotionSystem', () => {
     assert.deepEqual(sparksEffect[1]?.color, [255, 255, 255]);
   });
 
+  void it('uses white and light-blue sparks when a Frenzy Potion spawns', () => {
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    const sparksEffect: Sparks[] = [];
+    const manager = new PotionSystem(() => 0.0001, sparksEffect);
+
+    assert.ok(manager.spawnFrenzyPotion(tilemap) !== null);
+    assert.equal(sparksEffect.length, 2);
+    assert.deepEqual(sparksEffect[0]?.color, [195, 233, 255]);
+    assert.deepEqual(sparksEffect[1]?.color, [255, 255, 255]);
+  });
+
   void it('heals one health point and removes the potion on pickup', () => {
     const potion = new HealthPotion([100, 200]);
     const potions = new PotionSystem();
