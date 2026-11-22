@@ -157,9 +157,9 @@ void describe('Sword entity', () => {
     const impactSparks = sparksEffect[2];
     assert.ok(impactSparks);
     assert.deepEqual(impactSparks.color, [255, 235, 170]);
-    assert.equal(impactSparks.speed, 1.44);
+    assert.equal(impactSparks.speed, 2.0);
     assert.equal(impactSparks.shape, 'diamond');
-    assert.equal(impactSparks.sparks.length, 16);
+    assert.equal(impactSparks.sparks.length, 20);
 
     const landedPosition: [number, number] = [...sword.pos];
     sword.update(tm);

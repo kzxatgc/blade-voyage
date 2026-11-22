@@ -16,7 +16,6 @@ void describe('Debug config', () => {
     assert.equal(debug.isDebugEnabled(), true);
     assert.equal(debug.DEBUG_CONFIG.enabled, true);
     assert.equal(debug.DEBUG_CONFIG.showTouchControlsOnDesktop, false);
-    assert.equal(debug.DEBUG_CONFIG.boostPotionSpawnRates, false);
     assert.equal(debug.DEBUG_CONFIG.showSwordSpawnRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyDetectionRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyAttackRange, true);

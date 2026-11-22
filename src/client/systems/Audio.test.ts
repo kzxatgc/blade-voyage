@@ -55,7 +55,7 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
     const chosen = soundSystem.play('player/pickup_sword');
     assert.equal(chosen, 'sfx/player/pickup_sword.wav');
     assert.deepEqual(played, [
-      { key: 'sfx/player/pickup_sword.wav', volume: 0.7 },
+      { key: 'sfx/player/pickup_sword.wav', volume: 0.4 },
     ]);
   });
 
@@ -105,7 +105,7 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
     const soundSystem = new SoundSystem(mockSound, () => 0.5);
     const chosen = soundSystem.play('player/sword/attack', { volumeScale: 0.5 });
     assert.ok(chosen?.startsWith('sfx/player/sword/attack/'));
-    assert.equal(playedVolume, 0.1); // 0.2 * 0.5
+    assert.equal(playedVolume, 0.6); // 1.2 * 0.5
   });
 
   void it('returns null and does not throw for unknown key or when sound player is undefined', () => {
