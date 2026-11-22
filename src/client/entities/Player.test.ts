@@ -578,6 +578,27 @@ void describe('Player', () => {
     assert.equal(player.animation?.img(), 'player/sword/idle/0');
   });
 
+  void it('switches an in-progress landing pose to the sword landing frames on pickup', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    const landingAnimation = player.animations?.['player/land'];
+    assert.ok(landingAnimation);
+    const activeLandingAnimation = landingAnimation.copy();
+    player.landingAnimation = activeLandingAnimation;
+    for (let tick = 0; tick < 8; tick += 1) {
+      activeLandingAnimation.update();
+    }
+    const landingFrame = activeLandingAnimation.frame;
+    const sword = {
+      pos: [100, 200] as [number, number],
+      rect: () => ({ x: 100, y: 200, width: 20, height: 20 }),
+    };
+
+    assert.equal(player.pickupSword([sword]), true);
+    assert.equal(player.landingAnimation?.img(), 'player/sword/land/1');
+    assert.equal(player.landingAnimation?.frame, landingFrame);
+  });
+
   void it('does not report a distant sword as pickupable', async () => {
     const Player = await getPlayer();
     const player = new Player([100, 200]);

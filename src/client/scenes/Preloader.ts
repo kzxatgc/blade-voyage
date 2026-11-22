@@ -17,6 +17,10 @@ import {
   SHIELD_EFFECT_FRAME_SIZE,
   SHIELD_EFFECT_SPRITE_KEY,
 } from '../systems/ShieldEffect';
+import {
+  FRENZY_SWORD_EFFECT_FRAME_SIZE,
+  FRENZY_SWORD_EFFECT_SPRITE_KEY,
+} from '../systems/FrenzySwordEffect';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -131,6 +135,14 @@ export class Preloader extends Scene {
       {
         frameWidth: SHIELD_EFFECT_FRAME_SIZE,
         frameHeight: SHIELD_EFFECT_FRAME_SIZE,
+      }
+    );
+    this.load.spritesheet(
+      FRENZY_SWORD_EFFECT_SPRITE_KEY,
+      'img/effects/frenzy/sword-frenzy.png',
+      {
+        frameWidth: FRENZY_SWORD_EFFECT_FRAME_SIZE,
+        frameHeight: FRENZY_SWORD_EFFECT_FRAME_SIZE,
       }
     );
     this.load.image('touch-left', 'img/ui/touch/left.png');

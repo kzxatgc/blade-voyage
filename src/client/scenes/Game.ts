@@ -77,6 +77,14 @@ import {
   SHIELD_EFFECT_OFFSET_Y,
   SHIELD_EFFECT_SPRITE_KEY,
 } from '../systems/ShieldEffect';
+import {
+  FRENZY_SWORD_EFFECT_DEACTIVATION_DURATION_TICKS,
+  FRENZY_SWORD_EFFECT_FRAME_SIZE,
+  FRENZY_SWORD_EFFECT_SPRITE_KEY,
+  getFrenzySwordEffectDeactivationFrame,
+  getFrenzySwordEffectFrame,
+  getFrenzySwordEffectTransform,
+} from '../systems/FrenzySwordEffect';
 import { shouldShowAttackCooldownIndicator } from '../systems/AttackCooldownHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
@@ -138,6 +146,8 @@ export class Game extends Phaser.Scene {
   private shieldEffectSprite: Phaser.GameObjects.Image | undefined;
   private shieldBreakElapsedTicks = -1;
   private shieldBreakPosition: [number, number] | undefined;
+  private frenzySwordEffectSprite: Phaser.GameObjects.Image | undefined;
+  private frenzySwordEffectFadeElapsedTicks = -1;
   private healthIndicatorZoom = 0;
   private actionPromptHUD?: ActionPromptHUD;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -299,6 +309,70 @@ export class Game extends Phaser.Scene {
       .setVisible(true);
   }
 
+  private renderFrenzySwordEffect(
+    renderedPlayerX: number,
+    renderedPlayerY: number
+  ): void {
+    const player = this.playerEntity;
+    const sprite = this.frenzySwordEffectSprite;
+    const playerSprite = this.playerSprite;
+    if (!player || !sprite || !playerSprite || player.dead || !player.swordState) {
+      sprite?.setVisible(false);
+      return;
+    }
+
+    let frame: number | undefined;
+    if (player.attackHandler.isFrenzyActive) {
+      frame = getFrenzySwordEffectFrame(
+        player.attackHandler.frenzyElapsedTicks
+      );
+    } else if (this.frenzySwordEffectFadeElapsedTicks >= 0) {
+      frame = getFrenzySwordEffectDeactivationFrame(
+        this.frenzySwordEffectFadeElapsedTicks
+      );
+    }
+
+    if (frame === undefined) {
+      sprite.setVisible(false);
+      return;
+    }
+
+    const transform = getFrenzySwordEffectTransform(
+      playerSprite.texture.key,
+      player.flip
+    );
+    if (transform === null) {
+      sprite.setVisible(false);
+      return;
+    }
+    if (transform === undefined) {
+      throw new Error(
+        `Missing Frenzy sword effect pose for "${playerSprite.texture.key}".`
+      );
+    }
+
+    sprite.setFrame(frame).setFlipX(player.flip);
+    if (transform.cropWidth < FRENZY_SWORD_EFFECT_FRAME_SIZE) {
+      sprite.setCrop(
+        transform.cropX,
+        0,
+        transform.cropWidth,
+        FRENZY_SWORD_EFFECT_FRAME_SIZE
+      );
+    } else {
+      sprite.setCrop();
+    }
+
+    sprite
+      .setRotation(transform.rotation)
+      .setDisplaySize(transform.displaySize, transform.displaySize)
+      .setPosition(
+        renderedPlayerX + transform.offsetX,
+        renderedPlayerY + transform.offsetY
+      )
+      .setVisible(true);
+  }
+
   private pulseHealthIndicator(): void {
     const indicator = this.healthIndicator;
     if (!indicator) {
@@ -344,6 +418,8 @@ export class Game extends Phaser.Scene {
     this.shieldEffectSprite = undefined;
     this.shieldBreakElapsedTicks = -1;
     this.shieldBreakPosition = undefined;
+    this.frenzySwordEffectSprite = undefined;
+    this.frenzySwordEffectFadeElapsedTicks = -1;
     this.healthIndicatorZoom = 0;
     this.settingsPaused = false;
     this.tickAccumulator = 0;
@@ -626,6 +702,16 @@ export class Game extends Phaser.Scene {
       .setDisplaySize(SHIELD_EFFECT_DISPLAY_SIZE, SHIELD_EFFECT_DISPLAY_SIZE)
       .setDepth(RENDER_DEPTH.EFFECTS)
       .setVisible(false);
+    this.frenzySwordEffectSprite = this.add
+      .image(
+        this.playerEntity.pos[0] + 32,
+        this.playerEntity.pos[1] + 20,
+        FRENZY_SWORD_EFFECT_SPRITE_KEY,
+        0
+      )
+      .setOrigin(0.5, 0.5)
+      .setDepth(RENDER_DEPTH.WEAPON_EFFECTS)
+      .setVisible(false);
     this.playerQuestionMarkSprite = this.add
       .image(0, 0, 'dialogue/question/0')
       .setOrigin(0, 0)
@@ -764,6 +850,7 @@ export class Game extends Phaser.Scene {
       return;
     }
 
+    const frenzyWasActive = this.playerEntity.attackHandler.isFrenzyActive;
     if (this.shieldBreakElapsedTicks >= 0) {
       this.shieldBreakElapsedTicks += 1;
       if (this.shieldBreakElapsedTicks >= SHIELD_BREAK_DURATION_TICKS) {
@@ -998,6 +1085,19 @@ export class Game extends Phaser.Scene {
       horizontalDirection * PLAYER_MOVE_SPEED,
       0,
     ]);
+    if (this.playerEntity.attackHandler.isFrenzyActive) {
+      this.frenzySwordEffectFadeElapsedTicks = -1;
+    } else if (frenzyWasActive) {
+      this.frenzySwordEffectFadeElapsedTicks = 0;
+    } else if (this.frenzySwordEffectFadeElapsedTicks >= 0) {
+      this.frenzySwordEffectFadeElapsedTicks += 1;
+      if (
+        this.frenzySwordEffectFadeElapsedTicks >=
+        FRENZY_SWORD_EFFECT_DEACTIVATION_DURATION_TICKS
+      ) {
+        this.frenzySwordEffectFadeElapsedTicks = -1;
+      }
+    }
     this.checkForDeathTransition();
     this.clouds?.update();
     const playerAnimation = this.playerEntity.animation;
@@ -1157,6 +1257,7 @@ export class Game extends Phaser.Scene {
     this.renderClouds();
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
     this.renderShieldEffect(renderedPlayerX, renderedPlayerY);
+    this.renderFrenzySwordEffect(renderedPlayerX, renderedPlayerY);
     const questionAnimation = this.playerEntity.questionMarkAnimation;
     if (questionAnimation && this.playerQuestionMarkSprite) {
       const questionTexture = questionAnimation.img();
@@ -1386,13 +1487,27 @@ export class Game extends Phaser.Scene {
   }
 
   private triggerAttackOrPickup() {
-    if (!this.playerEntity || this.playerEntity.dead) {
+    const player = this.playerEntity;
+    if (!player || player.dead) {
       return;
     }
-    if (!this.playerEntity.swordState && this.swords) {
-      this.playerEntity.pickupSword(this.swords.swords);
-    } else if (this.playerEntity.swordState) {
-      this.playerEntity.attack();
+    if (!player.swordState && this.swords) {
+      if (player.pickupSword(this.swords.swords)) {
+        const playerAnimation = player.animation;
+        if (!playerAnimation) {
+          throw new Error('The player animation is not configured.');
+        }
+
+        const isHitAnimation =
+          player.action === 'hit' || player.action === 'sword/hit';
+        const renderAnimation = isHitAnimation
+          ? playerAnimation
+          : (player.landingAnimation ?? playerAnimation);
+        this.playerSprite?.setTexture(renderAnimation.img());
+        this.playerRenderAnimation = renderAnimation;
+      }
+    } else if (player.swordState) {
+      player.attack();
     }
   }
 

@@ -246,6 +246,21 @@ export class Player extends PhysicsEntity {
     sword.destroy?.();
     this.swordState = true;
     this.playSfx?.('player/pickup_sword');
+    if (this.landingAnimation) {
+      const swordLandingAnimation = this.animations?.['player/sword/land'];
+      if (!swordLandingAnimation) {
+        throw new Error('The player sword landing animation is not configured.');
+      }
+
+      const landingFrame = this.landingAnimation.frame;
+      const landingDone = this.landingAnimation.done;
+      const landingIndexChanged = this.landingAnimation.indexChanged;
+      this.landingAnimation = swordLandingAnimation.copy();
+      this.landingAnimation.frame = landingFrame;
+      this.landingAnimation.done = landingDone;
+      this.landingAnimation.indexChanged = landingIndexChanged;
+    }
+
     const currentBaseAction = this.action.replace(/^sword\//, '');
     this.action = '';
     this.setAction(`sword/${currentBaseAction}`);
