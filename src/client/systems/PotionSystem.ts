@@ -49,6 +49,10 @@ export interface PotionPlayerTarget {
   playSfx?: ((name: string) => void) | undefined;
 }
 
+export type FrenzyPotionPlayerTarget = PotionPlayerTarget & {
+  activateFrenzy(): void;
+};
+
 class PotionPickupEffect {
   timer = 0;
   private image: PotionRenderImage | null = null;
@@ -437,18 +441,12 @@ export class PotionSystem {
     });
   }
 
-  collectHealthPotion(player: PotionPlayerTarget): boolean {
-    if (player.health >= player.maxHealth) {
-      return false;
-    }
-
-    const playerRect = player.rect();
-    for (
-      let index = this.healthPotions.length - 1;
-      index >= 0;
-      index -= 1
-    ) {
-      const potion = this.healthPotions[index];
+  private getOverlappingPotionIndex(
+    potions: readonly PotionEntity[],
+    playerRect: EntityRect
+  ): number {
+    for (let index = potions.length - 1; index >= 0; index -= 1) {
+      const potion = potions[index];
       if (!potion) {
         continue;
       }
@@ -459,18 +457,53 @@ export class PotionSystem {
         playerRect.y < potionRect.y + potionRect.height &&
         playerRect.y + playerRect.height > potionRect.y;
       if (overlaps) {
-        player.health = Math.min(
-          player.maxHealth,
-          player.health + HEALTH_POTION_HEAL_AMOUNT
-        );
-        this.healthPotionEffects.push(new HealthPotionEffect(player));
-        player.playSfx?.('player/pickup_health_potion');
-        potion.destroy();
-        this.healthPotions.splice(index, 1);
-        return true;
+        return index;
       }
     }
-    return false;
+    return -1;
+  }
+
+  collectHealthPotion(player: PotionPlayerTarget): boolean {
+    if (player.health >= player.maxHealth) {
+      return false;
+    }
+
+    const index = this.getOverlappingPotionIndex(
+      this.healthPotions,
+      player.rect()
+    );
+    const potion = this.healthPotions[index];
+    if (index < 0 || !potion) {
+      return false;
+    }
+
+    player.health = Math.min(
+      player.maxHealth,
+      player.health + HEALTH_POTION_HEAL_AMOUNT
+    );
+    this.healthPotionEffects.push(new HealthPotionEffect(player));
+    player.playSfx?.('player/pickup_health_potion');
+    potion.destroy();
+    this.healthPotions.splice(index, 1);
+    return true;
+  }
+
+  collectFrenzyPotion(player: FrenzyPotionPlayerTarget): boolean {
+    const index = this.getOverlappingPotionIndex(
+      this.frenzyPotions,
+      player.rect()
+    );
+    const potion = this.frenzyPotions[index];
+    if (index < 0 || !potion) {
+      return false;
+    }
+
+    player.activateFrenzy();
+    this.frenzyPotionEffects.push(new FrenzyPotionEffect(player));
+    player.playSfx?.('player/pickup_health_potion');
+    potion.destroy();
+    this.frenzyPotions.splice(index, 1);
+    return true;
   }
 
   render(

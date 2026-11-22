@@ -134,6 +134,10 @@ export class Player extends PhysicsEntity {
     return false;
   }
 
+  activateFrenzy(): void {
+    this.attackHandler.activateFrenzy();
+  }
+
   showQuestionMark(): void {
     this.questionMarkPendingUntilLanding = false;
     this.questionMarkAnimation = new Animation(

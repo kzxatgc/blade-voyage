@@ -126,6 +126,23 @@ void describe('Attack', () => {
     assert.equal(attack.isFrenzyActive, false);
   });
 
+  void it('refreshes Frenzy to its full duration when activated again', () => {
+    const attack = new Attack();
+    attack.activateFrenzy();
+    for (let tick = 0; tick < 500; tick += 1) {
+      attack.update();
+    }
+
+    attack.activateFrenzy();
+    for (let tick = 0; tick < FRENZY_DURATION_TICKS - 1; tick += 1) {
+      attack.update();
+    }
+    assert.equal(attack.isFrenzyActive, true);
+
+    attack.update();
+    assert.equal(attack.isFrenzyActive, false);
+  });
+
   void it('updates player action and ends attack when animation is done', () => {
     let assignedAction = '';
     const mockPlayer: AttackPlayerTarget = {

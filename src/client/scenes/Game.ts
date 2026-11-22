@@ -604,6 +604,7 @@ export class Game extends Phaser.Scene {
     this.particles?.update();
     this.potionSystem?.update(this.tilemap, this.playerEntity.pos);
     this.potionSystem?.collectHealthPotion(this.playerEntity);
+    this.potionSystem?.collectFrenzyPotion(this.playerEntity);
     const swordHits =
       this.swords?.update(
         this.tilemap,

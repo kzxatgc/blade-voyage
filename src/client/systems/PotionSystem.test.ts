@@ -148,6 +148,54 @@ void describe('PotionSystem', () => {
     assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
   });
 
+  void it('collects Frenzy at full health, activates or refreshes it, and plays feedback', () => {
+    const potion = new FrenzyPotion([100, 200]);
+    const potions = new PotionSystem();
+    potions.frenzyPotions = [potion];
+    const playedSounds: string[] = [];
+    let activationCount = 0;
+    const player = {
+      pos: [100, 200] as [number, number],
+      health: 4,
+      maxHealth: 4,
+      rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
+      activateFrenzy: () => {
+        activationCount += 1;
+      },
+      playSfx: (name: string) => playedSounds.push(name),
+    };
+
+    assert.equal(potions.collectFrenzyPotion(player), true);
+    assert.equal(player.health, 4);
+    assert.equal(activationCount, 1);
+    assert.equal(potions.frenzyPotions.length, 0);
+    assert.equal(potions.frenzyPotionEffects.length, 1);
+    assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
+  });
+
+  void it('does not activate or play feedback when Frenzy is not collected', () => {
+    const potions = new PotionSystem();
+    potions.frenzyPotions = [new FrenzyPotion([100, 200])];
+    let activationCount = 0;
+    const playedSounds: string[] = [];
+    const player = {
+      pos: [500, 500] as [number, number],
+      health: 2,
+      maxHealth: 4,
+      rect: () => ({ x: 500, y: 500, width: 20, height: 28 }),
+      activateFrenzy: () => {
+        activationCount += 1;
+      },
+      playSfx: (name: string) => playedSounds.push(name),
+    };
+
+    assert.equal(potions.collectFrenzyPotion(player), false);
+    assert.equal(activationCount, 0);
+    assert.equal(potions.frenzyPotionEffects.length, 0);
+    assert.deepEqual(playedSounds, []);
+    assert.equal(potions.frenzyPotions.length, 1);
+  });
+
   void it('destroys active pickup-effect sprites when the system is destroyed', () => {
     let destroyedSprites = 0;
     const playerRect = { x: 100, y: 200, width: 20, height: 28 };
