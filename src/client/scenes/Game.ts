@@ -64,10 +64,19 @@ import {
 import {
   getShieldHudFrame,
   getShieldHudTopAlignedCenterY,
+  isShieldHudVisible,
   SHIELD_HUD_ICON_GAP_CSS,
   SHIELD_HUD_ICON_SIZE_CSS,
   SHIELD_HUD_SPRITE_KEY,
 } from '../systems/ShieldHud';
+import {
+  getShieldActiveFrame,
+  getShieldBreakFrame,
+  SHIELD_BREAK_DURATION_TICKS,
+  SHIELD_EFFECT_DISPLAY_SIZE,
+  SHIELD_EFFECT_OFFSET_Y,
+  SHIELD_EFFECT_SPRITE_KEY,
+} from '../systems/ShieldEffect';
 import { shouldShowAttackCooldownIndicator } from '../systems/AttackCooldownHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
@@ -126,6 +135,9 @@ export class Game extends Phaser.Scene {
   private frenzyIndicatorFrame = -1;
   private shieldIndicator: Phaser.GameObjects.Image | undefined;
   private shieldIndicatorFrame = -1;
+  private shieldEffectSprite: Phaser.GameObjects.Image | undefined;
+  private shieldBreakElapsedTicks = -1;
+  private shieldBreakPosition: [number, number] | undefined;
   private healthIndicatorZoom = 0;
   private actionPromptHUD?: ActionPromptHUD;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -242,6 +254,51 @@ export class Game extends Phaser.Scene {
     this.healthIndicatorZoom = zoom;
   }
 
+  private renderShieldEffect(
+    renderedPlayerX: number,
+    renderedPlayerY: number
+  ): void {
+    const player = this.playerEntity;
+    const sprite = this.shieldEffectSprite;
+    if (!player || !sprite) {
+      return;
+    }
+
+    let frame: number | undefined;
+    let position: [number, number] | undefined;
+    if (player.shieldTicksRemaining > 0 && !player.dead) {
+      const elapsedTicks = SHIELD_DURATION_TICKS - player.shieldTicksRemaining;
+      frame = getShieldActiveFrame(elapsedTicks);
+      const playerRect = player.rect();
+      position = [
+        playerRect.x +
+          playerRect.width / 2 +
+          renderedPlayerX -
+          player.pos[0],
+        playerRect.y +
+          playerRect.height / 2 +
+          renderedPlayerY -
+          player.pos[1],
+      ];
+    } else if (
+      this.shieldBreakElapsedTicks >= 0 &&
+      this.shieldBreakPosition
+    ) {
+      frame = getShieldBreakFrame(this.shieldBreakElapsedTicks);
+      position = this.shieldBreakPosition;
+    }
+
+    if (frame === undefined || !position) {
+      sprite.setVisible(false);
+      return;
+    }
+
+    sprite
+      .setFrame(frame)
+      .setPosition(position[0], position[1] + SHIELD_EFFECT_OFFSET_Y)
+      .setVisible(true);
+  }
+
   private pulseHealthIndicator(): void {
     const indicator = this.healthIndicator;
     if (!indicator) {
@@ -284,6 +341,9 @@ export class Game extends Phaser.Scene {
     this.frenzyIndicatorFrame = -1;
     this.shieldIndicator = undefined;
     this.shieldIndicatorFrame = -1;
+    this.shieldEffectSprite = undefined;
+    this.shieldBreakElapsedTicks = -1;
+    this.shieldBreakPosition = undefined;
     this.healthIndicatorZoom = 0;
     this.settingsPaused = false;
     this.tickAccumulator = 0;
@@ -555,6 +615,17 @@ export class Game extends Phaser.Scene {
     this.playerRenderAnimation = playerAnimation;
     this.playerSprite.setOrigin(0, 0);
     this.playerSprite.setDepth(RENDER_DEPTH.ENTITIES);
+    this.shieldEffectSprite = this.add
+      .image(
+        this.playerEntity.pos[0] + 32,
+        this.playerEntity.pos[1] + 18,
+        SHIELD_EFFECT_SPRITE_KEY,
+        0
+      )
+      .setOrigin(0.5, 0.5)
+      .setDisplaySize(SHIELD_EFFECT_DISPLAY_SIZE, SHIELD_EFFECT_DISPLAY_SIZE)
+      .setDepth(RENDER_DEPTH.EFFECTS)
+      .setVisible(false);
     this.playerQuestionMarkSprite = this.add
       .image(0, 0, 'dialogue/question/0')
       .setOrigin(0, 0)
@@ -693,6 +764,14 @@ export class Game extends Phaser.Scene {
       return;
     }
 
+    if (this.shieldBreakElapsedTicks >= 0) {
+      this.shieldBreakElapsedTicks += 1;
+      if (this.shieldBreakElapsedTicks >= SHIELD_BREAK_DURATION_TICKS) {
+        this.shieldBreakElapsedTicks = -1;
+        this.shieldBreakPosition = undefined;
+      }
+    }
+
     this.previousScroll = [...this.scroll];
     this.previousPlayerPosition = [...this.playerEntity.pos];
     this.previousEnemyPositions = this.enemies.map((e) => [e.pos[0], e.pos[1]]);
@@ -750,6 +829,8 @@ export class Game extends Phaser.Scene {
                 playerRect.x + playerRect.width / 2,
                 playerRect.y + playerRect.height / 2,
               ];
+              this.shieldBreakElapsedTicks = 0;
+              this.shieldBreakPosition = shieldBreakPosition;
               this.sparksEffect.push(
                 ...createShieldParticleBurst(shieldBreakPosition, 'break')
               );
@@ -1023,8 +1104,10 @@ export class Game extends Phaser.Scene {
         this.frenzyIndicatorFrame = frenzyFrame;
       }
     }
-    const showShieldIndicator =
-      this.playerEntity.shieldTicksRemaining > 0 && !this.playerEntity.dead;
+    const showShieldIndicator = isShieldHudVisible(
+      this.playerEntity.shieldTicksRemaining,
+      this.playerEntity.dead
+    );
     this.shieldIndicator?.setVisible(showShieldIndicator);
     if (showShieldIndicator) {
       const shieldElapsedTicks =
@@ -1073,6 +1156,7 @@ export class Game extends Phaser.Scene {
     this.renderWaterBackground();
     this.renderClouds();
     this.playerSprite.setPosition(renderedPlayerX, renderedPlayerY);
+    this.renderShieldEffect(renderedPlayerX, renderedPlayerY);
     const questionAnimation = this.playerEntity.questionMarkAnimation;
     if (questionAnimation && this.playerQuestionMarkSprite) {
       const questionTexture = questionAnimation.img();

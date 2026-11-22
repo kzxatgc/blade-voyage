@@ -12,6 +12,13 @@ export const SHIELD_HUD_ANIMATION_FRAME_TICKS = 4;
 export const SHIELD_HUD_ICON_SIZE_CSS = 48;
 export const SHIELD_HUD_ICON_GAP_CSS = 8;
 
+export function isShieldHudVisible(
+  shieldTicksRemaining: number,
+  playerIsDead: boolean
+): boolean {
+  return shieldTicksRemaining > 0 && !playerIsDead;
+}
+
 export function getShieldHudTopAlignedCenterY(
   healthImageTop: number,
   healthImageSize: number,

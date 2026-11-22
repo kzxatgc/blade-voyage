@@ -13,6 +13,10 @@ import {
   SHIELD_HUD_FRAME_SIZE,
   SHIELD_HUD_SPRITE_KEY,
 } from '../systems/ShieldHud';
+import {
+  SHIELD_EFFECT_FRAME_SIZE,
+  SHIELD_EFFECT_SPRITE_KEY,
+} from '../systems/ShieldEffect';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -119,6 +123,14 @@ export class Preloader extends Scene {
       {
         frameWidth: SHIELD_HUD_FRAME_SIZE,
         frameHeight: SHIELD_HUD_FRAME_SIZE,
+      }
+    );
+    this.load.spritesheet(
+      SHIELD_EFFECT_SPRITE_KEY,
+      'img/effects/shield/player-shield.png',
+      {
+        frameWidth: SHIELD_EFFECT_FRAME_SIZE,
+        frameHeight: SHIELD_EFFECT_FRAME_SIZE,
       }
     );
     this.load.image('touch-left', 'img/ui/touch/left.png');

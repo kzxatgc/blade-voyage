@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import {
   getShieldHudFrame,
   getShieldHudTopAlignedCenterY,
+  isShieldHudVisible,
   SHIELD_HUD_ANIMATION_FRAMES,
   SHIELD_HUD_ANIMATION_FRAME_TICKS,
   SHIELD_HUD_FILL_STATES,
@@ -47,6 +48,12 @@ void describe('Shield HUD', () => {
     assert.throws(() => getShieldHudFrame(Number.NaN, 0), RangeError);
     assert.throws(() => getShieldHudFrame(1.1, 0), RangeError);
     assert.throws(() => getShieldHudFrame(1, -1), RangeError);
+  });
+
+  void it('shows only while the shield is active and the player is alive', () => {
+    assert.equal(isShieldHudVisible(1, false), true);
+    assert.equal(isShieldHudVisible(0, false), false);
+    assert.equal(isShieldHudVisible(1, true), false);
   });
 
   void it('aligns the visible shield top with health at responsive sizes', () => {
