@@ -141,8 +141,8 @@ void describe('Frenzy sword effect', () => {
     );
   });
 
-  void it('renders the weapon effect in front of the player but behind the shield', () => {
-    assert.ok(RENDER_DEPTH.ENTITIES < RENDER_DEPTH.WEAPON_EFFECTS);
+  void it('uses the entity layer below the shield layer', () => {
+    assert.equal(RENDER_DEPTH.WEAPON_EFFECTS, RENDER_DEPTH.ENTITIES);
     assert.ok(RENDER_DEPTH.WEAPON_EFFECTS < RENDER_DEPTH.EFFECTS);
   });
 
