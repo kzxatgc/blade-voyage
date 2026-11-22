@@ -232,13 +232,13 @@ export class Preloader extends Scene {
 
     for (let frame = 0; frame < 7; frame += 1) {
       this.load.image(
-        `potion/idle/${frame}`,
+        `potion/health/idle/${frame}`,
         `img/potion/${frame}.png`
       );
     }
     for (let frame = 0; frame < 4; frame += 1) {
       this.load.image(
-        `potion/effect/${frame}`,
+        `potion/health/effect/${frame}`,
         `img/potion-effect/${frame}.png`
       );
     }

@@ -3,18 +3,18 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  Potion,
-  PotionEffect,
-  Potions,
-  POTION_SPAWN_CHANCE,
-  POTION_LIFETIME_TICKS,
-  POTION_BLINK_START_TICKS,
-  POTION_FAST_BLINK_START_TICKS,
-} from './Potions.ts';
+  HealthPotion,
+  HealthPotionEffect,
+  PotionSystem,
+  HEALTH_POTION_SPAWN_CHANCE,
+  HEALTH_POTION_LIFETIME_TICKS,
+  HEALTH_POTION_BLINK_START_TICKS,
+  HEALTH_POTION_FAST_BLINK_START_TICKS,
+} from './PotionSystem.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
 
-void describe('Potions', () => {
+void describe('PotionSystem', () => {
   void it('uses 0.1 percent spawn chance and only allows one potion', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({
@@ -25,10 +25,12 @@ void describe('Potions', () => {
       off_grid_tiles: [],
     });
 
-    const manager = new Potions(() => POTION_SPAWN_CHANCE / 2);
-    assert.equal(manager.spawnPotion(tilemap, [100, 224]) !== null, true);
-    assert.equal(manager.potions.length, 1);
-    assert.equal(manager.spawnPotion(tilemap, [100, 224]), null);
+    const manager = new PotionSystem(
+      () => HEALTH_POTION_SPAWN_CHANCE / 2
+    );
+    assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]) !== null, true);
+    assert.equal(manager.healthPotions.length, 1);
+    assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]), null);
   });
 
   void it('uses the sword-style celestial burst in pink and white when spawning', () => {
@@ -40,9 +42,9 @@ void describe('Potions', () => {
       off_grid_tiles: [],
     });
     const sparksEffect: Sparks[] = [];
-    const manager = new Potions(() => 0.0001, sparksEffect);
+    const manager = new PotionSystem(() => 0.0001, sparksEffect);
 
-    assert.ok(manager.spawnPotion(tilemap, [100, 224]) !== null);
+    assert.ok(manager.spawnHealthPotion(tilemap, [100, 224]) !== null);
     assert.equal(sparksEffect.length, 2);
     assert.equal(sparksEffect[0]?.shape, 'diamond');
     assert.equal(sparksEffect[0]?.sparks.length, 22);
@@ -57,9 +59,9 @@ void describe('Potions', () => {
   });
 
   void it('heals one health point and removes the potion on pickup', () => {
-    const potion = new Potion([100, 200]);
-    const potions = new Potions();
-    potions.potions = [potion];
+    const potion = new HealthPotion([100, 200]);
+    const potions = new PotionSystem();
+    potions.healthPotions = [potion];
     const playedSounds: string[] = [];
     const player = {
       pos: [100, 200] as [number, number],
@@ -69,18 +71,20 @@ void describe('Potions', () => {
       playSfx: (name: string) => playedSounds.push(name),
     };
 
-    assert.equal(potions.collect(player), true);
+    assert.equal(potions.collectHealthPotion(player), true);
     assert.equal(player.health, 3);
-    assert.equal(potions.potions.length, 0);
-    assert.equal(potions.effects.length, 1);
-    assert.deepEqual(playedSounds, ['player/pickup_potion']);
+    assert.equal(potions.healthPotions.length, 0);
+    assert.equal(potions.healthPotionEffects.length, 1);
+    assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
   });
 
   void it('destroys active pickup-effect sprites when the system is destroyed', () => {
     let spriteDestroyed = false;
     const playerRect = { x: 100, y: 200, width: 20, height: 28 };
-    const potions = new Potions();
-    potions.effects = [new PotionEffect({ rect: () => playerRect })];
+    const potions = new PotionSystem();
+    potions.healthPotionEffects = [
+      new HealthPotionEffect({ rect: () => playerRect }),
+    ];
 
     potions.render({
       add: {
@@ -98,13 +102,13 @@ void describe('Potions', () => {
     potions.destroy();
 
     assert.equal(spriteDestroyed, true);
-    assert.equal(potions.effects.length, 0);
+    assert.equal(potions.healthPotionEffects.length, 0);
   });
 
   void it('keeps the pickup effect centered on the moving player', () => {
     let renderedPosition: [number, number] = [0, 0];
     const playerRect = { x: 100, y: 200, width: 20, height: 28 };
-    const effect = new PotionEffect({ rect: () => playerRect });
+    const effect = new HealthPotionEffect({ rect: () => playerRect });
     const scene = {
       add: {
         image(x: number, y: number) {
@@ -132,9 +136,9 @@ void describe('Potions', () => {
   });
 
   void it('does not collect a potion at full health', () => {
-    const potion = new Potion([100, 200]);
-    const potions = new Potions();
-    potions.potions = [potion];
+    const potion = new HealthPotion([100, 200]);
+    const potions = new PotionSystem();
+    potions.healthPotions = [potion];
     const player = {
       pos: [100, 200] as [number, number],
       health: 4,
@@ -143,35 +147,35 @@ void describe('Potions', () => {
       playSfx: () => assert.fail('Full-health potion must not play pickup sound'),
     };
 
-    assert.equal(potions.collect(player), false);
-    assert.equal(potions.potions.length, 1);
+    assert.equal(potions.collectHealthPotion(player), false);
+    assert.equal(potions.healthPotions.length, 1);
   });
 
   void it('keeps a potion afloat without falling', () => {
-    const potion = new Potion([100, 200]);
+    const potion = new HealthPotion([100, 200]);
 
     assert.equal(potion.landed, true);
     assert.equal(potion.velocity[1], 0);
   });
 
   void it('blinks during the final 300 ticks and expires after its lifetime', () => {
-    const potion = new Potion([100, 200]);
+    const potion = new HealthPotion([100, 200]);
 
-    potion.timer = POTION_BLINK_START_TICKS - 1;
+    potion.timer = HEALTH_POTION_BLINK_START_TICKS - 1;
     assert.equal(potion.isBlinking(), false);
 
-    potion.timer = POTION_BLINK_START_TICKS;
+    potion.timer = HEALTH_POTION_BLINK_START_TICKS;
     assert.equal(
       potion.isBlinking(),
-      Math.floor(POTION_BLINK_START_TICKS / 12) % 2 === 0
+      Math.floor(HEALTH_POTION_BLINK_START_TICKS / 12) % 2 === 0
     );
 
-    potion.timer = POTION_FAST_BLINK_START_TICKS;
+    potion.timer = HEALTH_POTION_FAST_BLINK_START_TICKS;
     assert.equal(potion.isBlinking(), Math.floor(potion.timer / 7) % 2 === 0);
 
-    potion.timer = POTION_LIFETIME_TICKS - 1;
+    potion.timer = HEALTH_POTION_LIFETIME_TICKS - 1;
     assert.equal(potion.isExpired, false);
-    potion.timer = POTION_LIFETIME_TICKS;
+    potion.timer = HEALTH_POTION_LIFETIME_TICKS;
     assert.equal(potion.isExpired, true);
   });
 });

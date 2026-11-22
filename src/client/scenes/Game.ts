@@ -29,12 +29,12 @@ import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
 import {
-  Potions,
-  POTION_HORIZONTAL_TILE_RANGE_LEFT,
-  POTION_HORIZONTAL_TILE_RANGE_RIGHT,
-  POTION_VERTICAL_TILE_RANGE_TOP,
-  POTION_VERTICAL_TILE_RANGE_BOTTOM,
-} from '../systems/Potions';
+  PotionSystem,
+  HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT,
+  HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT,
+  HEALTH_POTION_VERTICAL_TILE_RANGE_TOP,
+  HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM,
+} from '../systems/PotionSystem';
 import {
   createHeartSparkParticles,
   getDamageSparkCount,
@@ -113,7 +113,7 @@ export class Game extends Phaser.Scene {
   private tileAnimations: Record<string, Animation> = {};
   private particles?: Particles;
   private swords?: Swords;
-  private potions?: Potions;
+  private potionSystem?: PotionSystem;
   private enemies: Enemy[] = [];
   private sparksEffect: Sparks[] = [];
   private sparksGraphics?: Phaser.GameObjects.Graphics;
@@ -188,7 +188,7 @@ export class Game extends Phaser.Scene {
     this.levelTransitionTimer = undefined;
     this.swordKickQuestionMarkTimer?.remove(false);
     this.swordKickQuestionMarkTimer = undefined;
-    this.potions?.destroy();
+    this.potionSystem?.destroy();
     this.deathTransitionScheduled = false;
     this.healthIndicator = undefined;
     this.healthIndicatorRoot = undefined;
@@ -341,7 +341,7 @@ export class Game extends Phaser.Scene {
     this.particles = new Particles();
     this.sparksEffect = [];
     this.swords = new Swords([0, 0], Math.random, this.sparksEffect);
-    this.potions = new Potions(Math.random, this.sparksEffect);
+    this.potionSystem = new PotionSystem(Math.random, this.sparksEffect);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
     this.touchControls = new TouchControls(this, {
@@ -601,8 +601,8 @@ export class Game extends Phaser.Scene {
     this.displayWidth = WINDOW_WIDTH / this.currentZoom;
     this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
     this.particles?.update();
-    this.potions?.update(this.tilemap, this.playerEntity.pos);
-    this.potions?.collect(this.playerEntity);
+    this.potionSystem?.update(this.tilemap, this.playerEntity.pos);
+    this.potionSystem?.collectHealthPotion(this.playerEntity);
     const swordHits =
       this.swords?.update(
         this.tilemap,
@@ -1002,7 +1002,7 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
-    this.potions?.render(this, [0, 0], [
+    this.potionSystem?.render(this, [0, 0], [
       renderedPlayerX - this.playerEntity.pos[0],
       renderedPlayerY - this.playerEntity.pos[1],
     ]);
@@ -1046,10 +1046,10 @@ export class Game extends Phaser.Scene {
         if (DEBUG_CONFIG.showPotionSpawnRange) {
           const pX = this.playerEntity.pos[0];
           const pY = this.playerEntity.pos[1];
-          const hRangeLeft = POTION_HORIZONTAL_TILE_RANGE_LEFT * 32;
-          const hRangeRight = POTION_HORIZONTAL_TILE_RANGE_RIGHT * 32;
-          const vTop = POTION_VERTICAL_TILE_RANGE_TOP * 32;
-          const vBottom = POTION_VERTICAL_TILE_RANGE_BOTTOM * 32;
+          const hRangeLeft = HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT * 32;
+          const hRangeRight = HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT * 32;
+          const vTop = HEALTH_POTION_VERTICAL_TILE_RANGE_TOP * 32;
+          const vBottom = HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM * 32;
           const spawnBoxX = pX + 32 - hRangeLeft;
           const spawnBoxY = pY - vTop;
           const spawnBoxW = hRangeLeft + hRangeRight + 32;

@@ -602,11 +602,11 @@ This document records credits for assets used in this project.
 
 ---
 
-## 20. Health Potion Pickup (`player/pickup_potion`)
+## 20. Health Potion Pickup (`player/pickup_health_potion`)
 
-- **SFX Key**: `'player/pickup_potion'`
+- **SFX Key**: `'player/pickup_health_potion'`
 - **Files**:
-  - `public/assets/sfx/player/pickup_potion.mp3`
+  - `public/assets/sfx/player/pickup_health_potion.mp3`
 - **Asset Name**: RetroSFX_Synth_Potion
 - **Author / Creator**: loganzsound / Freesound
 - **Source Link**: https://freesound.org/people/loganzsound/sounds/872793/

@@ -11,7 +11,7 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
       'player/land/grass',
       'player/land/palm_tree',
       'player/pickup_sword',
-      'player/pickup_potion',
+      'player/pickup_health_potion',
       'player/sword/attack',
       'player/sword/air_attack',
       'player/throw_sword',
@@ -36,9 +36,9 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
   });
 
   void it('defines the health-potion pickup sound', () => {
-    assert.deepEqual(SFX_DEFINITIONS['player/pickup_potion'], {
-      volume: 0.4,
-      files: ['sfx/player/pickup_potion.mp3'],
+    assert.deepEqual(SFX_DEFINITIONS['player/pickup_health_potion'], {
+      volume: 1.5,
+      files: ['sfx/player/pickup_health_potion.mp3'],
     });
   });
 

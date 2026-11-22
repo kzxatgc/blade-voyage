@@ -5,15 +5,16 @@ import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 
-export const POTION_SPAWN_CHANCE = 0.001;
-export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
-export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
-export const POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
-export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
-export const POTION_HEAL_AMOUNT = 1;
-export const POTION_LIFETIME_TICKS = 2400;
-export const POTION_BLINK_START_TICKS = 2100;
-export const POTION_FAST_BLINK_START_TICKS = POTION_LIFETIME_TICKS - 120;
+export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
+export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
+export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
+export const HEALTH_POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
+export const HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
+export const HEALTH_POTION_HEAL_AMOUNT = 1;
+export const HEALTH_POTION_LIFETIME_TICKS = 2400;
+export const HEALTH_POTION_BLINK_START_TICKS = 2100;
+export const HEALTH_POTION_FAST_BLINK_START_TICKS =
+  HEALTH_POTION_LIFETIME_TICKS - 120;
 
 export interface PotionRenderImage {
   setOrigin(x: number, y: number): void;
@@ -39,7 +40,7 @@ export interface PotionPlayerTarget {
   playSfx?: ((name: string) => void) | undefined;
 }
 
-export class PotionEffect {
+export class HealthPotionEffect {
   timer = 0;
   private image: PotionRenderImage | null = null;
   private imageTexture: string | null = null;
@@ -60,7 +61,7 @@ export class PotionEffect {
     playerInterpolationOffset: readonly [number, number] = [0, 0]
   ) {
     const frame = Math.min(3, Math.floor(this.timer / 6));
-    const texture = `potion/effect/${frame}`;
+    const texture = `potion/health/effect/${frame}`;
     const playerRect = this.player.rect();
     const renderX =
       playerRect.x +
@@ -94,7 +95,7 @@ export class PotionEffect {
   }
 }
 
-export class Potion extends PhysicsEntity {
+export class HealthPotion extends PhysicsEntity {
   timer = 0;
   landed = false;
   private image: PotionRenderImage | null = null;
@@ -110,7 +111,7 @@ export class Potion extends PhysicsEntity {
       pos,
       size,
       animations ?? {
-        'potion/idle': new Animation('potion/idle', 7, 8),
+        'potion/idle': new Animation('potion/health/idle', 7, 8),
       }
     );
     this.landed = true;
@@ -123,14 +124,15 @@ export class Potion extends PhysicsEntity {
   }
 
   get isExpired(): boolean {
-    return this.timer >= POTION_LIFETIME_TICKS;
+    return this.timer >= HEALTH_POTION_LIFETIME_TICKS;
   }
 
   isBlinking(): boolean {
-    if (this.timer < POTION_BLINK_START_TICKS) {
+    if (this.timer < HEALTH_POTION_BLINK_START_TICKS) {
       return false;
     }
-    const blinkRate = this.timer >= POTION_FAST_BLINK_START_TICKS ? 7 : 12;
+    const blinkRate =
+      this.timer >= HEALTH_POTION_FAST_BLINK_START_TICKS ? 7 : 12;
     return Math.floor(this.timer / blinkRate) % 2 === 0;
   }
 
@@ -143,7 +145,7 @@ export class Potion extends PhysicsEntity {
       this.image?.setVisible?.(false);
       return;
     }
-    const texture = this.animation?.img() ?? 'potion/idle/0';
+    const texture = this.animation?.img() ?? 'potion/health/idle/0';
     const renderX = this.pos[0] - offset[0] + 8;
     const bobY = Math.floor(Math.sin(this.timer * 0.12) * 2);
     const renderY = this.pos[1] - offset[1] + 8 + bobY;
@@ -170,9 +172,9 @@ export class Potion extends PhysicsEntity {
   }
 }
 
-export class Potions {
-  potions: Potion[] = [];
-  effects: PotionEffect[] = [];
+export class PotionSystem {
+  healthPotions: HealthPotion[] = [];
+  healthPotionEffects: HealthPotionEffect[] = [];
   private validSpawnPos: readonly (readonly [number, number])[] | null = null;
   private readonly random: () => number;
   private readonly sparksEffect: Sparks[] | undefined;
@@ -202,11 +204,14 @@ export class Potions {
     return this.validSpawnPos;
   }
 
-  spawnPotion(
+  spawnHealthPotion(
     tilemap: Tilemap,
     playerPos?: readonly [number, number]
-  ): Potion | null {
-    if (this.potions.length > 0 || this.random() >= POTION_SPAWN_CHANCE) {
+  ): HealthPotion | null {
+    if (
+      this.healthPotions.length > 0 ||
+      this.random() >= HEALTH_POTION_SPAWN_CHANCE
+    ) {
       return null;
     }
 
@@ -220,13 +225,13 @@ export class Potions {
       const playerY = playerPos[1];
       const tileSize = tilemap.tileSize;
       const horizontalRangeLeft =
-        POTION_HORIZONTAL_TILE_RANGE_LEFT * tileSize;
+        HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT * tileSize;
       const horizontalRangeRight =
-        POTION_HORIZONTAL_TILE_RANGE_RIGHT * tileSize;
+        HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT * tileSize;
       const verticalRangeTop =
-        POTION_VERTICAL_TILE_RANGE_TOP * tileSize;
+        HEALTH_POTION_VERTICAL_TILE_RANGE_TOP * tileSize;
       const verticalRangeBottom =
-        POTION_VERTICAL_TILE_RANGE_BOTTOM * tileSize;
+        HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM * tileSize;
       availablePositions = availablePositions.filter((pos) => {
         const horizontalDistance = pos[0] - (playerX + 32);
         const verticalDistance = pos[1] - playerY;
@@ -249,11 +254,11 @@ export class Potions {
       return null;
     }
 
-    const potion = new Potion([
+    const potion = new HealthPotion([
       selected[0] + tilemap.tileSize * 0.5 - 8,
       selected[1] - 21,
     ]);
-    this.potions.push(potion);
+    this.healthPotions.push(potion);
     const center: [number, number] = [
       potion.pos[0] + 6,
       potion.pos[1] + 7,
@@ -291,18 +296,18 @@ export class Potions {
     tilemap: Tilemap,
     playerPos?: readonly [number, number]
   ): void {
-    this.spawnPotion(tilemap, playerPos);
-    this.potions = this.potions.filter((potion) => {
+    this.spawnHealthPotion(tilemap, playerPos);
+    this.healthPotions = this.healthPotions.filter((potion) => {
       if (potion.isExpired) {
         potion.destroy();
         return false;
       }
       return true;
     });
-    for (const potion of this.potions) {
+    for (const potion of this.healthPotions) {
       potion.update(tilemap);
     }
-    this.effects = this.effects.filter((effect) => {
+    this.healthPotionEffects = this.healthPotionEffects.filter((effect) => {
       if (effect.update()) {
         effect.destroy();
         return false;
@@ -311,14 +316,18 @@ export class Potions {
     });
   }
 
-  collect(player: PotionPlayerTarget): boolean {
+  collectHealthPotion(player: PotionPlayerTarget): boolean {
     if (player.health >= player.maxHealth) {
       return false;
     }
 
     const playerRect = player.rect();
-    for (let index = this.potions.length - 1; index >= 0; index -= 1) {
-      const potion = this.potions[index];
+    for (
+      let index = this.healthPotions.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      const potion = this.healthPotions[index];
       if (!potion) {
         continue;
       }
@@ -331,12 +340,12 @@ export class Potions {
       if (overlaps) {
         player.health = Math.min(
           player.maxHealth,
-          player.health + POTION_HEAL_AMOUNT
+          player.health + HEALTH_POTION_HEAL_AMOUNT
         );
-        this.effects.push(new PotionEffect(player));
-        player.playSfx?.('player/pickup_potion');
+        this.healthPotionEffects.push(new HealthPotionEffect(player));
+        player.playSfx?.('player/pickup_health_potion');
         potion.destroy();
-        this.potions.splice(index, 1);
+        this.healthPotions.splice(index, 1);
         return true;
       }
     }
@@ -348,22 +357,22 @@ export class Potions {
     offset: readonly [number, number] = [0, 0],
     playerInterpolationOffset: readonly [number, number] = [0, 0]
   ) {
-    for (const potion of this.potions) {
+    for (const potion of this.healthPotions) {
       potion.render(scene, offset);
     }
-    for (const effect of this.effects) {
+    for (const effect of this.healthPotionEffects) {
       effect.render(scene, offset, playerInterpolationOffset);
     }
   }
 
   destroy() {
-    for (const potion of this.potions) {
+    for (const potion of this.healthPotions) {
       potion.destroy();
     }
-    this.potions = [];
-    for (const effect of this.effects) {
+    this.healthPotions = [];
+    for (const effect of this.healthPotionEffects) {
       effect.destroy();
     }
-    this.effects = [];
+    this.healthPotionEffects = [];
   }
 }
