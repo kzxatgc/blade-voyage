@@ -10,12 +10,16 @@ import {
   HealthPotion,
   HealthPotionEffect,
   PotionSystem,
+  SHIELD_POTION_SPAWN_CHANCE,
+  SHIELD_PARTICLE_COLORS,
+  ShieldPotion,
   HEALTH_POTION_SPAWN_CHANCE,
   HEALTH_POTION_LIFETIME_TICKS,
   HEALTH_POTION_BLINK_START_TICKS,
   HEALTH_POTION_FAST_BLINK_START_TICKS,
   POTION_LIFETIME_TICKS,
   createFrenzyPotionIdleAnimation,
+  createShieldPotionIdleAnimation,
 } from './PotionSystem.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
@@ -36,12 +40,27 @@ void describe('PotionSystem', () => {
     assert.equal(animation.imgDur, 8);
   });
 
-  void it('spawns one potion of each type on separate nearby grass tiles', () => {
+  void it('creates a seven-frame Shield Potion idle animation at the potion cadence', () => {
+    const animation = createShieldPotionIdleAnimation();
+    const potion = new ShieldPotion([100, 200]);
+
+    assert.equal(animation.img(), 'potion/shield/idle/0');
+    assert.equal(potion.animation?.img(), 'potion/shield/idle/0');
+    for (let tick = 0; tick < 8; tick += 1) {
+      animation.update();
+    }
+    assert.equal(animation.img(), 'potion/shield/idle/1');
+    assert.equal(animation.frameCount, 7);
+    assert.equal(animation.imgDur, 8);
+  });
+
+  void it('spawns each potion type on a separate nearby grass tile', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({
       tiles: {
         '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
         '4;8': { type: 'grass', variant: 0, loc: [4, 8] },
+        '5;8': { type: 'grass', variant: 0, loc: [5, 8] },
       },
       off_grid_tiles: [],
     });
@@ -58,14 +77,28 @@ void describe('PotionSystem', () => {
         manager.spawnFrenzyPotion(tilemap, [100, 224]) !== null,
         true
       );
+      assert.equal(
+        manager.spawnShieldPotion(tilemap, [100, 224]) !== null,
+        true
+      );
       assert.equal(manager.healthPotions.length, 1);
       assert.equal(manager.frenzyPotions.length, 1);
+      assert.equal(manager.shieldPotions.length, 1);
       assert.notDeepEqual(
         manager.healthPotions[0]?.pos,
         manager.frenzyPotions[0]?.pos
       );
+      assert.notDeepEqual(
+        manager.shieldPotions[0]?.pos,
+        manager.healthPotions[0]?.pos
+      );
+      assert.notDeepEqual(
+        manager.shieldPotions[0]?.pos,
+        manager.frenzyPotions[0]?.pos
+      );
       assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]), null);
       assert.equal(manager.spawnFrenzyPotion(tilemap, [100, 224]), null);
+      assert.equal(manager.spawnShieldPotion(tilemap, [100, 224]), null);
     } finally {
       setDebugMode(previousDebugEnabled);
     }
@@ -77,6 +110,7 @@ void describe('PotionSystem', () => {
       tiles: {
         '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
         '4;8': { type: 'grass', variant: 0, loc: [4, 8] },
+        '5;8': { type: 'grass', variant: 0, loc: [5, 8] },
       },
       off_grid_tiles: [],
     });
@@ -87,15 +121,18 @@ void describe('PotionSystem', () => {
       DEBUG_CONFIG.boostPotionSpawnRates = false;
       assert.equal(HEALTH_POTION_SPAWN_CHANCE, 0.001);
       assert.equal(FRENZY_POTION_SPAWN_CHANCE, 0.003);
+      assert.equal(SHIELD_POTION_SPAWN_CHANCE, 0.001);
       const normalRates = new PotionSystem(() => 0.002);
       assert.equal(normalRates.spawnHealthPotion(tilemap), null);
       assert.notEqual(normalRates.spawnFrenzyPotion(tilemap), null);
+      assert.equal(normalRates.spawnShieldPotion(tilemap), null);
 
       setDebugMode(false);
       DEBUG_CONFIG.boostPotionSpawnRates = true;
       const debugRates = new PotionSystem(() => 0.49);
       assert.notEqual(debugRates.spawnHealthPotion(tilemap), null);
       assert.notEqual(debugRates.spawnFrenzyPotion(tilemap), null);
+      assert.notEqual(debugRates.spawnShieldPotion(tilemap), null);
       assert.equal(DEBUG_POTION_SPAWN_CHANCE, 0.5);
     } finally {
       setDebugMode(previousDebugEnabled);
@@ -145,6 +182,27 @@ void describe('PotionSystem', () => {
     assert.deepEqual(sparksEffect[1]?.color, [255, 255, 255]);
   });
 
+  void it('uses light-green-dominant sparks when a Shield Potion spawns', () => {
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    const sparksEffect: Sparks[] = [];
+    const manager = new PotionSystem(() => 0.0001, sparksEffect);
+
+    assert.ok(manager.spawnShieldPotion(tilemap) !== null);
+    assert.equal(sparksEffect.length, 2);
+    assert.deepEqual(sparksEffect[0]?.color, SHIELD_PARTICLE_COLORS.lightGreen);
+    assert.deepEqual(sparksEffect[1]?.color, SHIELD_PARTICLE_COLORS.white);
+    assert.ok(
+      (sparksEffect[0]?.sparks.length ?? 0) >
+        (sparksEffect[1]?.sparks.length ?? 0)
+    );
+  });
+
   void it('heals one health point and removes the potion on pickup', () => {
     const potion = new HealthPotion([100, 200]);
     const potions = new PotionSystem();
@@ -190,6 +248,60 @@ void describe('PotionSystem', () => {
     assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
   });
 
+  void it('activates Shield at full health and emits light-green-dominant sparks', () => {
+    const potion = new ShieldPotion([100, 200]);
+    const sparksEffect: Sparks[] = [];
+    const potions = new PotionSystem(Math.random, sparksEffect);
+    potions.shieldPotions = [potion];
+    const playedSounds: string[] = [];
+    let activationCount = 0;
+    const player = {
+      pos: [100, 200] as [number, number],
+      health: 4,
+      maxHealth: 4,
+      rect: () => ({ x: 100, y: 200, width: 20, height: 28 }),
+      activateShield: () => {
+        activationCount += 1;
+      },
+      playSfx: (name: string) => playedSounds.push(name),
+    };
+
+    assert.equal(potions.collectShieldPotion(player), true);
+    assert.equal(player.health, 4);
+    assert.equal(activationCount, 1);
+    assert.equal(potions.shieldPotions.length, 0);
+    assert.equal(sparksEffect.length, 2);
+    assert.deepEqual(sparksEffect[0]?.color, SHIELD_PARTICLE_COLORS.lightGreen);
+    assert.deepEqual(sparksEffect[1]?.color, SHIELD_PARTICLE_COLORS.white);
+    assert.ok(
+      (sparksEffect[0]?.sparks.length ?? 0) >
+        (sparksEffect[1]?.sparks.length ?? 0)
+    );
+    assert.deepEqual(playedSounds, ['player/pickup_health_potion']);
+  });
+
+  void it('does not activate or play feedback when Shield is not collected', () => {
+    const potions = new PotionSystem();
+    potions.shieldPotions = [new ShieldPotion([100, 200])];
+    let activationCount = 0;
+    const playedSounds: string[] = [];
+    const player = {
+      pos: [500, 500] as [number, number],
+      health: 2,
+      maxHealth: 4,
+      rect: () => ({ x: 500, y: 500, width: 20, height: 28 }),
+      activateShield: () => {
+        activationCount += 1;
+      },
+      playSfx: (name: string) => playedSounds.push(name),
+    };
+
+    assert.equal(potions.collectShieldPotion(player), false);
+    assert.equal(activationCount, 0);
+    assert.deepEqual(playedSounds, []);
+    assert.equal(potions.shieldPotions.length, 1);
+  });
+
   void it('does not activate or play feedback when Frenzy is not collected', () => {
     const potions = new PotionSystem();
     potions.frenzyPotions = [new FrenzyPotion([100, 200])];
@@ -221,6 +333,7 @@ void describe('PotionSystem', () => {
       new HealthPotionEffect({ rect: () => playerRect }),
     ];
     potions.frenzyPotions = [new FrenzyPotion([100, 200])];
+    potions.shieldPotions = [new ShieldPotion([140, 200])];
     potions.frenzyPotionEffects = [
       new FrenzyPotionEffect({ rect: () => playerRect }),
     ];
@@ -240,9 +353,10 @@ void describe('PotionSystem', () => {
     });
     potions.destroy();
 
-    assert.equal(destroyedSprites, 3);
+    assert.equal(destroyedSprites, 4);
     assert.equal(potions.healthPotionEffects.length, 0);
     assert.equal(potions.frenzyPotions.length, 0);
+    assert.equal(potions.shieldPotions.length, 0);
     assert.equal(potions.frenzyPotionEffects.length, 0);
   });
 
@@ -354,10 +468,11 @@ void describe('PotionSystem', () => {
     assert.equal(potion.isExpired, true);
   });
 
-  void it('expires both potion types and destroys their active sprites', () => {
+  void it('expires all potion types and destroys their active sprites', () => {
     const tilemap = new Tilemap(32);
     const healthPotion = new HealthPotion([100, 200]);
     const frenzyPotion = new FrenzyPotion([140, 200]);
+    const shieldPotion = new ShieldPotion([180, 200]);
     let destroyedSprites = 0;
     const scene = {
       add: {
@@ -378,15 +493,19 @@ void describe('PotionSystem', () => {
     const potions = new PotionSystem(() => 1);
     potions.healthPotions = [healthPotion];
     potions.frenzyPotions = [frenzyPotion];
+    potions.shieldPotions = [shieldPotion];
     healthPotion.render(scene);
     frenzyPotion.render(scene);
+    shieldPotion.render(scene);
     healthPotion.timer = POTION_LIFETIME_TICKS;
     frenzyPotion.timer = POTION_LIFETIME_TICKS;
+    shieldPotion.timer = POTION_LIFETIME_TICKS;
 
     potions.update(tilemap);
 
     assert.equal(potions.healthPotions.length, 0);
     assert.equal(potions.frenzyPotions.length, 0);
-    assert.equal(destroyedSprites, 2);
+    assert.equal(potions.shieldPotions.length, 0);
+    assert.equal(destroyedSprites, 3);
   });
 });

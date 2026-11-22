@@ -8,6 +8,11 @@ import { Sparks } from './Sparks.ts';
 
 export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
 export const FRENZY_POTION_SPAWN_CHANCE = 0.003;
+export const SHIELD_POTION_SPAWN_CHANCE = 0.001;
+export const SHIELD_PARTICLE_COLORS = {
+  lightGreen: [213, 255, 213],
+  white: [255, 255, 255],
+} as const;
 export const DEBUG_POTION_SPAWN_CHANCE = 0.5;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
@@ -24,6 +29,9 @@ export const HEALTH_POTION_FAST_BLINK_START_TICKS =
 
 export const createFrenzyPotionIdleAnimation = (): Animation =>
   new Animation('potion/frenzy/idle', 7, 8);
+
+export const createShieldPotionIdleAnimation = (): Animation =>
+  new Animation('potion/shield/idle', 7, 8);
 
 export interface PotionRenderImage {
   setOrigin(x: number, y: number): void;
@@ -51,6 +59,10 @@ export interface PotionPlayerTarget {
 
 export type FrenzyPotionPlayerTarget = PotionPlayerTarget & {
   activateFrenzy(): void;
+};
+
+export type ShieldPotionPlayerTarget = PotionPlayerTarget & {
+  activateShield(): void;
 };
 
 class PotionPickupEffect {
@@ -219,9 +231,22 @@ export class FrenzyPotion extends PotionEntity {
   }
 }
 
+export class ShieldPotion extends PotionEntity {
+  constructor(
+    pos: EntityPosition,
+    size: EntitySize = [12, 14],
+    animations: Readonly<Record<string, Animation>> = {
+      'potion/idle': createShieldPotionIdleAnimation(),
+    }
+  ) {
+    super(pos, size, animations);
+  }
+}
+
 export class PotionSystem {
   healthPotions: HealthPotion[] = [];
   frenzyPotions: FrenzyPotion[] = [];
+  shieldPotions: ShieldPotion[] = [];
   healthPotionEffects: HealthPotionEffect[] = [];
   frenzyPotionEffects: FrenzyPotionEffect[] = [];
   private validSpawnPos: readonly (readonly [number, number])[] | null = null;
@@ -289,6 +314,7 @@ export class PotionSystem {
     const existingPotions: PotionEntity[] = [
       ...this.healthPotions,
       ...this.frenzyPotions,
+      ...this.shieldPotions,
     ];
     availablePositions = availablePositions.filter(
       (pos) =>
@@ -399,12 +425,42 @@ export class PotionSystem {
     return potion;
   }
 
+  spawnShieldPotion(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number]
+  ): ShieldPotion | null {
+    if (
+      this.shieldPotions.length > 0 ||
+      this.random() >= this.getSpawnChance(SHIELD_POTION_SPAWN_CHANCE)
+    ) {
+      return null;
+    }
+
+    const selected = this.getSpawnPosition(tilemap, playerPos);
+    if (!selected) {
+      return null;
+    }
+
+    const potion = new ShieldPotion([
+      selected[0] + tilemap.tileSize * 0.5 - 8,
+      selected[1] - 21,
+    ]);
+    this.shieldPotions.push(potion);
+    this.addSpawnSparks(
+      potion,
+      SHIELD_PARTICLE_COLORS.lightGreen,
+      SHIELD_PARTICLE_COLORS.white
+    );
+    return potion;
+  }
+
   update(
     tilemap: Tilemap,
     playerPos?: readonly [number, number]
   ): void {
     this.spawnHealthPotion(tilemap, playerPos);
     this.spawnFrenzyPotion(tilemap, playerPos);
+    this.spawnShieldPotion(tilemap, playerPos);
     this.healthPotions = this.healthPotions.filter((potion) => {
       if (potion.isExpired) {
         potion.destroy();
@@ -419,10 +475,20 @@ export class PotionSystem {
       }
       return true;
     });
+    this.shieldPotions = this.shieldPotions.filter((potion) => {
+      if (potion.isExpired) {
+        potion.destroy();
+        return false;
+      }
+      return true;
+    });
     for (const potion of this.healthPotions) {
       potion.update(tilemap);
     }
     for (const potion of this.frenzyPotions) {
+      potion.update(tilemap);
+    }
+    for (const potion of this.shieldPotions) {
       potion.update(tilemap);
     }
     this.healthPotionEffects = this.healthPotionEffects.filter((effect) => {
@@ -506,6 +572,54 @@ export class PotionSystem {
     return true;
   }
 
+  collectShieldPotion(player: ShieldPotionPlayerTarget): boolean {
+    const index = this.getOverlappingPotionIndex(
+      this.shieldPotions,
+      player.rect()
+    );
+    const potion = this.shieldPotions[index];
+    if (index < 0 || !potion) {
+      return false;
+    }
+
+    player.activateShield();
+    const playerRect = player.rect();
+    const center: [number, number] = [
+      playerRect.x + playerRect.width / 2,
+      playerRect.y + playerRect.height / 2,
+    ];
+    this.sparksEffect?.push(
+      new Sparks(
+        center,
+        false,
+        2.8,
+        32,
+        SHIELD_PARTICLE_COLORS.lightGreen,
+        'burst',
+        'diamond',
+        [3, 3],
+        this.random
+      )
+    );
+    this.sparksEffect?.push(
+      new Sparks(
+        center,
+        false,
+        1.2,
+        8,
+        SHIELD_PARTICLE_COLORS.white,
+        'burst',
+        'diamond',
+        [1.5, 1.5],
+        this.random
+      )
+    );
+    player.playSfx?.('player/pickup_health_potion');
+    potion.destroy();
+    this.shieldPotions.splice(index, 1);
+    return true;
+  }
+
   render(
     scene: PotionRenderScene,
     offset: readonly [number, number] = [0, 0],
@@ -515,6 +629,9 @@ export class PotionSystem {
       potion.render(scene, offset);
     }
     for (const potion of this.frenzyPotions) {
+      potion.render(scene, offset);
+    }
+    for (const potion of this.shieldPotions) {
       potion.render(scene, offset);
     }
     for (const effect of this.healthPotionEffects) {
@@ -534,6 +651,10 @@ export class PotionSystem {
       potion.destroy();
     }
     this.frenzyPotions = [];
+    for (const potion of this.shieldPotions) {
+      potion.destroy();
+    }
+    this.shieldPotions = [];
     for (const effect of this.healthPotionEffects) {
       effect.destroy();
     }

@@ -1,6 +1,7 @@
 import { PhysicsEntity } from './PhysicsEntity.ts';
 import type { EntityPosition, EntityRect } from '../../shared/types.ts';
-import { FIERY_BURST_COLORS } from '../../shared/constants.ts';
+import { FIERY_BURST_COLORS, TICK_RATE } from '../../shared/constants.ts';
+import { DEBUG_CONFIG } from '../../shared/debug.ts';
 import { Attack } from '../systems/Attack.ts';
 import type { Particles } from '../systems/Particles.ts';
 import { Sparks } from '../systems/Sparks.ts';
@@ -24,6 +25,7 @@ export type PlayerParticleSystem = Pick<Particles, 'addParticle'> & {
 
 const QUESTION_MARK_HEAD_OVERLAP = 4;
 const QUESTION_MARK_FACING_RIGHT_OFFSET = 3;
+export const SHIELD_DURATION_TICKS = 10 * TICK_RATE;
 
 export class Player extends PhysicsEntity {
   jumps = 2;
@@ -43,6 +45,8 @@ export class Player extends PhysicsEntity {
   wasInAir = false;
   justLanded = false;
   landingAnimation: Animation | null = null;
+  shieldTicksRemaining = 0;
+  lastHitWasShielded = false;
   readonly attackHandler = new Attack(this);
   private readonly particles: PlayerParticleSystem | undefined;
 
@@ -136,6 +140,27 @@ export class Player extends PhysicsEntity {
 
   activateFrenzy(): void {
     this.attackHandler.activateFrenzy();
+  }
+
+  activateShield(): void {
+    this.shieldTicksRemaining = SHIELD_DURATION_TICKS;
+  }
+
+  override takeDamage(amount: number): boolean {
+    this.lastHitWasShielded = false;
+    if (
+      this.shieldTicksRemaining <= 0 ||
+      this.dead ||
+      this.invincibleTimer > 0 ||
+      (DEBUG_CONFIG.enabled && DEBUG_CONFIG.playerInfiniteHealth)
+    ) {
+      return super.takeDamage(amount);
+    }
+
+    this.shieldTicksRemaining = 0;
+    this.invincibleTimer = this.invincibleDuration;
+    this.lastHitWasShielded = true;
+    return true;
   }
 
   showQuestionMark(): void {
@@ -276,6 +301,9 @@ export class Player extends PhysicsEntity {
     movement: EntityPosition = [0, 0]
   ) {
     const wasKnockedBack = this.knockback;
+    if (this.shieldTicksRemaining > 0) {
+      this.shieldTicksRemaining -= 1;
+    }
 
     if (this.pendingThrow && !this.throwingAnimation) {
       const throwAnim = this.animations?.['player/throw_sword'];

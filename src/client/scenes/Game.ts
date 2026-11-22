@@ -34,6 +34,7 @@ import {
   HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT,
   HEALTH_POTION_VERTICAL_TILE_RANGE_TOP,
   HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM,
+  SHIELD_PARTICLE_COLORS,
 } from '../systems/PotionSystem';
 import {
   createHeartSparkParticles,
@@ -672,6 +673,7 @@ export class Game extends Phaser.Scene {
     this.potionSystem?.update(this.tilemap, this.playerEntity.pos);
     this.potionSystem?.collectHealthPotion(this.playerEntity);
     this.potionSystem?.collectFrenzyPotion(this.playerEntity);
+    this.potionSystem?.collectShieldPotion(this.playerEntity);
     const swordHits =
       this.swords?.update(
         this.tilemap,
@@ -706,14 +708,44 @@ export class Game extends Phaser.Scene {
                 activeEnemy.cancelAttack();
               }
             }
-            this.sparksEffect.push(
-              ...createHeartSparkParticles(
-                [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
-                this.playerEntity.flip,
-                8,
-                { direction: 'up', gravity: 0.16 }
-              )
-            );
+            if (this.playerEntity.lastHitWasShielded) {
+              const playerRect = this.playerEntity.rect();
+              const shieldBreakPosition: [number, number] = [
+                playerRect.x + playerRect.width / 2,
+                playerRect.y + playerRect.height / 2,
+              ];
+              this.sparksEffect.push(
+                new Sparks(
+                  shieldBreakPosition,
+                  false,
+                  2.8,
+                  32,
+                  SHIELD_PARTICLE_COLORS.lightGreen,
+                  'burst',
+                  'diamond',
+                  [3, 3]
+                ),
+                new Sparks(
+                  shieldBreakPosition,
+                  false,
+                  1.2,
+                  8,
+                  SHIELD_PARTICLE_COLORS.white,
+                  'burst',
+                  'diamond',
+                  [1.5, 1.5]
+                )
+              );
+            } else {
+              this.sparksEffect.push(
+                ...createHeartSparkParticles(
+                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
+                  this.playerEntity.flip,
+                  8,
+                  { direction: 'up', gravity: 0.16 }
+                )
+              );
+            }
           }
         }
       }

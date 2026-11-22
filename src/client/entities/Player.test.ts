@@ -441,6 +441,71 @@ void describe('Player', () => {
     assert.equal(swordPlayer.animationKey, 'player/sword/hit');
   });
 
+  void it('activates and refreshes a 10-second shield, then expires it', async () => {
+    const { Player: PlayerClass, SHIELD_DURATION_TICKS } =
+      await import(playerUrl);
+    const Tilemap = await getTilemap();
+    const player = new PlayerClass([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+
+    assert.equal(SHIELD_DURATION_TICKS, 600);
+    player.activateShield();
+    assert.equal(player.shieldTicksRemaining, SHIELD_DURATION_TICKS);
+
+    player.shieldTicksRemaining = 1;
+    player.activateShield();
+    assert.equal(player.shieldTicksRemaining, SHIELD_DURATION_TICKS);
+
+    player.shieldTicksRemaining = 1;
+    player.update(tilemap, [0, 0]);
+    assert.equal(player.shieldTicksRemaining, 0);
+  });
+
+  void it('absorbs one eligible hit without losing health and starts invulnerability', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    player.activateShield();
+
+    assert.equal(player.takeDamage(1), true);
+    assert.equal(player.health, player.maxHealth);
+    assert.equal(player.dead, false);
+    assert.equal(player.shieldTicksRemaining, 0);
+    assert.equal(player.invincibleTimer, player.invincibleDuration);
+    assert.equal(player.lastHitWasShielded, true);
+
+    player.applyKnockback(1);
+    assert.equal(player.knockback, true);
+  });
+
+  void it('does not consume the shield for invulnerability-blocked hits', async () => {
+    const Player = await getPlayer();
+    const player = new Player([100, 200]);
+    player.activateShield();
+    player.invincibleTimer = 1;
+
+    assert.equal(player.takeDamage(1), false);
+    assert.equal(player.health, player.maxHealth);
+    assert.equal(player.shieldTicksRemaining, 600);
+    assert.equal(player.lastHitWasShielded, false);
+  });
+
+  void it('uses normal health damage after the shield expires', async () => {
+    const Player = await getPlayer();
+    const Tilemap = await getTilemap();
+    const player = new Player([100, 200]);
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({ tiles: {}, off_grid_tiles: [] });
+    player.activateShield();
+    player.shieldTicksRemaining = 1;
+    player.update(tilemap, [0, 0]);
+
+    assert.equal(player.takeDamage(1), true);
+    assert.equal(player.health, player.maxHealth - 1);
+    assert.equal(player.shieldTicksRemaining, 0);
+    assert.equal(player.lastHitWasShielded, false);
+  });
+
   void it('starts the matching landing animation when landing from the air', async () => {
     const Player = await getPlayer();
     const Tilemap = await getTilemap();
