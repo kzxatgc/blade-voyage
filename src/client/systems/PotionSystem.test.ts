@@ -106,7 +106,7 @@ void describe('PotionSystem', () => {
     }
   });
 
-  void it('uses a separate toggle for boosted potion spawn chances', () => {
+  void it('boosts potion spawn chances only while debug mode is enabled', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({
       tiles: {
@@ -122,20 +122,26 @@ void describe('PotionSystem', () => {
       setDebugMode(true);
       DEBUG_CONFIG.boostPotionSpawnRates = false;
       assert.equal(HEALTH_POTION_SPAWN_CHANCE, 0.001);
-      assert.equal(FRENZY_POTION_SPAWN_CHANCE, 0.003);
+      assert.equal(FRENZY_POTION_SPAWN_CHANCE, 0.0025);
       assert.equal(SHIELD_POTION_SPAWN_CHANCE, 0.001);
       const normalRates = new PotionSystem(() => 0.002);
       assert.equal(normalRates.spawnHealthPotion(tilemap), null);
       assert.notEqual(normalRates.spawnFrenzyPotion(tilemap), null);
       assert.equal(normalRates.spawnShieldPotion(tilemap), null);
 
-      setDebugMode(false);
+      setDebugMode(true);
       DEBUG_CONFIG.boostPotionSpawnRates = true;
       const debugRates = new PotionSystem(() => 0.49);
       assert.notEqual(debugRates.spawnHealthPotion(tilemap), null);
       assert.notEqual(debugRates.spawnFrenzyPotion(tilemap), null);
       assert.notEqual(debugRates.spawnShieldPotion(tilemap), null);
       assert.equal(DEBUG_POTION_SPAWN_CHANCE, 0.5);
+
+      setDebugMode(false);
+      const normalRatesWhenDebugDisabled = new PotionSystem(() => 0.002);
+      assert.equal(normalRatesWhenDebugDisabled.spawnHealthPotion(tilemap), null);
+      assert.notEqual(normalRatesWhenDebugDisabled.spawnFrenzyPotion(tilemap), null);
+      assert.equal(normalRatesWhenDebugDisabled.spawnShieldPotion(tilemap), null);
     } finally {
       setDebugMode(previousDebugEnabled);
       DEBUG_CONFIG.boostPotionSpawnRates = previousSpawnRateBoost;

@@ -13,7 +13,7 @@ export interface DebugConfig {
   showTouchControlsOnDesktop: boolean;
   /** Player health is infinite (cannot die) */
   playerInfiniteHealth: boolean;
-  /** Use 50% spawn chances for Health and Frenzy Potions */
+  /** Use 50% spawn chances for Health, Frenzy, and Shield Potions */
   boostPotionSpawnRates: boolean;
   /** Show body hitbox rect for player (yellow) and enemies (cyan) */
   showEntityBodyRects: boolean;

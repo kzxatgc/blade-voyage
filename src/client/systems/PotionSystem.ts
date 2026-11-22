@@ -7,7 +7,7 @@ import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 
 export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
-export const FRENZY_POTION_SPAWN_CHANCE = 0.003;
+export const FRENZY_POTION_SPAWN_CHANCE = 0.0025;
 export const SHIELD_POTION_SPAWN_CHANCE = 0.001;
 export const SHIELD_PARTICLE_COLORS = {
   lightGreen: [213, 255, 213],
@@ -350,7 +350,7 @@ export class PotionSystem {
   }
 
   private getSpawnChance(chance: number): number {
-    return DEBUG_CONFIG.boostPotionSpawnRates
+    return DEBUG_CONFIG.enabled && DEBUG_CONFIG.boostPotionSpawnRates
       ? DEBUG_POTION_SPAWN_CHANCE
       : chance;
   }
