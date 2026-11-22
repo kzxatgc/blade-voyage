@@ -383,6 +383,7 @@ This document records credits for assets used in this project.
 - **Creator / License**: Created with PixelLab by the project owner. PixelLab's [Terms of Service](https://www.pixellab.ai/termsofservice) state that users own copyrights to their creations and may use them commercially or non-commercially without permission. The terms also require compliance with OpenRAIL-M, prohibit using creations to train other models without PixelLab's permission, and make users responsible for third-party rights. This is PixelLab's output-use grant, not a CC0 declaration.
 - The in-game sword interaction HUD uses this sheet for its keyboard and mouse prompts.
 - The Frenzy HUD uses a PixelLab-generated 8×8 lightning-bolt sprite sheet supplied by the project owner.
+- The Shield HUD uses a PixelLab-generated 8×8 shield sprite sheet supplied by the project owner.
 - **Files**:
   - `public/assets/img/ui/action-prompt-keycaps.png`
   - `public/assets/img/ui/settings/gear.png`
@@ -402,6 +403,7 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/level-select/level-nav-arrows.png`
   - `public/assets/img/ui/health/player-health.png`
   - `public/assets/img/ui/frenzy/frenzy-bolt.png`
+  - `public/assets/img/ui/shield/shield-hud.png`
 
 ## 3. Press Start 2P Font
 

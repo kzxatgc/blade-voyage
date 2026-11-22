@@ -24,7 +24,7 @@ import {
   PLAYABLE_LEVELS,
 } from '../../shared/levels';
 import { isMapData } from '../../shared/mapData';
-import { Player } from '../entities/Player';
+import { Player, SHIELD_DURATION_TICKS } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
@@ -61,6 +61,13 @@ import {
   getFrenzyHudFrame,
   getFrenzyHudTopAlignedCenterY,
 } from '../systems/FrenzyHud';
+import {
+  getShieldHudFrame,
+  getShieldHudTopAlignedCenterY,
+  SHIELD_HUD_ICON_GAP_CSS,
+  SHIELD_HUD_ICON_SIZE_CSS,
+  SHIELD_HUD_SPRITE_KEY,
+} from '../systems/ShieldHud';
 import { shouldShowAttackCooldownIndicator } from '../systems/AttackCooldownHud';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
@@ -117,6 +124,8 @@ export class Game extends Phaser.Scene {
   private healthIndicatorPulseTween: Phaser.Tweens.Tween | undefined;
   private frenzyIndicator: Phaser.GameObjects.Image | undefined;
   private frenzyIndicatorFrame = -1;
+  private shieldIndicator: Phaser.GameObjects.Image | undefined;
+  private shieldIndicatorFrame = -1;
   private healthIndicatorZoom = 0;
   private actionPromptHUD?: ActionPromptHUD;
   private rightKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -184,6 +193,9 @@ export class Game extends Phaser.Scene {
     const frenzyIconSize =
       FRENZY_HUD_ICON_SIZE_CSS * unitScale * responsiveScale;
     const frenzyIconGap = FRENZY_HUD_ICON_GAP_CSS * unitScale * responsiveScale;
+    const shieldIconSize =
+      SHIELD_HUD_ICON_SIZE_CSS * unitScale * responsiveScale;
+    const shieldIconGap = SHIELD_HUD_ICON_GAP_CSS * unitScale * responsiveScale;
     const margin =
       SETTINGS_BUTTON_MARGIN_CSS * unitScale * responsiveScale;
     const zoom = this.cameras.main.zoom;
@@ -211,6 +223,22 @@ export class Game extends Phaser.Scene {
         )
       )
       .setDisplaySize(frenzyIconSize, frenzyIconSize);
+    this.shieldIndicator
+      ?.setPosition(
+        -width / 2 +
+          margin +
+          iconSize +
+          frenzyIconGap +
+          frenzyIconSize +
+          shieldIconGap +
+          shieldIconSize / 2,
+        getShieldHudTopAlignedCenterY(
+          -height / 2 + margin,
+          iconSize,
+          shieldIconSize
+        )
+      )
+      .setDisplaySize(shieldIconSize, shieldIconSize);
     this.healthIndicatorZoom = zoom;
   }
 
@@ -254,6 +282,8 @@ export class Game extends Phaser.Scene {
     this.healthIndicatorHealth = undefined;
     this.frenzyIndicator = undefined;
     this.frenzyIndicatorFrame = -1;
+    this.shieldIndicator = undefined;
+    this.shieldIndicatorFrame = -1;
     this.healthIndicatorZoom = 0;
     this.settingsPaused = false;
     this.tickAccumulator = 0;
@@ -556,8 +586,14 @@ export class Game extends Phaser.Scene {
       .image(0, 0, FRENZY_HUD_SPRITE_KEY, 0)
       .setOrigin(0.5, 0.5)
       .setVisible(false);
+    this.shieldIndicator = this.add
+      .image(0, 0, SHIELD_HUD_SPRITE_KEY, 0)
+      .setOrigin(0.5, 0.5)
+      .setVisible(false);
     this.healthIndicatorRoot.add(this.frenzyIndicator);
+    this.healthIndicatorRoot.add(this.shieldIndicator);
     this.healthIndicatorFrame = 0;
+    this.shieldIndicatorFrame = -1;
     this.layoutHealthIndicator();
     this.scale.on('resize', this.layoutHealthIndicator, this);
     this.events.once('shutdown', () => {
@@ -985,6 +1021,21 @@ export class Game extends Phaser.Scene {
       if (frenzyFrame !== this.frenzyIndicatorFrame) {
         this.frenzyIndicator?.setFrame(frenzyFrame);
         this.frenzyIndicatorFrame = frenzyFrame;
+      }
+    }
+    const showShieldIndicator =
+      this.playerEntity.shieldTicksRemaining > 0 && !this.playerEntity.dead;
+    this.shieldIndicator?.setVisible(showShieldIndicator);
+    if (showShieldIndicator) {
+      const shieldElapsedTicks =
+        SHIELD_DURATION_TICKS - this.playerEntity.shieldTicksRemaining;
+      const shieldFrame = getShieldHudFrame(
+        this.playerEntity.shieldTicksRemaining / SHIELD_DURATION_TICKS,
+        shieldElapsedTicks
+      );
+      if (shieldFrame !== this.shieldIndicatorFrame) {
+        this.shieldIndicator?.setFrame(shieldFrame);
+        this.shieldIndicatorFrame = shieldFrame;
       }
     }
 

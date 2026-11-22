@@ -9,6 +9,10 @@ import {
   FRENZY_HUD_FRAME_SIZE,
   FRENZY_HUD_SPRITE_KEY,
 } from '../systems/FrenzyHud';
+import {
+  SHIELD_HUD_FRAME_SIZE,
+  SHIELD_HUD_SPRITE_KEY,
+} from '../systems/ShieldHud';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -107,6 +111,14 @@ export class Preloader extends Scene {
       {
         frameWidth: FRENZY_HUD_FRAME_SIZE,
         frameHeight: FRENZY_HUD_FRAME_SIZE,
+      }
+    );
+    this.load.spritesheet(
+      SHIELD_HUD_SPRITE_KEY,
+      'img/ui/shield/shield-hud.png',
+      {
+        frameWidth: SHIELD_HUD_FRAME_SIZE,
+        frameHeight: SHIELD_HUD_FRAME_SIZE,
       }
     );
     this.load.image('touch-left', 'img/ui/touch/left.png');
