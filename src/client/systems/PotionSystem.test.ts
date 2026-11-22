@@ -3,24 +3,31 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  DEBUG_POTION_SPAWN_CHANCE,
+  FRENZY_POTION_SPAWN_CHANCE,
+  FrenzyPotion,
+  FrenzyPotionEffect,
   HealthPotion,
   HealthPotionEffect,
-  FrenzyPotionEffect,
   PotionSystem,
   HEALTH_POTION_SPAWN_CHANCE,
   HEALTH_POTION_LIFETIME_TICKS,
   HEALTH_POTION_BLINK_START_TICKS,
   HEALTH_POTION_FAST_BLINK_START_TICKS,
+  POTION_LIFETIME_TICKS,
   createFrenzyPotionIdleAnimation,
 } from './PotionSystem.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
+import { DEBUG_CONFIG, setDebugMode } from '../../shared/debug.ts';
 
 void describe('PotionSystem', () => {
   void it('creates a seven-frame Frenzy Potion idle animation at the potion cadence', () => {
     const animation = createFrenzyPotionIdleAnimation();
+    const potion = new FrenzyPotion([100, 200]);
 
     assert.equal(animation.img(), 'potion/frenzy/idle/0');
+    assert.equal(potion.animation?.img(), 'potion/frenzy/idle/0');
     for (let tick = 0; tick < 8; tick += 1) {
       animation.update();
     }
@@ -29,7 +36,7 @@ void describe('PotionSystem', () => {
     assert.equal(animation.imgDur, 8);
   });
 
-  void it('uses 0.1 percent spawn chance and only allows one potion', () => {
+  void it('spawns one potion of each type on separate nearby grass tiles', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({
       tiles: {
@@ -39,12 +46,61 @@ void describe('PotionSystem', () => {
       off_grid_tiles: [],
     });
 
-    const manager = new PotionSystem(
-      () => HEALTH_POTION_SPAWN_CHANCE / 2
-    );
-    assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]) !== null, true);
-    assert.equal(manager.healthPotions.length, 1);
-    assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]), null);
+    const previousDebugEnabled = DEBUG_CONFIG.enabled;
+    setDebugMode(false);
+    try {
+      const manager = new PotionSystem(() => 0.0001);
+      assert.equal(
+        manager.spawnHealthPotion(tilemap, [100, 224]) !== null,
+        true
+      );
+      assert.equal(
+        manager.spawnFrenzyPotion(tilemap, [100, 224]) !== null,
+        true
+      );
+      assert.equal(manager.healthPotions.length, 1);
+      assert.equal(manager.frenzyPotions.length, 1);
+      assert.notDeepEqual(
+        manager.healthPotions[0]?.pos,
+        manager.frenzyPotions[0]?.pos
+      );
+      assert.equal(manager.spawnHealthPotion(tilemap, [100, 224]), null);
+      assert.equal(manager.spawnFrenzyPotion(tilemap, [100, 224]), null);
+    } finally {
+      setDebugMode(previousDebugEnabled);
+    }
+  });
+
+  void it('uses a separate toggle for boosted potion spawn chances', () => {
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
+        '4;8': { type: 'grass', variant: 0, loc: [4, 8] },
+      },
+      off_grid_tiles: [],
+    });
+    const previousDebugEnabled = DEBUG_CONFIG.enabled;
+    const previousSpawnRateBoost = DEBUG_CONFIG.boostPotionSpawnRates;
+    try {
+      setDebugMode(true);
+      DEBUG_CONFIG.boostPotionSpawnRates = false;
+      assert.equal(HEALTH_POTION_SPAWN_CHANCE, 0.001);
+      assert.equal(FRENZY_POTION_SPAWN_CHANCE, 0.003);
+      const normalRates = new PotionSystem(() => 0.002);
+      assert.equal(normalRates.spawnHealthPotion(tilemap), null);
+      assert.notEqual(normalRates.spawnFrenzyPotion(tilemap), null);
+
+      setDebugMode(false);
+      DEBUG_CONFIG.boostPotionSpawnRates = true;
+      const debugRates = new PotionSystem(() => 0.49);
+      assert.notEqual(debugRates.spawnHealthPotion(tilemap), null);
+      assert.notEqual(debugRates.spawnFrenzyPotion(tilemap), null);
+      assert.equal(DEBUG_POTION_SPAWN_CHANCE, 0.5);
+    } finally {
+      setDebugMode(previousDebugEnabled);
+      DEBUG_CONFIG.boostPotionSpawnRates = previousSpawnRateBoost;
+    }
   });
 
   void it('uses the sword-style celestial burst in pink and white when spawning', () => {
@@ -93,11 +149,15 @@ void describe('PotionSystem', () => {
   });
 
   void it('destroys active pickup-effect sprites when the system is destroyed', () => {
-    let spriteDestroyed = false;
+    let destroyedSprites = 0;
     const playerRect = { x: 100, y: 200, width: 20, height: 28 };
     const potions = new PotionSystem();
     potions.healthPotionEffects = [
       new HealthPotionEffect({ rect: () => playerRect }),
+    ];
+    potions.frenzyPotions = [new FrenzyPotion([100, 200])];
+    potions.frenzyPotionEffects = [
+      new FrenzyPotionEffect({ rect: () => playerRect }),
     ];
 
     potions.render({
@@ -108,15 +168,17 @@ void describe('PotionSystem', () => {
           setTexture() {},
           setDepth() {},
           destroy() {
-            spriteDestroyed = true;
+            destroyedSprites += 1;
           },
         }),
       },
     });
     potions.destroy();
 
-    assert.equal(spriteDestroyed, true);
+    assert.equal(destroyedSprites, 3);
     assert.equal(potions.healthPotionEffects.length, 0);
+    assert.equal(potions.frenzyPotions.length, 0);
+    assert.equal(potions.frenzyPotionEffects.length, 0);
   });
 
   void it('keeps the pickup effect centered on the moving player', () => {
@@ -225,5 +287,41 @@ void describe('PotionSystem', () => {
     assert.equal(potion.isExpired, false);
     potion.timer = HEALTH_POTION_LIFETIME_TICKS;
     assert.equal(potion.isExpired, true);
+  });
+
+  void it('expires both potion types and destroys their active sprites', () => {
+    const tilemap = new Tilemap(32);
+    const healthPotion = new HealthPotion([100, 200]);
+    const frenzyPotion = new FrenzyPotion([140, 200]);
+    let destroyedSprites = 0;
+    const scene = {
+      add: {
+        image() {
+          return {
+            setOrigin() {},
+            setPosition() {},
+            setTexture() {},
+            setDepth() {},
+            setVisible() {},
+            destroy() {
+              destroyedSprites += 1;
+            },
+          };
+        },
+      },
+    };
+    const potions = new PotionSystem(() => 1);
+    potions.healthPotions = [healthPotion];
+    potions.frenzyPotions = [frenzyPotion];
+    healthPotion.render(scene);
+    frenzyPotion.render(scene);
+    healthPotion.timer = POTION_LIFETIME_TICKS;
+    frenzyPotion.timer = POTION_LIFETIME_TICKS;
+
+    potions.update(tilemap);
+
+    assert.equal(potions.healthPotions.length, 0);
+    assert.equal(potions.frenzyPotions.length, 0);
+    assert.equal(destroyedSprites, 2);
   });
 });

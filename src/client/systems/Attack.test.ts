@@ -117,6 +117,15 @@ void describe('Attack', () => {
     assert.equal(attack.isReady, true);
   });
 
+  void it('clears active Frenzy when the attack system is cancelled', () => {
+    const attack = new Attack();
+    attack.activateFrenzy();
+
+    attack.cancelAttack();
+
+    assert.equal(attack.isFrenzyActive, false);
+  });
+
   void it('updates player action and ends attack when animation is done', () => {
     let assignedAction = '';
     const mockPlayer: AttackPlayerTarget = {

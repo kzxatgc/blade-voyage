@@ -1,20 +1,26 @@
 import { PhysicsEntity } from '../entities/PhysicsEntity.ts';
 import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.ts';
 import { RENDER_DEPTH } from '../../shared/constants.ts';
+import { DEBUG_CONFIG } from '../../shared/debug.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
 
-export const HEALTH_POTION_SPAWN_CHANCE = 0.1;
+export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
+export const FRENZY_POTION_SPAWN_CHANCE = 0.003;
+export const DEBUG_POTION_SPAWN_CHANCE = 0.5;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
 export const HEALTH_POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
 export const HEALTH_POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
 export const HEALTH_POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
 export const HEALTH_POTION_HEAL_AMOUNT = 1;
-export const HEALTH_POTION_LIFETIME_TICKS = 2400;
-export const HEALTH_POTION_BLINK_START_TICKS = 2100;
+export const POTION_LIFETIME_TICKS = 2400;
+export const POTION_BLINK_START_TICKS = 2100;
+export const POTION_FAST_BLINK_START_TICKS = POTION_LIFETIME_TICKS - 120;
+export const HEALTH_POTION_LIFETIME_TICKS = POTION_LIFETIME_TICKS;
+export const HEALTH_POTION_BLINK_START_TICKS = POTION_BLINK_START_TICKS;
 export const HEALTH_POTION_FAST_BLINK_START_TICKS =
-  HEALTH_POTION_LIFETIME_TICKS - 120;
+  POTION_FAST_BLINK_START_TICKS;
 
 export const createFrenzyPotionIdleAnimation = (): Animation =>
   new Animation('potion/frenzy/idle', 7, 8);
@@ -115,7 +121,7 @@ export class FrenzyPotionEffect extends PotionPickupEffect {
   }
 }
 
-export class HealthPotion extends PhysicsEntity {
+export class PotionEntity extends PhysicsEntity {
   timer = 0;
   landed = false;
   private image: PotionRenderImage | null = null;
@@ -123,17 +129,10 @@ export class HealthPotion extends PhysicsEntity {
 
   constructor(
     pos: EntityPosition,
-    size: EntitySize = [12, 14],
-    animations?: Readonly<Record<string, Animation>>
+    size: EntitySize,
+    animations: Readonly<Record<string, Animation>>
   ) {
-    super(
-      'potion',
-      pos,
-      size,
-      animations ?? {
-        'potion/idle': new Animation('potion/health/idle', 7, 8),
-      }
-    );
+    super('potion', pos, size, animations);
     this.landed = true;
     this.velocity[1] = 0;
   }
@@ -144,15 +143,15 @@ export class HealthPotion extends PhysicsEntity {
   }
 
   get isExpired(): boolean {
-    return this.timer >= HEALTH_POTION_LIFETIME_TICKS;
+    return this.timer >= POTION_LIFETIME_TICKS;
   }
 
   isBlinking(): boolean {
-    if (this.timer < HEALTH_POTION_BLINK_START_TICKS) {
+    if (this.timer < POTION_BLINK_START_TICKS) {
       return false;
     }
     const blinkRate =
-      this.timer >= HEALTH_POTION_FAST_BLINK_START_TICKS ? 7 : 12;
+      this.timer >= POTION_FAST_BLINK_START_TICKS ? 7 : 12;
     return Math.floor(this.timer / blinkRate) % 2 === 0;
   }
 
@@ -192,9 +191,35 @@ export class HealthPotion extends PhysicsEntity {
   }
 }
 
+export class HealthPotion extends PotionEntity {
+  constructor(
+    pos: EntityPosition,
+    size: EntitySize = [12, 14],
+    animations: Readonly<Record<string, Animation>> = {
+      'potion/idle': new Animation('potion/health/idle', 7, 8),
+    }
+  ) {
+    super(pos, size, animations);
+  }
+}
+
+export class FrenzyPotion extends PotionEntity {
+  constructor(
+    pos: EntityPosition,
+    size: EntitySize = [12, 14],
+    animations: Readonly<Record<string, Animation>> = {
+      'potion/idle': createFrenzyPotionIdleAnimation(),
+    }
+  ) {
+    super(pos, size, animations);
+  }
+}
+
 export class PotionSystem {
   healthPotions: HealthPotion[] = [];
+  frenzyPotions: FrenzyPotion[] = [];
   healthPotionEffects: HealthPotionEffect[] = [];
+  frenzyPotionEffects: FrenzyPotionEffect[] = [];
   private validSpawnPos: readonly (readonly [number, number])[] | null = null;
   private readonly random: () => number;
   private readonly sparksEffect: Sparks[] | undefined;
@@ -224,17 +249,10 @@ export class PotionSystem {
     return this.validSpawnPos;
   }
 
-  spawnHealthPotion(
+  private getSpawnPosition(
     tilemap: Tilemap,
     playerPos?: readonly [number, number]
-  ): HealthPotion | null {
-    if (
-      this.healthPotions.length > 0 ||
-      this.random() >= HEALTH_POTION_SPAWN_CHANCE
-    ) {
-      return null;
-    }
-
+  ): readonly [number, number] | null {
     let availablePositions = this.getValidSpawnPositions(tilemap);
     if (availablePositions.length === 0) {
       return null;
@@ -264,21 +282,37 @@ export class PotionSystem {
       });
     }
 
+    const existingPotions: PotionEntity[] = [
+      ...this.healthPotions,
+      ...this.frenzyPotions,
+    ];
+    availablePositions = availablePositions.filter(
+      (pos) =>
+        !existingPotions.some(
+          (potion) =>
+            potion.pos[0] + 8 === pos[0] + tilemap.tileSize * 0.5 &&
+            potion.pos[1] === pos[1] - 21
+        )
+    );
     if (availablePositions.length === 0) {
       return null;
     }
 
     const selectedIndex = Math.floor(this.random() * availablePositions.length);
-    const selected = availablePositions[selectedIndex];
-    if (!selected) {
-      return null;
-    }
+    return availablePositions[selectedIndex] ?? null;
+  }
 
-    const potion = new HealthPotion([
-      selected[0] + tilemap.tileSize * 0.5 - 8,
-      selected[1] - 21,
-    ]);
-    this.healthPotions.push(potion);
+  private getSpawnChance(chance: number): number {
+    return DEBUG_CONFIG.boostPotionSpawnRates
+      ? DEBUG_POTION_SPAWN_CHANCE
+      : chance;
+  }
+
+  private addSpawnSparks(
+    potion: PotionEntity,
+    primaryColor: readonly [number, number, number],
+    secondaryColor: readonly [number, number, number]
+  ): void {
     const center: [number, number] = [
       potion.pos[0] + 6,
       potion.pos[1] + 7,
@@ -289,7 +323,7 @@ export class PotionSystem {
         false,
         2.8,
         22,
-        [255, 210, 215],
+        primaryColor,
         'burst',
         'diamond',
         [3, 3],
@@ -302,13 +336,62 @@ export class PotionSystem {
         false,
         1.8,
         13,
-        [255, 255, 255],
+        secondaryColor,
         'burst',
         'diamond',
         [2, 2],
         this.random
       )
     );
+  }
+
+  spawnHealthPotion(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number]
+  ): HealthPotion | null {
+    if (
+      this.healthPotions.length > 0 ||
+      this.random() >= this.getSpawnChance(HEALTH_POTION_SPAWN_CHANCE)
+    ) {
+      return null;
+    }
+
+    const selected = this.getSpawnPosition(tilemap, playerPos);
+    if (!selected) {
+      return null;
+    }
+
+    const potion = new HealthPotion([
+      selected[0] + tilemap.tileSize * 0.5 - 8,
+      selected[1] - 21,
+    ]);
+    this.healthPotions.push(potion);
+    this.addSpawnSparks(potion, [255, 210, 215], [255, 255, 255]);
+    return potion;
+  }
+
+  spawnFrenzyPotion(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number]
+  ): FrenzyPotion | null {
+    if (
+      this.frenzyPotions.length > 0 ||
+      this.random() >= this.getSpawnChance(FRENZY_POTION_SPAWN_CHANCE)
+    ) {
+      return null;
+    }
+
+    const selected = this.getSpawnPosition(tilemap, playerPos);
+    if (!selected) {
+      return null;
+    }
+
+    const potion = new FrenzyPotion([
+      selected[0] + tilemap.tileSize * 0.5 - 8,
+      selected[1] - 21,
+    ]);
+    this.frenzyPotions.push(potion);
+    this.addSpawnSparks(potion, [255, 196, 48], [122, 207, 255]);
     return potion;
   }
 
@@ -317,7 +400,15 @@ export class PotionSystem {
     playerPos?: readonly [number, number]
   ): void {
     this.spawnHealthPotion(tilemap, playerPos);
+    this.spawnFrenzyPotion(tilemap, playerPos);
     this.healthPotions = this.healthPotions.filter((potion) => {
+      if (potion.isExpired) {
+        potion.destroy();
+        return false;
+      }
+      return true;
+    });
+    this.frenzyPotions = this.frenzyPotions.filter((potion) => {
       if (potion.isExpired) {
         potion.destroy();
         return false;
@@ -327,7 +418,17 @@ export class PotionSystem {
     for (const potion of this.healthPotions) {
       potion.update(tilemap);
     }
+    for (const potion of this.frenzyPotions) {
+      potion.update(tilemap);
+    }
     this.healthPotionEffects = this.healthPotionEffects.filter((effect) => {
+      if (effect.update()) {
+        effect.destroy();
+        return false;
+      }
+      return true;
+    });
+    this.frenzyPotionEffects = this.frenzyPotionEffects.filter((effect) => {
       if (effect.update()) {
         effect.destroy();
         return false;
@@ -380,7 +481,13 @@ export class PotionSystem {
     for (const potion of this.healthPotions) {
       potion.render(scene, offset);
     }
+    for (const potion of this.frenzyPotions) {
+      potion.render(scene, offset);
+    }
     for (const effect of this.healthPotionEffects) {
+      effect.render(scene, offset, playerInterpolationOffset);
+    }
+    for (const effect of this.frenzyPotionEffects) {
       effect.render(scene, offset, playerInterpolationOffset);
     }
   }
@@ -390,9 +497,17 @@ export class PotionSystem {
       potion.destroy();
     }
     this.healthPotions = [];
+    for (const potion of this.frenzyPotions) {
+      potion.destroy();
+    }
+    this.frenzyPotions = [];
     for (const effect of this.healthPotionEffects) {
       effect.destroy();
     }
     this.healthPotionEffects = [];
+    for (const effect of this.frenzyPotionEffects) {
+      effect.destroy();
+    }
+    this.frenzyPotionEffects = [];
   }
 }

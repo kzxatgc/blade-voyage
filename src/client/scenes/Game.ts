@@ -43,7 +43,7 @@ import {
 import { Tilemap } from '../systems/Tilemap';
 import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
-import { DEBUG_CONFIG, toggleDebugMode } from '../../shared/debug';
+import { DEBUG_CONFIG } from '../../shared/debug';
 import { SoundSystem } from '../systems/Audio';
 import { TouchControls } from '../systems/TouchControls';
 import {
@@ -394,9 +394,6 @@ export class Game extends Phaser.Scene {
       ) {
         this.playerEntity?.checkDoubleTap(event.code);
       }
-      if (event.code === 'F1' || event.code === 'Backquote') {
-        toggleDebugMode();
-      }
       // Keyboard zoom hotkeys (+/= zoom in, -/_ zoom out)
       if (
         event.code === 'NumpadAdd' ||
@@ -494,6 +491,10 @@ export class Game extends Phaser.Scene {
     this.healthIndicatorFrame = 0;
     this.layoutHealthIndicator();
     this.scale.on('resize', this.layoutHealthIndicator, this);
+    this.events.once('shutdown', () => {
+      this.potionSystem?.destroy();
+      this.playerEntity?.attackHandler.cancelAttack();
+    });
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layoutHealthIndicator, this);
     });

@@ -13,6 +13,8 @@ export interface DebugConfig {
   showTouchControlsOnDesktop: boolean;
   /** Player health is infinite (cannot die) */
   playerInfiniteHealth: boolean;
+  /** Use 50% spawn chances for Health and Frenzy Potions */
+  boostPotionSpawnRates: boolean;
   /** Show body hitbox rect for player (yellow) and enemies (cyan) */
   showEntityBodyRects: boolean;
   /** Show player melee attack range rect (orange) */
@@ -36,6 +38,7 @@ export const DEBUG_CONFIG: DebugConfig = {
   startDirectlyAtMap0: true,
   showTouchControlsOnDesktop: false,
   showEntityBodyRects: false,
+  boostPotionSpawnRates: true,
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,
   showPotionSpawnRange: true,

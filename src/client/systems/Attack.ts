@@ -196,6 +196,7 @@ export class Attack {
     this.cooldownTicksRemaining = 0;
     this.cooldownDurationTicks = 0;
     this.cooldownStartedThisTick = false;
+    this.frenzyTicksRemaining = 0;
     this.currentAttackType = '';
     this.effect = null;
     this.hitEntities.clear();
