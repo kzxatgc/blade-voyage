@@ -1,0 +1,2 @@
+export const BLINK_INTERVAL_TICKS = 12;
+export const FAST_BLINK_INTERVAL_TICKS = 7;

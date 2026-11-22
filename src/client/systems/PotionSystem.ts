@@ -5,6 +5,7 @@ import { DEBUG_CONFIG } from '../../shared/debug.ts';
 import type { Tilemap } from './Tilemap.ts';
 import { Animation } from '../utils/Animation.ts';
 import { Sparks } from './Sparks.ts';
+import { BLINK_INTERVAL_TICKS, FAST_BLINK_INTERVAL_TICKS } from './Blink.ts';
 
 export const HEALTH_POTION_SPAWN_CHANCE = 0.001;
 export const FRENZY_POTION_SPAWN_CHANCE = 0.0025;
@@ -233,7 +234,9 @@ export class PotionEntity extends PhysicsEntity {
       return false;
     }
     const blinkRate =
-      this.timer >= this.fastBlinkStartTicks ? 7 : 12;
+      this.timer >= this.fastBlinkStartTicks
+        ? FAST_BLINK_INTERVAL_TICKS
+        : BLINK_INTERVAL_TICKS;
     return Math.floor(this.timer / blinkRate) % 2 === 0;
   }
 
