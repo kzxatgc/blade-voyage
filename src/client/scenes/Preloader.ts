@@ -235,6 +235,10 @@ export class Preloader extends Scene {
         `potion/health/idle/${frame}`,
         `img/potion/${frame}.png`
       );
+      this.load.image(
+        `potion/frenzy/idle/${frame}`,
+        `img/potion/frenzy/${frame}.png`
+      );
     }
     for (let frame = 0; frame < 4; frame += 1) {
       this.load.image(

@@ -10,11 +10,24 @@ import {
   HEALTH_POTION_LIFETIME_TICKS,
   HEALTH_POTION_BLINK_START_TICKS,
   HEALTH_POTION_FAST_BLINK_START_TICKS,
+  createFrenzyPotionIdleAnimation,
 } from './PotionSystem.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
 
 void describe('PotionSystem', () => {
+  void it('creates a seven-frame Frenzy Potion idle animation at the potion cadence', () => {
+    const animation = createFrenzyPotionIdleAnimation();
+
+    assert.equal(animation.img(), 'potion/frenzy/idle/0');
+    for (let tick = 0; tick < 8; tick += 1) {
+      animation.update();
+    }
+    assert.equal(animation.img(), 'potion/frenzy/idle/1');
+    assert.equal(animation.frameCount, 7);
+    assert.equal(animation.imgDur, 8);
+  });
+
   void it('uses 0.1 percent spawn chance and only allows one potion', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({

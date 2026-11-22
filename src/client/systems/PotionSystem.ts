@@ -16,6 +16,9 @@ export const HEALTH_POTION_BLINK_START_TICKS = 2100;
 export const HEALTH_POTION_FAST_BLINK_START_TICKS =
   HEALTH_POTION_LIFETIME_TICKS - 120;
 
+export const createFrenzyPotionIdleAnimation = (): Animation =>
+  new Animation('potion/frenzy/idle', 7, 8);
+
 export interface PotionRenderImage {
   setOrigin(x: number, y: number): void;
   setPosition(x: number, y: number): void;

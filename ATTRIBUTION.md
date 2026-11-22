@@ -13,6 +13,7 @@ This document records credits for assets used in this project.
 - The settings overlay panel is composed from the top-left 3x3 tile block in `Wood and Paper UI/Sprites/Yellow Board/Yellow Board (guide).png`, using tile order `0 1 1 2 / 3 4 4 5 / 6 7 7 8`.
 - The in-game water uses `Palm Tree Island/Sprites/Background/Additional Water.png`; its small, medium, and big Water Reflect highlights use all four source frames and animate at the pack's 10 FPS.
 - The red potion drop uses seven `Red Potion (7 items)` animation frames.
+- The blue Frenzy Potion uses seven `Blue Potion` animation frames.
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
 - **Files**:
   - `public/assets/img/background/background.png`
@@ -71,6 +72,13 @@ This document records credits for assets used in this project.
   - `public/assets/img/potion/4.png`
   - `public/assets/img/potion/5.png`
   - `public/assets/img/potion/6.png`
+  - `public/assets/img/potion/frenzy/0.png`
+  - `public/assets/img/potion/frenzy/1.png`
+  - `public/assets/img/potion/frenzy/2.png`
+  - `public/assets/img/potion/frenzy/3.png`
+  - `public/assets/img/potion/frenzy/4.png`
+  - `public/assets/img/potion/frenzy/5.png`
+  - `public/assets/img/potion/frenzy/6.png`
   - `public/assets/img/potion-effect/0.png`
   - `public/assets/img/potion-effect/1.png`
   - `public/assets/img/potion-effect/2.png`
