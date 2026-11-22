@@ -233,7 +233,7 @@ export class Preloader extends Scene {
     for (let frame = 0; frame < 7; frame += 1) {
       this.load.image(
         `potion/health/idle/${frame}`,
-        `img/potion/${frame}.png`
+        `img/potion/health/${frame}.png`
       );
       this.load.image(
         `potion/frenzy/idle/${frame}`,
@@ -242,8 +242,8 @@ export class Preloader extends Scene {
     }
     for (let frame = 0; frame < 4; frame += 1) {
       this.load.image(
-        `potion/health/effect/${frame}`,
-        `img/potion-effect/${frame}.png`
+        `potion/health-effect/${frame}`,
+        `img/potion/health-effect/${frame}.png`
       );
     }
 

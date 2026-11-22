@@ -64,7 +64,7 @@ export class HealthPotionEffect {
     playerInterpolationOffset: readonly [number, number] = [0, 0]
   ) {
     const frame = Math.min(3, Math.floor(this.timer / 6));
-    const texture = `potion/health/effect/${frame}`;
+    const texture = `potion/health-effect/${frame}`;
     const playerRect = this.player.rect();
     const renderX =
       playerRect.x +

@@ -65,13 +65,13 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/touch/jump.png`
   - `public/assets/img/ui/touch/attack.png`
   - `public/assets/img/ui/touch/throw.png`
-  - `public/assets/img/potion/0.png`
-  - `public/assets/img/potion/1.png`
-  - `public/assets/img/potion/2.png`
-  - `public/assets/img/potion/3.png`
-  - `public/assets/img/potion/4.png`
-  - `public/assets/img/potion/5.png`
-  - `public/assets/img/potion/6.png`
+  - `public/assets/img/potion/health/0.png`
+  - `public/assets/img/potion/health/1.png`
+  - `public/assets/img/potion/health/2.png`
+  - `public/assets/img/potion/health/3.png`
+  - `public/assets/img/potion/health/4.png`
+  - `public/assets/img/potion/health/5.png`
+  - `public/assets/img/potion/health/6.png`
   - `public/assets/img/potion/frenzy/0.png`
   - `public/assets/img/potion/frenzy/1.png`
   - `public/assets/img/potion/frenzy/2.png`
@@ -79,10 +79,10 @@ This document records credits for assets used in this project.
   - `public/assets/img/potion/frenzy/4.png`
   - `public/assets/img/potion/frenzy/5.png`
   - `public/assets/img/potion/frenzy/6.png`
-  - `public/assets/img/potion-effect/0.png`
-  - `public/assets/img/potion-effect/1.png`
-  - `public/assets/img/potion-effect/2.png`
-  - `public/assets/img/potion-effect/3.png`
+  - `public/assets/img/potion/health-effect/0.png`
+  - `public/assets/img/potion/health-effect/1.png`
+  - `public/assets/img/potion/health-effect/2.png`
+  - `public/assets/img/potion/health-effect/3.png`
   - `public/assets/img/ui/settings/panel.png`
   - `public/assets/img/font/font.png`
   - `public/assets/img/font/font.fnt`
