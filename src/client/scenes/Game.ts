@@ -126,7 +126,7 @@ const WATER_REFLECTION_SCALE = 3;
 const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const PLAYER_HIT_SHAKE_DURATION_MS = 100;
-const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
+const PLAYER_HIT_SHAKE_INTENSITY = 0.0075;
 const BUFF_INDICATOR_SHIFT_DURATION_MS = 180;
 const ATTACK_COOLDOWN_INDICATOR_SQUARES = 4;
 const ATTACK_COOLDOWN_INDICATOR_SIZE = 2;
@@ -1098,7 +1098,7 @@ export class Game extends Phaser.Scene {
           }
           this.cameras.main.shake(
             destroyed ? 120 : 100,
-            destroyed ? 0.005 : 0.0035
+            destroyed ? 0.004 : 0.003
           );
         }
       }

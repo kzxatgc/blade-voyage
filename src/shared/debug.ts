@@ -45,7 +45,7 @@ export const DEBUG_CONFIG: DebugConfig = {
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,
   showEnemyDetectionRange: false,
-  showCannonDetectionRange: true,
+  showCannonDetectionRange: false,
   showEnemyAttackRange: false,
   showCameraBounds: false,
 };

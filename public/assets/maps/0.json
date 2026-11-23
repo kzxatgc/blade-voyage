@@ -6359,6 +6359,14 @@
         25,
         -3
       ]
+    },
+    "34;9": {
+      "type": "cannon",
+      "variant": 1,
+      "loc": [
+        34,
+        9
+      ]
     }
   },
   "off_grid_tiles": [
