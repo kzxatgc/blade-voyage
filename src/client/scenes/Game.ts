@@ -1207,7 +1207,6 @@ export class Game extends Phaser.Scene {
       horizontalDirection * PLAYER_MOVE_SPEED,
       0,
     ]);
-    this.cannonSystem?.update(this.playerEntity.rect());
     if (
       this.playerEntity.attackHandler.isFrenzyActive &&
       this.playerEntity.swordState &&
@@ -1284,6 +1283,10 @@ export class Game extends Phaser.Scene {
       this.playerEntity.pos[1] + 18 - camera.height / 2;
     this.worldScroll[0] += (worldTargetX - this.worldScroll[0]) / 20;
     this.worldScroll[1] += (worldTargetY - this.worldScroll[1]) / 20;
+    this.cannonSystem?.update(
+      this.playerEntity.rect(),
+      this.getCannonActivationRect()
+    );
 
     this.playerSprite.setFlipX(
       this.playerEntity.dead
@@ -1603,6 +1606,20 @@ export class Game extends Phaser.Scene {
           }
         }
 
+        if (DEBUG_CONFIG.showCannonDetectionRange) {
+          const activationRect = this.getCannonActivationRect([
+            interpolatedScrollX,
+            interpolatedScrollY,
+          ]);
+          this.sparksGraphics.lineStyle(2, 0xffa500, 0.9);
+          this.sparksGraphics.strokeRect(
+            activationRect.x,
+            activationRect.y,
+            activationRect.width,
+            activationRect.height
+          );
+        }
+
         if (
           DEBUG_CONFIG.showEnemyDetectionRange ||
           DEBUG_CONFIG.showEnemyAttackRange
@@ -1682,6 +1699,19 @@ export class Game extends Phaser.Scene {
         sparks.render(this.sparksGraphics);
       }
     }
+  }
+
+  private getCannonActivationRect(
+    scroll: readonly [number, number] = this.scroll
+  ): EntityRect {
+    const cameraCenterX = scroll[0] + WINDOW_WIDTH / 2;
+    const cameraCenterY = scroll[1] + WINDOW_HEIGHT / 2;
+    return {
+      x: cameraCenterX - DISPLAY_WIDTH / 2,
+      y: cameraCenterY - DISPLAY_HEIGHT / 2,
+      width: DISPLAY_WIDTH,
+      height: DISPLAY_HEIGHT,
+    };
   }
 
   private getSwordSpawnObstacleRects(): EntityRect[] {

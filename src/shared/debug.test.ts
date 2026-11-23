@@ -11,6 +11,7 @@ void describe('Debug config', () => {
     debug.setDebugMode(true);
     debug.DEBUG_CONFIG.showSwordSpawnRange = true;
     debug.DEBUG_CONFIG.showEnemyDetectionRange = true;
+    debug.DEBUG_CONFIG.showCannonDetectionRange = true;
     debug.DEBUG_CONFIG.showEnemyAttackRange = true;
 
     assert.equal(debug.isDebugEnabled(), true);
@@ -19,6 +20,7 @@ void describe('Debug config', () => {
     assert.equal(debug.DEBUG_CONFIG.boostPotionSpawnRates, true);
     assert.equal(debug.DEBUG_CONFIG.showSwordSpawnRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyDetectionRange, true);
+    assert.equal(debug.DEBUG_CONFIG.showCannonDetectionRange, true);
     assert.equal(debug.DEBUG_CONFIG.showEnemyAttackRange, true);
   });
 

@@ -7,6 +7,7 @@ import {
   CannonSystem,
   CANNON_ANIMATION_FRAME_TICKS,
   CANNON_BALL_SPEED,
+  CANNON_COOLDOWN_TICKS,
   CANNON_LAUNCH_FRAME,
   CANNON_WARNING_TICKS,
 } from './CannonSystem.ts';
@@ -126,16 +127,65 @@ void describe('CannonSystem', () => {
     assert.equal(system.cannons[0]?.bounds.y, 3 * 32 + 6);
   });
 
-  void it('warns before firing and repeats shots at the configured interval', () => {
+  void it('activates a cannon when its bounds enter the camera viewport', () => {
     const system = new CannonSystem(
       makeTilemap({ '2;3': cannonTile(2, 3) }),
       () => undefined
     );
     const cannon = system.cannons[0];
     assert.ok(cannon);
-    assert.equal(cannon.warning, true);
+    const outsideViewport = { x: 200, y: 0, width: 128, height: 160 };
+    const cameraViewport = { x: 0, y: 0, width: 128, height: 160 };
 
-    for (let tick = 0; tick < CANNON_WARNING_TICKS - 1; tick += 1) {
+    for (let tick = 0; tick < CANNON_WARNING_TICKS + 10; tick += 1) {
+      system.update(undefined, outsideViewport);
+    }
+    assert.equal(system.cannonBalls.length, 0);
+    assert.equal(cannon.warning, false);
+    assert.equal(cannon.activated, false);
+
+    system.update(undefined, cameraViewport);
+    assert.equal(cannon.activated, true);
+    assert.equal(cannon.warning, true);
+  });
+
+  void it('finishes its warning and fires after leaving the camera viewport', () => {
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
+      () => undefined
+    );
+    const cannon = system.cannons[0];
+    assert.ok(cannon);
+    const cameraViewport = { x: 0, y: 0, width: 128, height: 160 };
+    const outsideViewport = { x: 200, y: 0, width: 128, height: 160 };
+
+    system.update(undefined, cameraViewport);
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS - 1;
+      tick += 1
+    ) {
+      system.update(undefined, outsideViewport);
+    }
+
+    assert.equal(system.cannonBalls.length, 1);
+    assert.equal(cannon.activated, false);
+    assert.equal(cannon.cooldownTicksRemaining, CANNON_COOLDOWN_TICKS);
+    assert.equal(cannon.warning, false);
+  });
+
+  void it('enforces a cooldown before rearming while the cannon stays visible', () => {
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
+      () => undefined
+    );
+    const cannon = system.cannons[0];
+    assert.ok(cannon);
+    assert.equal(cannon.warning, false);
+
+    system.update();
+    assert.equal(cannon.warning, true);
+    for (let tick = 0; tick < CANNON_WARNING_TICKS - 2; tick += 1) {
       system.update();
     }
     assert.equal(system.cannonBalls.length, 0);
@@ -159,13 +209,65 @@ void describe('CannonSystem', () => {
     assert.equal(cannon.animationFrame, CANNON_LAUNCH_FRAME);
     assert.equal(cannon.muzzleFrame, 0);
 
-    for (let tick = 0; tick < 179; tick += 1) {
+    assert.equal(cannon.cooldownTicksRemaining, CANNON_COOLDOWN_TICKS);
+    for (let tick = 0; tick < CANNON_COOLDOWN_TICKS - 1; tick += 1) {
       system.update();
     }
     assert.equal(system.cannonBalls.length, 1);
+    assert.equal(cannon.activated, false);
+    assert.equal(cannon.cooldownTicksRemaining, 1);
 
     system.update();
+    assert.equal(system.cannonBalls.length, 1);
+    assert.equal(cannon.cooldownTicksRemaining, 0);
+    assert.equal(cannon.warning, true);
+
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS - 1;
+      tick += 1
+    ) {
+      system.update();
+    }
     assert.equal(system.cannonBalls.length, 2);
+  });
+
+  void it('does not reset cooldown when the camera repeatedly leaves and re-enters', () => {
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
+      () => undefined
+    );
+    const cannon = system.cannons[0];
+    assert.ok(cannon);
+    const cameraViewport = { x: 0, y: 0, width: 128, height: 160 };
+    const outsideViewport = { x: 200, y: 0, width: 128, height: 160 };
+
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS;
+      tick += 1
+    ) {
+      system.update(undefined, cameraViewport);
+    }
+    assert.equal(system.cannonBalls.length, 1);
+
+    for (let tick = 0; tick < CANNON_COOLDOWN_TICKS - 1; tick += 1) {
+      system.update(
+        undefined,
+        tick % 2 === 0 ? outsideViewport : cameraViewport
+      );
+    }
+    assert.equal(cannon.cooldownTicksRemaining, 1);
+    assert.equal(system.cannonBalls.length, 1);
+    assert.equal(cannon.activated, false);
+
+    system.update(undefined, outsideViewport);
+    assert.equal(cannon.cooldownTicksRemaining, 0);
+    assert.equal(cannon.activated, false);
+    system.update(undefined, cameraViewport);
+    assert.equal(cannon.activated, true);
+    assert.equal(cannon.warning, true);
+    assert.equal(system.cannonBalls.length, 1);
   });
 
   void it('renders the cannon, warning, muzzle, and projectile in the selected direction', () => {
@@ -184,6 +286,7 @@ void describe('CannonSystem', () => {
       () => undefined
     );
 
+    system.update();
     system.render(scene);
     const cannonImage = images[0];
     assert.ok(cannonImage);

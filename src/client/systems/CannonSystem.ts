@@ -3,7 +3,7 @@ import type { EntityRect, TileData } from '../../shared/types.ts';
 import type { Tilemap } from './Tilemap.ts';
 
 export const CANNON_WARNING_TICKS = Math.round(TICK_RATE * 0.6);
-export const CANNON_FIRE_INTERVAL_TICKS = TICK_RATE * 3;
+export const CANNON_COOLDOWN_TICKS = TICK_RATE * 3;
 export const CANNON_MAX_HEALTH = 3;
 export const CANNON_ANIMATION_FRAME_TICKS = 3;
 export const CANNON_BALL_SPEED = 5;
@@ -104,7 +104,10 @@ export type CannonAnimation = 'idle' | 'fire' | 'hit' | 'destroyed';
 export type CannonBallState = 'flying' | 'exploding';
 type CannonWreckPartSpec = (typeof CANNON_WRECK_PART_SPECS)[number];
 
-type CannonTilemap = Pick<Tilemap, 'tiles' | 'tileSize' | 'physicalRectsAround'>;
+type CannonTilemap = Pick<
+  Tilemap,
+  'tiles' | 'tileSize' | 'physicalRectsAround'
+>;
 type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
 type WallImpactHandler = (position: readonly [number, number]) => void;
 type CannonRenderImage = {
@@ -137,6 +140,8 @@ export class Cannon {
   readonly knockbackDuration = CANNON_KNOCKBACK_DURATION;
   health = CANNON_MAX_HEALTH;
   cycleTick = 0;
+  activated = false;
+  cooldownTicksRemaining = 0;
   fireTicksRemaining = 0;
   muzzleTicksRemaining = 0;
   hitTicksRemaining = 0;
@@ -190,6 +195,7 @@ export class Cannon {
   get warning(): boolean {
     return (
       !this.destroyed &&
+      this.activated &&
       this.hitTicksRemaining === 0 &&
       this.cycleTick < CANNON_WARNING_TICKS
     );
@@ -510,13 +516,13 @@ export class CannonSystem {
       .map((tile) => new Cannon(tile, tilemap.tileSize));
   }
 
-  update(playerRect?: EntityRect): void {
+  update(playerRect?: EntityRect, activationRect?: EntityRect): void {
     this.updateTerrainDebris();
     this.updateCannonWreckParts();
     this.updateCannonBalls(playerRect);
 
     for (const cannon of this.cannons) {
-      this.updateCannon(cannon);
+      this.updateCannon(cannon, activationRect);
     }
   }
 
@@ -719,7 +725,7 @@ export class CannonSystem {
     }
   }
 
-  private updateCannon(cannon: Cannon): void {
+  private updateCannon(cannon: Cannon, activationRect?: EntityRect): void {
     const knockbackDisplacement = cannon.advanceKnockback();
     if (knockbackDisplacement !== 0) {
       const nextX = cannon.x + knockbackDisplacement;
@@ -738,14 +744,35 @@ export class CannonSystem {
       return;
     }
 
+    cannon.fireTicksRemaining = Math.max(0, cannon.fireTicksRemaining - 1);
+    cannon.muzzleTicksRemaining = Math.max(0, cannon.muzzleTicksRemaining - 1);
+    cannon.cooldownTicksRemaining = Math.max(
+      0,
+      cannon.cooldownTicksRemaining - 1
+    );
+
     if (cannon.hitTicksRemaining > 0) {
       cannon.hitTicksRemaining -= 1;
       return;
     }
 
-    cannon.fireTicksRemaining = Math.max(0, cannon.fireTicksRemaining - 1);
-    cannon.muzzleTicksRemaining = Math.max(0, cannon.muzzleTicksRemaining - 1);
-    cannon.cycleTick = (cannon.cycleTick + 1) % CANNON_FIRE_INTERVAL_TICKS;
+    if (cannon.cooldownTicksRemaining > 0) {
+      return;
+    }
+
+    if (!cannon.activated) {
+      if (
+        activationRect !== undefined &&
+        !intersects(cannon.bounds, activationRect)
+      ) {
+        return;
+      }
+
+      cannon.activated = true;
+      cannon.cycleTick = 0;
+    }
+
+    cannon.cycleTick += 1;
     if (cannon.cycleTick === CANNON_WARNING_TICKS) {
       cannon.fireTicksRemaining = CANNON_FIRE_ANIMATION_TICKS;
     }
@@ -759,6 +786,9 @@ export class CannonSystem {
 
     cannon.muzzleTicksRemaining = CANNON_MUZZLE_ANIMATION_TICKS;
     this.cannonBalls.push(new CannonBall(cannon));
+    cannon.activated = false;
+    cannon.cycleTick = 0;
+    cannon.cooldownTicksRemaining = CANNON_COOLDOWN_TICKS;
   }
 
   private updateCannonBalls(playerRect: EntityRect | undefined): void {

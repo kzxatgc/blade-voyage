@@ -25,6 +25,8 @@ export interface DebugConfig {
   showPotionSpawnRange: boolean;
   /** Show enemy vision detection range (red outer box) */
   showEnemyDetectionRange: boolean;
+  /** Show the normal-zoom cannon activation viewport (orange) */
+  showCannonDetectionRange: boolean;
   /** Show enemy melee attack range (red inner box) */
   showEnemyAttackRange: boolean;
   /** Show camera scroll clamp boundary box (magenta) around player */
@@ -42,7 +44,8 @@ export const DEBUG_CONFIG: DebugConfig = {
   showEntityBodyRects: false,
   showPlayerAttackRange: false,
   showSwordSpawnRange: false,
-  showEnemyDetectionRange: true,
+  showEnemyDetectionRange: false,
+  showCannonDetectionRange: true,
   showEnemyAttackRange: false,
   showCameraBounds: false,
 };
