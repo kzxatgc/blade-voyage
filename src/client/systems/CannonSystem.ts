@@ -17,8 +17,35 @@ const CANNON_HIT_FRAME_COUNT = CANNON_HIT_FRAME_TICKS.length;
 const CANNON_DESTROYED_FRAME_COUNT = 4;
 const CANNON_MUZZLE_FRAME_COUNT = 6;
 const CANNON_BALL_SIZE = 16;
+const CANNON_BALL_DESTROYED_FRAME_COUNT = 3;
 const CANNON_BALL_EXPLOSION_FRAME_COUNT = 7;
 const CANNON_BALL_MAX_FLIGHT_TICKS = TICK_RATE * 4;
+const CANNON_DEBRIS_GRAVITY = 0.24;
+const CANNON_DEBRIS_MAX_TICKS = TICK_RATE * 2;
+const CANNON_DEBRIS_GROUNDED_HOLD_TICKS = Math.round(TICK_RATE * 0.5);
+const CANNON_DEBRIS_FADE_TICKS = Math.round(TICK_RATE * 0.2);
+const CANNON_DEBRIS_SETTLE_TICKS =
+  CANNON_DEBRIS_GROUNDED_HOLD_TICKS + CANNON_DEBRIS_FADE_TICKS;
+const CANNON_DEBRIS_FRAME_BOUNDS = [
+  { x: 4, y: 5, width: 7, height: 5 },
+  { x: 5, y: 5, width: 6, height: 6 },
+  { x: 4, y: 5, width: 8, height: 5 },
+] as const;
+const CANNON_DEBRIS_MIN_COUNT = 6;
+const CANNON_DEBRIS_COUNT_VARIATION = 4;
+const CANNON_DEBRIS_MIN_FRAME_TICKS = 2;
+const CANNON_DEBRIS_FRAME_TICK_VARIATION = 3;
+const CANNON_DEBRIS_BURST = [
+  { offsetX: -2, offsetY: 1, speedX: 2.2, speedY: -3 },
+  { offsetX: 2, offsetY: -2, speedX: 1.3, speedY: -2.6 },
+  { offsetX: 0, offsetY: 3, speedX: 2.8, speedY: -1.6 },
+  { offsetX: -4, offsetY: -3, speedX: 0.8, speedY: -1.9 },
+  { offsetX: 4, offsetY: 0, speedX: 1.7, speedY: -0.9 },
+  { offsetX: -1, offsetY: -4, speedX: 2.5, speedY: -3.4 },
+  { offsetX: 3, offsetY: 4, speedX: 2.4, speedY: -2.2 },
+  { offsetX: -3, offsetY: 0, speedX: 1, speedY: -1.1 },
+  { offsetX: 1, offsetY: -4, speedX: 2, speedY: -2.9 },
+] as const;
 const CANNON_HIT_JUMP_HEIGHT = 14;
 const CANNON_BALL_EXPLOSION_TICKS =
   CANNON_BALL_EXPLOSION_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
@@ -42,6 +69,7 @@ type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
 type CannonRenderImage = {
   texture: { key: string };
   setOrigin(x: number, y: number): CannonRenderImage;
+  setAlpha(alpha: number): CannonRenderImage;
   setPosition(x: number, y: number): CannonRenderImage;
   setFlipX(flip: boolean): CannonRenderImage;
   setDepth(depth: number): CannonRenderImage;
@@ -78,7 +106,7 @@ export class Cannon {
     }
 
     this.id = `${tile.loc[0]};${tile.loc[1]}`;
-    this.x = tile.loc[0] * tileSize;
+    this.x = tile.loc[0] * tileSize + (tileSize - CANNON_WIDTH) / 2;
     this.y =
       tile.loc[1] * tileSize + Math.max(0, tileSize - CANNON_HEIGHT);
     this.direction = tile.variant === 0 ? 1 : -1;
@@ -176,7 +204,7 @@ export class CannonBall {
   y: number;
   state: CannonBallState = 'flying';
   ageTicks = 0;
-  explosionTicksRemaining = 0;
+  effectTicksRemaining = 0;
 
   constructor(cannon: Cannon) {
     this.cannon = cannon;
@@ -193,12 +221,10 @@ export class CannonBall {
   }
 
   get animationFrame(): number {
-    if (this.state === 'flying') {
-      return 0;
-    }
+    if (this.state === 'flying') return 0;
     return getFrameIndex(
       CANNON_BALL_EXPLOSION_TICKS,
-      this.explosionTicksRemaining,
+      this.effectTicksRemaining,
       CANNON_BALL_EXPLOSION_FRAME_COUNT
     );
   }
@@ -212,12 +238,106 @@ export class CannonBall {
     };
   }
 
-  explode(): void {
-    if (this.state === 'exploding') {
+  explodeOnPlayer(): void {
+    if (this.state !== 'flying') {
       return;
     }
     this.state = 'exploding';
-    this.explosionTicksRemaining = CANNON_BALL_EXPLOSION_TICKS;
+    this.effectTicksRemaining = CANNON_BALL_EXPLOSION_TICKS;
+  }
+}
+
+export class CannonDebris {
+  readonly direction: CannonDirection;
+  x: number;
+  y: number;
+  velocityX: number;
+  velocityY: number;
+  ageTicks = 0;
+  grounded = false;
+  settleTicksRemaining = 0;
+  groundedAnimationFrame = 0;
+  readonly initialAnimationFrame: number;
+  readonly animationFrameTicks: number;
+
+  constructor(
+    wall: EntityRect,
+    impactCenterY: number,
+    direction: CannonDirection,
+    fragment: (typeof CANNON_DEBRIS_BURST)[number],
+    random: () => number
+  ) {
+    this.direction = direction;
+    this.initialAnimationFrame = Math.min(
+      CANNON_BALL_DESTROYED_FRAME_COUNT - 1,
+      Math.floor(random() * CANNON_BALL_DESTROYED_FRAME_COUNT)
+    );
+    this.animationFrameTicks =
+      CANNON_DEBRIS_MIN_FRAME_TICKS +
+      Math.min(
+        CANNON_DEBRIS_FRAME_TICK_VARIATION - 1,
+        Math.floor(random() * CANNON_DEBRIS_FRAME_TICK_VARIATION)
+      );
+    this.velocityX =
+      -direction * fragment.speedX * (0.7 + random() * 0.6);
+    this.velocityY = fragment.speedY * (0.75 + random() * 0.5);
+    const frameBounds = this.frameBounds;
+    const wallFaceX = direction > 0 ? wall.x : wall.x + wall.width;
+    const horizontalContactOffset =
+      direction > 0
+        ? frameBounds.x + frameBounds.width
+        : frameBounds.x;
+    this.x =
+      wallFaceX -
+      horizontalContactOffset -
+      direction * Math.abs(fragment.offsetX);
+    this.y = Math.round(
+      impactCenterY -
+        frameBounds.y -
+        frameBounds.height / 2 +
+        fragment.offsetY
+    );
+  }
+
+  get animationFrame(): number {
+    if (this.grounded) {
+      return this.groundedAnimationFrame;
+    }
+    return Math.min(
+      CANNON_BALL_DESTROYED_FRAME_COUNT - 1,
+      (this.initialAnimationFrame +
+        Math.floor(this.ageTicks / this.animationFrameTicks)) %
+        CANNON_BALL_DESTROYED_FRAME_COUNT
+    );
+  }
+
+  get alpha(): number {
+    if (
+      !this.grounded ||
+      this.settleTicksRemaining > CANNON_DEBRIS_FADE_TICKS
+    ) {
+      return 1;
+    }
+    return this.settleTicksRemaining / CANNON_DEBRIS_FADE_TICKS;
+  }
+
+  get bounds(): EntityRect {
+    const frameBounds = this.frameBounds;
+    return {
+      x: this.x + frameBounds.x,
+      y: this.y + frameBounds.y,
+      width: frameBounds.width,
+      height: frameBounds.height,
+    };
+  }
+
+  private get frameBounds(): (typeof CANNON_DEBRIS_FRAME_BOUNDS)[number] {
+    const frame = this.animationFrame;
+    return frame === 0
+      ? CANNON_DEBRIS_FRAME_BOUNDS[0]
+      : frame === 1
+        ? CANNON_DEBRIS_FRAME_BOUNDS[1]
+        : CANNON_DEBRIS_FRAME_BOUNDS[2];
   }
 }
 
@@ -230,21 +350,30 @@ export type CannonHitResult = {
 export class CannonSystem {
   readonly cannons: Cannon[];
   readonly cannonBalls: CannonBall[] = [];
+  readonly cannonDebris: CannonDebris[] = [];
   private readonly tilemap: CannonTilemap;
   private readonly onPlayerHit: PlayerHitHandler;
+  private readonly random: () => number;
   private readonly cannonImages = new Map<Cannon, CannonRenderImage>();
   private readonly muzzleImages = new Map<Cannon, CannonRenderImage>();
   private readonly cannonBallImages = new Map<CannonBall, CannonRenderImage>();
+  private readonly cannonDebrisImages = new Map<CannonDebris, CannonRenderImage>();
 
-  constructor(tilemap: CannonTilemap, onPlayerHit: PlayerHitHandler) {
+  constructor(
+    tilemap: CannonTilemap,
+    onPlayerHit: PlayerHitHandler,
+    random: () => number = Math.random
+  ) {
     this.tilemap = tilemap;
     this.onPlayerHit = onPlayerHit;
+    this.random = random;
     this.cannons = Object.values(tilemap.tiles)
       .filter((tile) => tile.type === 'cannon')
       .map((tile) => new Cannon(tile, tilemap.tileSize));
   }
 
   update(playerRect?: EntityRect): void {
+    this.updateTerrainDebris();
     this.updateCannonBalls(playerRect);
 
     for (const cannon of this.cannons) {
@@ -341,26 +470,55 @@ export class CannonSystem {
     }
 
     for (const cannonBall of this.cannonBalls) {
-      const exploding = cannonBall.state === 'exploding';
-      const cannonBallTexture = exploding
-        ? `cannon/ball/explosion/${cannonBall.animationFrame}`
-        : 'cannon/ball/idle/0';
+      const impactEffect = cannonBall.state !== 'flying';
+      const centeredImpact = cannonBall.state === 'exploding';
+      const cannonBallTexture =
+        cannonBall.state === 'flying'
+          ? 'cannon/ball/idle/0'
+          : `cannon/ball/${cannonBall.animation}/${cannonBall.animationFrame}`;
       const cannonBallImage = this.cannonBallImages.get(cannonBall) ??
         scene.add
           .image(cannonBall.x, cannonBall.y, cannonBallTexture)
-          .setDepth(exploding ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES);
+          .setDepth(impactEffect ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES);
       this.cannonBallImages.set(cannonBall, cannonBallImage);
       if (cannonBallImage.texture.key !== cannonBallTexture) {
         cannonBallImage.setTexture(cannonBallTexture);
       }
       cannonBallImage
-        .setOrigin(exploding ? 0.5 : 0, exploding ? 0.5 : 0)
+        .setOrigin(centeredImpact ? 0.5 : 0, centeredImpact ? 0.5 : 0)
         .setPosition(
-          cannonBall.x + (exploding ? CANNON_BALL_SIZE / 2 : 0),
-          cannonBall.y + (exploding ? CANNON_BALL_SIZE / 2 : 0)
+          cannonBall.x + (centeredImpact ? CANNON_BALL_SIZE / 2 : 0),
+          cannonBall.y + (centeredImpact ? CANNON_BALL_SIZE / 2 : 0)
         )
         .setFlipX(cannonBall.direction < 0)
-        .setDepth(exploding ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES)
+        .setDepth(impactEffect ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES)
+        .setVisible(true);
+    }
+
+    const activeDebris = new Set(this.cannonDebris);
+    for (const [debris, image] of this.cannonDebrisImages) {
+      if (!activeDebris.has(debris)) {
+        image.destroy();
+        this.cannonDebrisImages.delete(debris);
+      }
+    }
+
+    for (const debris of this.cannonDebris) {
+      const texture = `cannon/ball/destroyed/${debris.animationFrame}`;
+      const image = this.cannonDebrisImages.get(debris) ??
+        scene.add
+          .image(debris.x, debris.y, texture)
+          .setOrigin(0, 0)
+          .setDepth(RENDER_DEPTH.EFFECTS);
+      this.cannonDebrisImages.set(debris, image);
+      if (image.texture.key !== texture) {
+        image.setTexture(texture);
+      }
+      image
+        .setPosition(debris.x, debris.y)
+        .setAlpha(debris.alpha)
+        .setFlipX(debris.direction < 0)
+        .setDepth(RENDER_DEPTH.EFFECTS)
         .setVisible(true);
     }
   }
@@ -370,6 +528,7 @@ export class CannonSystem {
       this.cannonImages,
       this.muzzleImages,
       this.cannonBallImages,
+      this.cannonDebrisImages,
     ]) {
       for (const image of images.values()) {
         image.destroy();
@@ -417,9 +576,9 @@ export class CannonSystem {
         continue;
       }
 
-      if (cannonBall.state === 'exploding') {
-        cannonBall.explosionTicksRemaining -= 1;
-        if (cannonBall.explosionTicksRemaining <= 0) {
+      if (cannonBall.state !== 'flying') {
+        cannonBall.effectTicksRemaining -= 1;
+        if (cannonBall.effectTicksRemaining <= 0) {
           this.cannonBalls.splice(index, 1);
         }
         continue;
@@ -428,19 +587,128 @@ export class CannonSystem {
       cannonBall.ageTicks += 1;
       cannonBall.x += cannonBall.direction * CANNON_BALL_SPEED;
       const ballBounds = cannonBall.bounds;
-      const hitTerrain = this.tilemap
-        .physicalRectsAround([cannonBall.x, cannonBall.y])
-        .some((terrain) => intersects(ballBounds, terrain));
+      const terrainHit = this.findTerrainCollision(
+        ballBounds,
+        cannonBall.direction
+      );
 
-      if (hitTerrain) {
-        cannonBall.explode();
+      if (terrainHit) {
+        this.cannonBalls.splice(index, 1);
+        const debrisCount =
+          CANNON_DEBRIS_MIN_COUNT +
+          Math.min(
+            CANNON_DEBRIS_COUNT_VARIATION - 1,
+            Math.floor(this.random() * CANNON_DEBRIS_COUNT_VARIATION)
+          );
+        for (const fragment of CANNON_DEBRIS_BURST.slice(0, debrisCount)) {
+          this.cannonDebris.push(
+            new CannonDebris(
+              terrainHit,
+              ballBounds.y + ballBounds.height / 2,
+              cannonBall.direction,
+              fragment,
+              this.random
+            )
+          );
+        }
       } else if (playerRect && intersects(ballBounds, playerRect)) {
         this.onPlayerHit(cannonBall.direction);
-        cannonBall.explode();
+        cannonBall.explodeOnPlayer();
       } else if (cannonBall.ageTicks >= CANNON_BALL_MAX_FLIGHT_TICKS) {
         this.cannonBalls.splice(index, 1);
       }
     }
+  }
+
+  private updateTerrainDebris(): void {
+    for (let index = this.cannonDebris.length - 1; index >= 0; index -= 1) {
+      const debris = this.cannonDebris[index];
+      if (!debris) continue;
+
+      if (debris.grounded) {
+        debris.settleTicksRemaining -= 1;
+        if (debris.settleTicksRemaining <= 0) {
+          this.cannonDebris.splice(index, 1);
+        }
+        continue;
+      }
+
+      const previousBounds = debris.bounds;
+      debris.ageTicks += 1;
+      if (debris.ageTicks >= CANNON_DEBRIS_MAX_TICKS) {
+        this.cannonDebris.splice(index, 1);
+        continue;
+      }
+
+      const previousX = debris.x;
+      debris.x += debris.velocityX;
+      if (this.intersectsTerrain(debris.bounds)) {
+        debris.x = previousX;
+        debris.velocityX *= -0.25;
+      }
+
+      const previousY = debris.y;
+      debris.velocityY += CANNON_DEBRIS_GRAVITY;
+      debris.y += debris.velocityY;
+      const bounds = debris.bounds;
+      const verticalCollisions = this.tilemap
+        .physicalRectsAround([bounds.x, bounds.y])
+        .filter((terrain) => intersects(bounds, terrain));
+      if (verticalCollisions.length > 0) {
+        if (debris.velocityY > 0) {
+          const previousBottom =
+            previousBounds.y + previousBounds.height;
+          const landingSurface = verticalCollisions
+            .filter(
+              (terrain) =>
+                previousBottom <= terrain.y &&
+                bounds.y + bounds.height >= terrain.y &&
+                bounds.x < terrain.x + terrain.width &&
+                bounds.x + bounds.width > terrain.x
+            )
+            .sort((a, b) => a.y - b.y)[0];
+
+          if (landingSurface) {
+            debris.y =
+              landingSurface.y -
+              (bounds.y - debris.y) -
+              bounds.height;
+            debris.velocityY = 0;
+            debris.velocityX = 0;
+            debris.groundedAnimationFrame = debris.animationFrame;
+            debris.grounded = true;
+            debris.settleTicksRemaining = CANNON_DEBRIS_SETTLE_TICKS;
+          } else {
+            debris.y = previousY;
+            debris.velocityY = 0;
+          }
+        } else {
+          debris.y = previousY;
+          debris.velocityY = 0;
+        }
+      }
+    }
+  }
+
+  private intersectsTerrain(bounds: EntityRect): boolean {
+    return this.tilemap
+      .physicalRectsAround([bounds.x, bounds.y])
+      .some((terrain) => intersects(bounds, terrain));
+  }
+
+  private findTerrainCollision(
+    bounds: EntityRect,
+    direction: CannonDirection
+  ): EntityRect | undefined {
+    const collisions = this.tilemap
+      .physicalRectsAround([bounds.x, bounds.y])
+      .filter((terrain) => intersects(bounds, terrain));
+
+    return collisions.sort((first, second) =>
+      direction > 0
+        ? first.x - second.x
+        : second.x + second.width - (first.x + first.width)
+    )[0];
   }
 }
 

@@ -394,13 +394,18 @@ export class EditorScene extends Phaser.Scene {
     const previewFrame = this.textures.getFrame(this.getSelectedTextureKey());
     const gridOnly = this.selectedTileType === 'cannon';
     const snapToGrid = this.onGrid || gridOnly;
+    const horizontalOffset = gridOnly
+      ? (TILE_SIZE - previewFrame.width) / 2
+      : 0;
     const groundOffset = gridOnly
       ? Math.max(0, TILE_SIZE - previewFrame.height)
       : 0;
 
     this.tilePreview
       ?.setPosition(
-        snapToGrid ? tileX * TILE_SIZE : worldX - previewFrame.width,
+        snapToGrid
+          ? tileX * TILE_SIZE + horizontalOffset
+          : worldX - previewFrame.width,
         snapToGrid
           ? tileY * TILE_SIZE + groundOffset
           : worldY - previewFrame.height
@@ -450,13 +455,16 @@ export class EditorScene extends Phaser.Scene {
 
     for (const tile of Object.values(this.tilemap.tiles)) {
       const textureKey = `${tile.type}/${tile.variant}`;
+      const frame = this.textures.getFrame(textureKey);
+      const horizontalOffset =
+        tile.type === 'cannon' ? (TILE_SIZE - frame.width) / 2 : 0;
       const groundOffset =
         tile.type === 'cannon'
-          ? Math.max(0, TILE_SIZE - this.textures.getFrame(textureKey).height)
+          ? Math.max(0, TILE_SIZE - frame.height)
           : 0;
       const image = this.add
         .image(
-          tile.loc[0] * TILE_SIZE,
+          tile.loc[0] * TILE_SIZE + horizontalOffset,
           tile.loc[1] * TILE_SIZE + groundOffset,
           textureKey
         )

@@ -38,6 +38,7 @@ class MockCannonImage {
   y: number;
   origin: [number, number] = [0, 0];
   depth = 0;
+  alpha = 1;
   flipX = false;
   tint: number | undefined;
   visible = true;
@@ -51,6 +52,11 @@ class MockCannonImage {
 
   setOrigin(x: number, y: number) {
     this.origin = [x, y];
+    return this;
+  }
+
+  setAlpha(alpha: number) {
+    this.alpha = alpha;
     return this;
   }
 
@@ -109,6 +115,8 @@ void describe('CannonSystem', () => {
     assert.equal(system.cannons.length, 2);
     assert.equal(system.cannons[0]?.direction, 1);
     assert.equal(system.cannons[1]?.direction, -1);
+    assert.equal(system.cannons[0]?.x, 2 * 32 - 4);
+    assert.equal(system.cannons[1]?.x, 5 * 32 - 4);
     assert.equal(system.cannons[0]?.bounds.y, 3 * 32 + 6);
   });
 
@@ -266,6 +274,10 @@ void describe('CannonSystem', () => {
         ball.x + ball.bounds.width / 2,
         cannon.muzzleCenter[0]
       );
+      assert.equal(
+        ball.y + ball.bounds.height / 2,
+        cannon.muzzleCenter[1]
+      );
 
       const launchX = ball.x;
       system.update();
@@ -273,8 +285,32 @@ void describe('CannonSystem', () => {
     }
   });
 
-  void it('explodes on terrain without damaging the player', () => {
+  void it('breaks into debris on terrain without damaging the player', () => {
     let playerHits = 0;
+    const motionValues = [
+      0, 0.5, 0.5, 0.5,
+      0.34, 0.5, 0, 1,
+      0.67, 1, 1, 0,
+      0.34, 0.25, 0.25, 0.75,
+      0.67, 0.75, 0.75, 0.25,
+    ];
+    let randomCalls = 0;
+    const random = () => {
+      if (randomCalls++ === 0) {
+        return 0.99;
+      }
+      return motionValues[(randomCalls - 2) % motionValues.length] ?? 0;
+    };
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
     const system = new CannonSystem(
       makeTilemap({
         '2;3': cannonTile(2, 3),
@@ -282,23 +318,238 @@ void describe('CannonSystem', () => {
       }),
       () => {
         playerHits += 1;
-      }
+      },
+      random
     );
 
     for (
       let tick = 0;
-      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS + 10;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS + 30 &&
+      system.cannonDebris.length === 0;
       tick += 1
     ) {
       system.update();
     }
 
     assert.equal(playerHits, 0);
-    assert.equal(system.cannonBalls[0]?.animation, 'explosion');
+    assert.equal(system.cannonBalls.length, 0);
+    assert.equal(system.cannonDebris.length, 9);
+    const secondDebris = system.cannonDebris[1];
+    assert.ok(secondDebris);
+    assert.equal(secondDebris.velocityX.toFixed(2), '-0.91');
+    assert.equal(secondDebris.velocityY.toFixed(2), '-3.25');
+    const wallX = 5 * 32;
+    assert.ok(
+      system.cannonDebris.every(
+        (fragment) => fragment.bounds.x + fragment.bounds.width <= wallX
+      )
+    );
+    assert.ok(
+      system.cannonDebris.some(
+        (fragment) => fragment.bounds.x + fragment.bounds.width === wallX
+      )
+    );
+    assert.deepEqual(
+      new Set(
+        system.cannonDebris.map((fragment) => fragment.animationFrameTicks)
+      ),
+      new Set([2, 3, 4])
+    );
+    system.render(scene);
+    const debrisImages = images.filter((image) =>
+      image.texture.key.startsWith('cannon/ball/destroyed/')
+    );
+    assert.equal(debrisImages.length, 9);
+    assert.deepEqual(
+      new Set(debrisImages.map((image) => image.texture.key)),
+      new Set([
+        'cannon/ball/destroyed/0',
+        'cannon/ball/destroyed/1',
+        'cannon/ball/destroyed/2',
+      ])
+    );
+  });
+
+  void it('bursts from the struck wall face in either cannon direction', () => {
+    for (const [cannonX, variant, direction] of [
+      [2, 0, 1],
+      [8, 1, -1],
+    ] as const) {
+      const wallX = 5 * 32;
+      const system = new CannonSystem(
+        makeTilemap({
+          [`${cannonX};3`]: cannonTile(cannonX, 3, variant),
+          '5;3': { type: 'grass', variant: 0, loc: [5, 3] },
+        }),
+        () => undefined,
+        () => 0
+      );
+
+      for (
+        let tick = 0;
+        tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS + 30 &&
+        system.cannonDebris.length === 0;
+        tick += 1
+      ) {
+        system.update();
+      }
+
+      assert.equal(system.cannonDebris.length, 6);
+      const wallRight = wallX + 32;
+      if (direction > 0) {
+        assert.ok(
+          system.cannonDebris.every(
+            (fragment) => fragment.bounds.x + fragment.bounds.width <= wallX
+          )
+        );
+        assert.ok(
+          system.cannonDebris.some(
+            (fragment) => fragment.bounds.x + fragment.bounds.width === wallX
+          )
+        );
+      } else {
+        assert.ok(
+          system.cannonDebris.every(
+            (fragment) => fragment.bounds.x >= wallRight
+          )
+        );
+        assert.ok(
+          system.cannonDebris.some(
+            (fragment) => fragment.bounds.x === wallRight
+          )
+        );
+      }
+
+      const startingMotion = system.cannonDebris.map((fragment) => ({
+        x: fragment.x,
+        y: fragment.y,
+        velocityX: fragment.velocityX,
+        velocityY: fragment.velocityY,
+      }));
+      system.update();
+      assert.ok(
+        new Set(system.cannonDebris.map((fragment) => fragment.x)).size > 1
+      );
+      system.cannonDebris.forEach((fragment, index) => {
+        const start = startingMotion[index];
+        assert.ok(start);
+        assert.equal(fragment.x, start.x + start.velocityX);
+        assert.ok(fragment.y < start.y);
+        assert.ok(fragment.velocityY > start.velocityY);
+      });
+
+      if (direction > 0) {
+        assert.ok(
+          system.cannonDebris.every(
+            (fragment) => fragment.bounds.x + fragment.bounds.width < wallX
+          )
+        );
+      } else {
+        assert.ok(
+          system.cannonDebris.every(
+            (fragment) => fragment.bounds.x > wallRight
+          )
+        );
+      }
+    }
+  });
+
+  void it('lands each debris fragment flush on the floor before it fades', () => {
+    const tiles: Record<string, TileData> = {
+      '2;3': cannonTile(2, 3),
+      '5;3': { type: 'grass', variant: 0, loc: [5, 3] },
+    };
+    for (let x = -12; x <= 12; x += 1) {
+      tiles[`${x};4`] = { type: 'grass', variant: 0, loc: [x, 4] };
+    }
+
+    let randomCalls = 0;
+    const random = () => {
+      if (randomCalls++ === 0) {
+        return 0;
+      }
+      return [0, 0.5, 0.5, 0.5][(randomCalls - 2) % 4] ?? 0;
+    };
+    const system = new CannonSystem(makeTilemap(tiles), () => undefined, random);
+
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS + 20 &&
+      system.cannonDebris.length === 0;
+      tick += 1
+    ) {
+      system.update();
+    }
+
+    assert.equal(system.cannonBalls.length, 0);
+    assert.equal(system.cannonDebris.length, 6);
+    const fragments = [...system.cannonDebris];
+    const debris = fragments[0];
+    assert.ok(debris);
+    assert.ok(debris.velocityX < 0);
+    assert.ok(debris.velocityY < 0);
+    const impactY = debris.y;
+
+    for (let tick = 0; tick < 5; tick += 1) {
+      system.update();
+    }
+    assert.ok(debris.y < impactY);
+    assert.ok(debris.velocityY > -2.2);
+    assert.equal(debris.animationFrame, 1);
+    for (let tick = 0; tick < 3; tick += 1) {
+      system.update();
+    }
+    assert.equal(debris.animationFrame, 2);
+    for (let tick = 0; tick < 3; tick += 1) {
+      system.update();
+    }
+    assert.equal(debris.animationFrame, 0);
+
+    let fallTicks = 0;
+    while (fragments.some((fragment) => !fragment.grounded) && fallTicks < 60) {
+      system.update();
+      fallTicks += 1;
+    }
+
+    assert.ok(fragments.every((fragment) => fragment.grounded));
+    assert.ok(fallTicks < 60);
+    assert.deepEqual(
+      new Set(fragments.map((fragment) => fragment.groundedAnimationFrame)),
+      new Set([0, 1, 2])
+    );
+    for (const fragment of fragments) {
+      assert.equal(fragment.bounds.y + fragment.bounds.height, 4 * 32);
+    }
+
+    const lastToLand = fragments.reduce((latest, fragment) =>
+      fragment.ageTicks > latest.ageTicks ? fragment : latest
+    );
+    const groundedFrame = lastToLand.animationFrame;
+    for (let tick = 0; tick < 30; tick += 1) {
+      system.update();
+    }
+    assert.equal(lastToLand.animationFrame, groundedFrame);
+    assert.equal(lastToLand.alpha, 1);
+    system.update();
+    assert.ok(lastToLand.alpha < 1);
+    for (let tick = 0; tick < 11; tick += 1) {
+      system.update();
+    }
+    assert.equal(system.cannonDebris.includes(lastToLand), false);
   });
 
   void it('damages only the player on projectile impact', () => {
     const hitDirections: number[] = [];
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
     const system = new CannonSystem(
       makeTilemap({ '2;3': cannonTile(2, 3) }),
       (direction) => {
@@ -325,6 +576,10 @@ void describe('CannonSystem', () => {
 
     assert.deepEqual(hitDirections, [1]);
     assert.equal(ball.animation, 'explosion');
+    system.render(scene);
+    assert.ok(
+      images.some((image) => image.texture.key === 'cannon/ball/explosion/0')
+    );
   });
 
   void it('takes three separate sword hits to destroy a cannon', () => {
