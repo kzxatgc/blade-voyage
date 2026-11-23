@@ -23,6 +23,69 @@ const cannonTile = (
   loc: [x, y],
 });
 
+class MockCannonImage {
+  texture: { key: string };
+  x: number;
+  y: number;
+  origin: [number, number] = [0, 0];
+  depth = 0;
+  flipX = false;
+  tint: number | undefined;
+  visible = true;
+  destroyed = false;
+
+  constructor(x: number, y: number, texture: string) {
+    this.x = x;
+    this.y = y;
+    this.texture = { key: texture };
+  }
+
+  setOrigin(x: number, y: number) {
+    this.origin = [x, y];
+    return this;
+  }
+
+  setPosition(x: number, y: number) {
+    this.x = x;
+    this.y = y;
+    return this;
+  }
+
+  setFlipX(flip: boolean) {
+    this.flipX = flip;
+    return this;
+  }
+
+  setDepth(depth: number) {
+    this.depth = depth;
+    return this;
+  }
+
+  setTint(color: number) {
+    this.tint = color;
+    return this;
+  }
+
+  clearTint() {
+    this.tint = undefined;
+    return this;
+  }
+
+  setVisible(visible: boolean) {
+    this.visible = visible;
+    return this;
+  }
+
+  setTexture(texture: string) {
+    this.texture.key = texture;
+    return this;
+  }
+
+  destroy() {
+    this.destroyed = true;
+  }
+}
+
 void describe('CannonSystem', () => {
   void it('discovers cannons and maps variants to facing directions', () => {
     const system = new CannonSystem(
@@ -67,6 +130,47 @@ void describe('CannonSystem', () => {
 
     system.update();
     assert.equal(system.cannonBalls.length, 2);
+  });
+
+  void it('renders the cannon, warning, muzzle, and projectile in the selected direction', () => {
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3, 1) }),
+      () => undefined
+    );
+
+    system.render(scene);
+    const cannonImage = images[0];
+    assert.ok(cannonImage);
+    assert.equal(cannonImage.texture.key, 'cannon/idle/0');
+    assert.equal(cannonImage.flipX, true);
+    assert.equal(cannonImage.tint, 0xffb347);
+
+    for (let tick = 0; tick < CANNON_WARNING_TICKS; tick += 1) {
+      system.update();
+    }
+    system.render(scene);
+
+    assert.equal(cannonImage.texture.key, 'cannon/fire/0');
+    const muzzleImage = images.find((image) =>
+      image.texture.key.startsWith('cannon/muzzle/')
+    );
+    assert.ok(muzzleImage);
+    assert.equal(muzzleImage.texture.key, 'cannon/muzzle/0');
+    assert.equal(muzzleImage.flipX, true);
+    const cannonBallImage = images.find(
+      (image) => image.texture.key === 'cannon/ball/idle/0'
+    );
+    assert.ok(cannonBallImage);
   });
 
   void it('explodes on terrain without damaging the player', () => {

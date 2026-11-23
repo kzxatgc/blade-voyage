@@ -237,9 +237,14 @@ export class Tilemap {
   frontRender(
     scene: TilemapRenderScene,
     offset: TileLocation = [0, 0],
-    animations: Readonly<Record<string, AnimationFrameSource>> = {}
+    animations: Readonly<Record<string, AnimationFrameSource>> = {},
+    excludedTileTypes: ReadonlySet<string> = new Set()
   ) {
     for (const tile of Object.values(this.tiles)) {
+      if (excludedTileTypes.has(tile.type)) {
+        continue;
+      }
+
       const animation = animations[tile.type];
       const image = scene.add.image(
         tile.loc[0] * this.tileSize - offset[0],

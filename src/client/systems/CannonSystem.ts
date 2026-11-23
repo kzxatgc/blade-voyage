@@ -1,4 +1,4 @@
-import { TICK_RATE } from '../../shared/constants.ts';
+import { RENDER_DEPTH, TICK_RATE } from '../../shared/constants.ts';
 import type { EntityRect, TileData } from '../../shared/types.ts';
 import type { Tilemap } from './Tilemap.ts';
 
@@ -34,6 +34,23 @@ export type CannonBallState = 'flying' | 'exploding';
 
 type CannonTilemap = Pick<Tilemap, 'tiles' | 'tileSize' | 'physicalRectsAround'>;
 type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
+type CannonRenderImage = {
+  texture: { key: string };
+  setOrigin(x: number, y: number): CannonRenderImage;
+  setPosition(x: number, y: number): CannonRenderImage;
+  setFlipX(flip: boolean): CannonRenderImage;
+  setDepth(depth: number): CannonRenderImage;
+  setTint(color: number): CannonRenderImage;
+  clearTint(): CannonRenderImage;
+  setVisible(visible: boolean): CannonRenderImage;
+  setTexture(texture: string): CannonRenderImage;
+  destroy(): void;
+};
+type CannonRenderScene = {
+  add: {
+    image(x: number, y: number, texture: string): CannonRenderImage;
+  };
+};
 
 export class Cannon {
   readonly id: string;
@@ -198,6 +215,9 @@ export class CannonSystem {
   readonly cannonBalls: CannonBall[] = [];
   private readonly tilemap: CannonTilemap;
   private readonly onPlayerHit: PlayerHitHandler;
+  private readonly cannonImages = new Map<Cannon, CannonRenderImage>();
+  private readonly muzzleImages = new Map<Cannon, CannonRenderImage>();
+  private readonly cannonBallImages = new Map<CannonBall, CannonRenderImage>();
 
   constructor(tilemap: CannonTilemap, onPlayerHit: PlayerHitHandler) {
     this.tilemap = tilemap;
@@ -250,6 +270,95 @@ export class CannonSystem {
     }
 
     return results;
+  }
+
+  render(scene: CannonRenderScene): void {
+    for (const cannon of this.cannons) {
+      const cannonTexture = `cannon/${cannon.animation}/${cannon.animationFrame}`;
+      const cannonImage = this.cannonImages.get(cannon) ??
+        scene.add
+          .image(cannon.x, cannon.y, cannonTexture)
+          .setOrigin(0, 0)
+          .setDepth(RENDER_DEPTH.FRONT_TILES + 0.1);
+      this.cannonImages.set(cannon, cannonImage);
+      if (cannonImage.texture.key !== cannonTexture) {
+        cannonImage.setTexture(cannonTexture);
+      }
+      cannonImage
+        .setPosition(cannon.x, cannon.y)
+        .setFlipX(cannon.direction < 0);
+      if (cannon.warningFlash) {
+        cannonImage.setTint(0xffb347);
+      } else {
+        cannonImage.clearTint();
+      }
+
+      const muzzleFrame = cannon.muzzleFrame;
+      if (muzzleFrame === undefined) {
+        this.muzzleImages.get(cannon)?.setVisible(false);
+        continue;
+      }
+
+      const muzzleTexture = `cannon/muzzle/${muzzleFrame}`;
+      const muzzleImage = this.muzzleImages.get(cannon) ??
+        scene.add
+          .image(cannon.muzzleCenter[0], cannon.muzzleCenter[1], muzzleTexture)
+          .setOrigin(0.5, 0.5)
+          .setDepth(RENDER_DEPTH.EFFECTS);
+      this.muzzleImages.set(cannon, muzzleImage);
+      if (muzzleImage.texture.key !== muzzleTexture) {
+        muzzleImage.setTexture(muzzleTexture);
+      }
+      muzzleImage
+        .setPosition(cannon.muzzleCenter[0], cannon.muzzleCenter[1])
+        .setFlipX(cannon.direction < 0)
+        .setVisible(true);
+    }
+
+    const activeCannonBalls = new Set(this.cannonBalls);
+    for (const [cannonBall, image] of this.cannonBallImages) {
+      if (!activeCannonBalls.has(cannonBall)) {
+        image.destroy();
+        this.cannonBallImages.delete(cannonBall);
+      }
+    }
+
+    for (const cannonBall of this.cannonBalls) {
+      const exploding = cannonBall.state === 'exploding';
+      const cannonBallTexture = exploding
+        ? `cannon/ball/explosion/${cannonBall.animationFrame}`
+        : 'cannon/ball/idle/0';
+      const cannonBallImage = this.cannonBallImages.get(cannonBall) ??
+        scene.add
+          .image(cannonBall.x, cannonBall.y, cannonBallTexture)
+          .setDepth(exploding ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES);
+      this.cannonBallImages.set(cannonBall, cannonBallImage);
+      if (cannonBallImage.texture.key !== cannonBallTexture) {
+        cannonBallImage.setTexture(cannonBallTexture);
+      }
+      cannonBallImage
+        .setOrigin(exploding ? 0.5 : 0, exploding ? 0.5 : 0)
+        .setPosition(
+          cannonBall.x + (exploding ? CANNON_BALL_SIZE / 2 : 0),
+          cannonBall.y + (exploding ? CANNON_BALL_SIZE / 2 : 0)
+        )
+        .setFlipX(cannonBall.direction < 0)
+        .setDepth(exploding ? RENDER_DEPTH.EFFECTS : RENDER_DEPTH.ENTITIES)
+        .setVisible(true);
+    }
+  }
+
+  destroy(): void {
+    for (const images of [
+      this.cannonImages,
+      this.muzzleImages,
+      this.cannonBallImages,
+    ]) {
+      for (const image of images.values()) {
+        image.destroy();
+      }
+      images.clear();
+    }
   }
 
   private updateCannon(cannon: Cannon): void {

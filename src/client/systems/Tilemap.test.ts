@@ -266,6 +266,25 @@ void describe('Tilemap front rendering', () => {
     ]);
   });
 
+  void it('can exclude grid tiles that are rendered by a runtime system', async () => {
+    const Tilemap = await getTilemap();
+    const tilemap = new Tilemap(32);
+    const { scene, draws } = createRenderScene();
+
+    tilemap.loadFromData({
+      tiles: {
+        '1;2': { type: 'grass', variant: 4, loc: [1, 2] },
+        '2;2': { type: 'cannon', variant: 0, loc: [2, 2] },
+      },
+      off_grid_tiles: [],
+    });
+    tilemap.frontRender(scene, [0, 0], {}, new Set(['cannon']));
+
+    assert.deepEqual(draws, [
+      { x: 32, y: 64, texture: 'grass/4', origin: [0, 0] },
+    ]);
+  });
+
   void it('draws only animated front off-grid tiles with their current frame', async () => {
     const Tilemap = await getTilemap();
     const tilemap = new Tilemap();

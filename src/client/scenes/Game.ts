@@ -28,6 +28,7 @@ import { Player, SHIELD_DURATION_TICKS } from '../entities/Player';
 import { CloudImageSource, Clouds } from '../systems/Clouds';
 import { Particles } from '../systems/Particles';
 import { Swords } from '../systems/Swords';
+import { CannonSystem, type CannonDirection } from '../systems/CannonSystem';
 import {
   PotionSystem,
   POTION_HORIZONTAL_TILE_RANGE_LEFT,
@@ -166,6 +167,7 @@ export class Game extends Phaser.Scene {
   private lKey: Phaser.Input.Keyboard.Key | undefined;
   private tilemap?: Tilemap;
   private tileAnimations: Record<string, Animation> = {};
+  private cannonSystem?: CannonSystem;
   private particles?: Particles;
   private swords?: Swords;
   private potionSystem?: PotionSystem;
@@ -627,6 +629,9 @@ export class Game extends Phaser.Scene {
     this.potionSystem = new PotionSystem(Math.random, this.sparksEffect);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
+    this.cannonSystem = new CannonSystem(this.tilemap, (direction) => {
+      this.handlePlayerDamage(direction);
+    });
     this.touchControls = new TouchControls(this, {
       down: () => this.playerEntity?.dropThroughPlatform(),
       jump: () => this.playerEntity?.jump(),
@@ -813,6 +818,7 @@ export class Game extends Phaser.Scene {
       this.potionSystem?.destroy();
       this.playerEntity?.attackHandler.cancelAttack();
     });
+    this.events.once('shutdown', () => this.cannonSystem?.destroy());
     this.events.once('shutdown', () => {
       this.scale.off('resize', this.layoutHealthIndicator, this);
     });
@@ -836,7 +842,12 @@ export class Game extends Phaser.Scene {
     });
     this.events.once('shutdown', () => this.actionPromptHUD?.destroy());
     this.sparksGraphics = this.add.graphics().setDepth(RENDER_DEPTH.DEBUG);
-    this.tilemap.frontRender(this, [0, 0], this.tileAnimations);
+    this.tilemap.frontRender(
+      this,
+      [0, 0],
+      this.tileAnimations,
+      new Set(['cannon'])
+    );
 
     this.soundSystem = new SoundSystem(this.sound);
     if (this.playerEntity) {
@@ -950,44 +961,10 @@ export class Game extends Phaser.Scene {
         const attackLanded =
           enemy.attackHitDetected && !enemy.attackHasHitPlayer;
         if (attackLanded) {
-          if (this.playerEntity.takeDamage(1)) {
-            this.cameras.main.shake(
-              PLAYER_HIT_SHAKE_DURATION_MS,
-              PLAYER_HIT_SHAKE_INTENSITY
-            );
+          const knockDirection: CannonDirection =
+            this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
+          if (this.handlePlayerDamage(knockDirection)) {
             enemy.attackHasHitPlayer = true;
-            const knockDir = this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
-            this.playerEntity.applyKnockback(
-              knockDir,
-              this.playerEntity.dead ? 1.4 : 1.5,
-              this.playerEntity.dead ? 2.5 : 0
-            );
-            if (this.playerEntity.dead) {
-              for (const activeEnemy of this.enemies) {
-                activeEnemy.cancelAttack();
-              }
-            }
-            if (this.playerEntity.lastHitWasShielded) {
-              const playerRect = this.playerEntity.rect();
-              const shieldBreakPosition: [number, number] = [
-                playerRect.x + playerRect.width / 2,
-                playerRect.y + playerRect.height / 2,
-              ];
-              this.shieldBreakElapsedTicks = 0;
-              this.shieldBreakPosition = shieldBreakPosition;
-              this.sparksEffect.push(
-                ...createShieldParticleBurst(shieldBreakPosition, 'break')
-              );
-            } else {
-              this.sparksEffect.push(
-                ...createHeartSparkParticles(
-                  [this.playerEntity.pos[0] + 22, this.playerEntity.pos[1] + 18],
-                  this.playerEntity.flip,
-                  8,
-                  { direction: 'up', gravity: 0.16 }
-                )
-              );
-            }
           }
         }
       }
@@ -1032,6 +1009,10 @@ export class Game extends Phaser.Scene {
             );
           }
         }
+        this.cannonSystem?.damageFromAttack(
+          playerAtkRect,
+          this.playerEntity.attackHandler.hitEntities
+        );
       }
     }
 
@@ -1142,6 +1123,7 @@ export class Game extends Phaser.Scene {
       horizontalDirection * PLAYER_MOVE_SPEED,
       0,
     ]);
+    this.cannonSystem?.update(this.playerEntity.rect());
     if (
       this.playerEntity.attackHandler.isFrenzyActive &&
       this.playerEntity.swordState &&
@@ -1420,6 +1402,7 @@ export class Game extends Phaser.Scene {
     this.playerSprite.clearTint();
 
     this.swords?.render(this);
+    this.cannonSystem?.render(this);
     this.potionSystem?.render(this, [0, 0], [
       renderedPlayerX - this.playerEntity.pos[0],
       renderedPlayerY - this.playerEntity.pos[1],
@@ -1651,6 +1634,52 @@ export class Game extends Phaser.Scene {
         });
       }
     );
+  }
+
+  private handlePlayerDamage(knockDirection: CannonDirection): boolean {
+    const player = this.playerEntity;
+    if (!player?.takeDamage(1)) {
+      return false;
+    }
+
+    this.cameras.main.shake(
+      PLAYER_HIT_SHAKE_DURATION_MS,
+      PLAYER_HIT_SHAKE_INTENSITY
+    );
+    player.applyKnockback(
+      knockDirection,
+      player.dead ? 1.4 : 1.5,
+      player.dead ? 2.5 : 0
+    );
+
+    if (player.dead) {
+      for (const enemy of this.enemies) {
+        enemy.cancelAttack();
+      }
+    }
+
+    if (player.lastHitWasShielded) {
+      const playerRect = player.rect();
+      const shieldBreakPosition: [number, number] = [
+        playerRect.x + playerRect.width / 2,
+        playerRect.y + playerRect.height / 2,
+      ];
+      this.shieldBreakElapsedTicks = 0;
+      this.shieldBreakPosition = shieldBreakPosition;
+      this.sparksEffect.push(
+        ...createShieldParticleBurst(shieldBreakPosition, 'break')
+      );
+    } else {
+      this.sparksEffect.push(
+        ...createHeartSparkParticles(
+          [player.pos[0] + 22, player.pos[1] + 18],
+          player.flip,
+          8,
+          { direction: 'up', gravity: 0.16 }
+        )
+      );
+    }
+    return true;
   }
 
   private returnToLevelPicker(focus: IrisFocus): void {
