@@ -46,10 +46,26 @@ const SHIELD_PARTICLE_PROFILES = {
   ],
 } as const;
 export const DEBUG_POTION_SPAWN_CHANCE = 0.5;
-export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 3;
-export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 2;
+export const POTION_HORIZONTAL_TILE_RANGE_LEFT = 4;
+export const POTION_HORIZONTAL_TILE_RANGE_RIGHT = 3;
 export const POTION_VERTICAL_TILE_RANGE_TOP = 2.5;
 export const POTION_VERTICAL_TILE_RANGE_BOTTOM = 3.5;
+
+const intersectsRect = (first: EntityRect, second: EntityRect): boolean =>
+  first.x < second.x + second.width &&
+  first.x + first.width > second.x &&
+  first.y < second.y + second.height &&
+  first.y + first.height > second.y;
+
+const getPotionSpawnBounds = (
+  pos: readonly [number, number],
+  tileSize: number
+): EntityRect => ({
+  x: pos[0] + tileSize * 0.5 - 8,
+  y: pos[1] - 21,
+  width: 12,
+  height: 14,
+});
 
 export function createShieldParticleBurst(
   position: readonly [number, number],
@@ -350,19 +366,52 @@ export class PotionSystem {
     return this.validSpawnPos;
   }
 
+  getBlockedSpawnAreas(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
+  ): readonly EntityRect[] {
+    return this.getSpawnPositionData(tilemap, playerPos, playerRect)
+      .blockedAreas;
+  }
+
   private getSpawnPosition(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
   ): readonly [number, number] | null {
-    let availablePositions = this.getValidSpawnPositions(tilemap);
+    const { availablePositions } = this.getSpawnPositionData(
+      tilemap,
+      playerPos,
+      playerRect
+    );
     if (availablePositions.length === 0) {
       return null;
     }
 
+    const selectedIndex = Math.floor(
+      this.random() * availablePositions.length
+    );
+    return availablePositions[selectedIndex] ?? null;
+  }
+
+  private getSpawnPositionData(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
+  ): {
+    availablePositions: readonly (readonly [number, number])[];
+    blockedAreas: EntityRect[];
+  } {
+    let availablePositions = this.getValidSpawnPositions(tilemap);
+    if (availablePositions.length === 0) {
+      return { availablePositions: [], blockedAreas: [] };
+    }
+    const tileSize = tilemap.tileSize;
+
     if (playerPos) {
       const playerX = playerPos[0];
       const playerY = playerPos[1];
-      const tileSize = tilemap.tileSize;
       const horizontalRangeLeft =
         POTION_HORIZONTAL_TILE_RANGE_LEFT * tileSize;
       const horizontalRangeRight =
@@ -388,20 +437,23 @@ export class PotionSystem {
       ...this.frenzyPotions,
       ...this.shieldPotions,
     ];
-    availablePositions = availablePositions.filter(
-      (pos) =>
-        !existingPotions.some(
-          (potion) =>
-            potion.pos[0] + 8 === pos[0] + tilemap.tileSize * 0.5 &&
-            potion.pos[1] === pos[1] - 21
-        )
-    );
-    if (availablePositions.length === 0) {
-      return null;
-    }
+    const blockedAreas: EntityRect[] = [];
+    availablePositions = availablePositions.filter((pos) => {
+      const spawnBounds = getPotionSpawnBounds(pos, tileSize);
+      const blockedByPlayer =
+        playerRect !== undefined && intersectsRect(spawnBounds, playerRect);
+      const blockedByPotion = existingPotions.some((potion) =>
+        intersectsRect(spawnBounds, potion.rect())
+      );
+      if (blockedByPlayer || blockedByPotion) {
+        blockedAreas.push(spawnBounds);
+        return false;
+      }
 
-    const selectedIndex = Math.floor(this.random() * availablePositions.length);
-    return availablePositions[selectedIndex] ?? null;
+      return true;
+    });
+
+    return { availablePositions, blockedAreas };
   }
 
   private getSpawnChance(chance: number): number {
@@ -451,6 +503,7 @@ export class PotionSystem {
     potions: T[],
     tilemap: Tilemap,
     playerPos: readonly [number, number] | undefined,
+    playerRect: EntityRect | undefined,
     spawnChance: number,
     primaryColor: readonly [number, number, number],
     secondaryColor: readonly [number, number, number],
@@ -463,7 +516,7 @@ export class PotionSystem {
       return null;
     }
 
-    const selected = this.getSpawnPosition(tilemap, playerPos);
+    const selected = this.getSpawnPosition(tilemap, playerPos, playerRect);
     if (!selected) {
       return null;
     }
@@ -479,12 +532,14 @@ export class PotionSystem {
 
   spawnHealthPotion(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
   ): HealthPotion | null {
     return this.spawnPotion(
       this.healthPotions,
       tilemap,
       playerPos,
+      playerRect,
       HEALTH_POTION_SPAWN_CHANCE,
       [255, 210, 215],
       [255, 255, 255],
@@ -494,12 +549,14 @@ export class PotionSystem {
 
   spawnFrenzyPotion(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
   ): FrenzyPotion | null {
     return this.spawnPotion(
       this.frenzyPotions,
       tilemap,
       playerPos,
+      playerRect,
       FRENZY_POTION_SPAWN_CHANCE,
       [195, 233, 255],
       [255, 255, 255],
@@ -509,12 +566,14 @@ export class PotionSystem {
 
   spawnShieldPotion(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
   ): ShieldPotion | null {
     return this.spawnPotion(
       this.shieldPotions,
       tilemap,
       playerPos,
+      playerRect,
       SHIELD_POTION_SPAWN_CHANCE,
       SHIELD_PARTICLE_COLORS.lightGreen,
       SHIELD_PARTICLE_COLORS.white,
@@ -553,11 +612,12 @@ export class PotionSystem {
 
   update(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    playerRect?: EntityRect
   ): void {
-    this.spawnHealthPotion(tilemap, playerPos);
-    this.spawnFrenzyPotion(tilemap, playerPos);
-    this.spawnShieldPotion(tilemap, playerPos);
+    this.spawnHealthPotion(tilemap, playerPos, playerRect);
+    this.spawnFrenzyPotion(tilemap, playerPos, playerRect);
+    this.spawnShieldPotion(tilemap, playerPos, playerRect);
     this.healthPotions = this.updatePotions(this.healthPotions, tilemap);
     this.frenzyPotions = this.updatePotions(this.frenzyPotions, tilemap);
     this.shieldPotions = this.updatePotions(this.shieldPotions, tilemap);
@@ -575,12 +635,7 @@ export class PotionSystem {
         continue;
       }
       const potionRect = potion.rect();
-      const overlaps =
-        playerRect.x < potionRect.x + potionRect.width &&
-        playerRect.x + playerRect.width > potionRect.x &&
-        playerRect.y < potionRect.y + potionRect.height &&
-        playerRect.y + playerRect.height > potionRect.y;
-      if (overlaps) {
+      if (intersectsRect(playerRect, potionRect)) {
         return index;
       }
     }

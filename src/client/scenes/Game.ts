@@ -979,7 +979,11 @@ export class Game extends Phaser.Scene {
     this.displayWidth = WINDOW_WIDTH / this.currentZoom;
     this.displayHeight = WINDOW_HEIGHT / this.currentZoom;
     this.particles?.update();
-    this.potionSystem?.update(this.tilemap, this.playerEntity.pos);
+    this.potionSystem?.update(
+      this.tilemap,
+      this.playerEntity.pos,
+      this.playerEntity.rect()
+    );
     this.potionSystem?.collectHealthPotion(this.playerEntity);
     this.potionSystem?.collectFrenzyPotion(this.playerEntity);
     this.potionSystem?.collectShieldPotion(this.playerEntity);
@@ -1570,6 +1574,33 @@ export class Game extends Phaser.Scene {
             spawnBoxW,
             spawnBoxH
           );
+
+          const potionSystem = this.potionSystem;
+          const tilemap = this.tilemap;
+          const blockedPotionAreas =
+            potionSystem && tilemap
+              ? potionSystem.getBlockedSpawnAreas(
+                  tilemap,
+                  this.playerEntity.pos,
+                  this.playerEntity.rect()
+                )
+              : [];
+          this.sparksGraphics.fillStyle(0xff3355, 0.22);
+          this.sparksGraphics.lineStyle(2, 0xff3355, 0.95);
+          for (const area of blockedPotionAreas) {
+            this.sparksGraphics.fillRect(
+              area.x,
+              area.y,
+              area.width,
+              area.height
+            );
+            this.sparksGraphics.strokeRect(
+              area.x,
+              area.y,
+              area.width,
+              area.height
+            );
+          }
         }
 
         if (

@@ -107,6 +107,67 @@ void describe('PotionSystem', () => {
     }
   });
 
+  void it('does not spawn a potion overlapping the player', () => {
+    const tilemap = new Tilemap(32);
+    tilemap.loadFromData({
+      tiles: {
+        '3;8': { type: 'grass', variant: 0, loc: [3, 8] },
+        '4;8': { type: 'grass', variant: 0, loc: [4, 8] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const manager = new PotionSystem(() => 0.0001);
+    const playerPos: readonly [number, number] = [100, 224];
+    const playerRect = { x: 100, y: 224, width: 20, height: 28 };
+    assert.deepEqual(
+      manager.getBlockedSpawnAreas(tilemap, playerPos, playerRect),
+      [{ x: 104, y: 235, width: 12, height: 14 }]
+    );
+
+    const potion = manager.spawnHealthPotion(
+      tilemap,
+      playerPos,
+      playerRect
+    );
+
+    assert.ok(potion !== null);
+    assert.equal(potion.pos[0], 136);
+    assert.equal(potion.pos[1], 235);
+    assert.equal(
+      manager.getBlockedSpawnAreas(tilemap, playerPos, playerRect).length,
+      2
+    );
+  });
+
+  void it('includes one extra tile on both sides of the potion spawn range', () => {
+    const playerPos: readonly [number, number] = [320, 320];
+    const edgeCandidates = [
+      { loc: [7, 10] as const, expectedPotionX: 232 },
+      { loc: [14, 10] as const, expectedPotionX: 456 },
+    ];
+
+    for (const { loc, expectedPotionX } of edgeCandidates) {
+      const tilemap = new Tilemap(32);
+      tilemap.loadFromData({
+        tiles: {
+          [`${loc[0]};${loc[1]}`]: {
+            type: 'grass',
+            variant: 0,
+            loc: [...loc],
+          },
+        },
+        off_grid_tiles: [],
+      });
+
+      const manager = new PotionSystem(() => 0.0001);
+      const potion = manager.spawnHealthPotion(tilemap, playerPos);
+
+      assert.ok(potion !== null);
+      assert.equal(potion.pos[0], expectedPotionX);
+    }
+  });
+
   void it('boosts potion spawn chances only while debug mode is enabled', () => {
     const tilemap = new Tilemap(32);
     tilemap.loadFromData({
