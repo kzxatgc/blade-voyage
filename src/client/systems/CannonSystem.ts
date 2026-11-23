@@ -12,12 +12,14 @@ export const CANNON_LAUNCH_FRAME = 3;
 const CANNON_WIDTH = 40;
 const CANNON_HEIGHT = 26;
 const CANNON_FIRE_FRAME_COUNT = 6;
-const CANNON_HIT_FRAME_COUNT = 4;
+const CANNON_HIT_FRAME_TICKS = [8, 3, 4, 5] as const;
+const CANNON_HIT_FRAME_COUNT = CANNON_HIT_FRAME_TICKS.length;
 const CANNON_DESTROYED_FRAME_COUNT = 4;
 const CANNON_MUZZLE_FRAME_COUNT = 6;
 const CANNON_BALL_SIZE = 16;
 const CANNON_BALL_EXPLOSION_FRAME_COUNT = 7;
 const CANNON_BALL_MAX_FLIGHT_TICKS = TICK_RATE * 4;
+const CANNON_HIT_JUMP_HEIGHT = 14;
 const CANNON_BALL_EXPLOSION_TICKS =
   CANNON_BALL_EXPLOSION_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_FIRE_ANIMATION_TICKS =
@@ -25,7 +27,7 @@ const CANNON_FIRE_ANIMATION_TICKS =
 const CANNON_LAUNCH_DELAY_TICKS =
   CANNON_LAUNCH_FRAME * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_HIT_ANIMATION_TICKS =
-  CANNON_HIT_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
+  CANNON_HIT_FRAME_TICKS.reduce((total, ticks) => total + ticks, 0);
 const CANNON_DESTROYED_ANIMATION_TICKS =
   CANNON_DESTROYED_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_MUZZLE_ANIMATION_TICKS =
@@ -104,11 +106,7 @@ export class Cannon {
       );
     }
     if (this.hitTicksRemaining > 0) {
-      return getFrameIndex(
-        CANNON_HIT_ANIMATION_TICKS,
-        this.hitTicksRemaining,
-        CANNON_HIT_FRAME_COUNT
-      );
+      return getCannonHitFrame(this.hitTicksRemaining);
     }
     if (this.fireTicksRemaining > 0) {
       return getFrameIndex(
@@ -145,6 +143,22 @@ export class Cannon {
 
   get bounds(): EntityRect {
     return { x: this.x, y: this.y, width: CANNON_WIDTH, height: CANNON_HEIGHT };
+  }
+
+  get hitJumpOffset(): number {
+    const ticksRemaining = this.destroyed
+      ? this.destructionTicksRemaining
+      : this.hitTicksRemaining;
+    if (ticksRemaining <= 0) {
+      return 0;
+    }
+
+    const animationTicks = this.destroyed
+      ? CANNON_DESTROYED_ANIMATION_TICKS
+      : CANNON_HIT_ANIMATION_TICKS;
+    const progress =
+      (animationTicks - ticksRemaining) / animationTicks;
+    return -Math.sin(progress * Math.PI) * CANNON_HIT_JUMP_HEIGHT;
   }
 
   get muzzleCenter(): [number, number] {
@@ -288,7 +302,7 @@ export class CannonSystem {
         cannonImage.setTexture(cannonTexture);
       }
       cannonImage
-        .setPosition(cannon.x, cannon.y)
+        .setPosition(cannon.x, cannon.y + cannon.hitJumpOffset)
         .setFlipX(cannon.direction > 0);
       if (cannon.warningFlash) {
         cannonImage.setTint(0xffb347);
@@ -440,6 +454,17 @@ function getFrameIndex(
     frameCount - 1,
     Math.floor(ticksElapsed / CANNON_ANIMATION_FRAME_TICKS)
   );
+}
+
+function getCannonHitFrame(ticksRemaining: number): number {
+  let ticksElapsed = CANNON_HIT_ANIMATION_TICKS - ticksRemaining;
+  for (const [frame, frameTicks] of CANNON_HIT_FRAME_TICKS.entries()) {
+    if (ticksElapsed < frameTicks) {
+      return frame;
+    }
+    ticksElapsed -= frameTicks;
+  }
+  return CANNON_HIT_FRAME_COUNT - 1;
 }
 
 function intersects(first: EntityRect, second: EntityRect): boolean {

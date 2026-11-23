@@ -1009,10 +1009,53 @@ export class Game extends Phaser.Scene {
             );
           }
         }
-        this.cannonSystem?.damageFromAttack(
-          playerAtkRect,
-          this.playerEntity.attackHandler.hitEntities
-        );
+        const cannonHits =
+          this.cannonSystem?.damageFromAttack(
+            playerAtkRect,
+            this.playerEntity.attackHandler.hitEntities
+          ) ?? [];
+        for (const { cannon, destroyed } of cannonHits) {
+          const impact: [number, number] = [
+            cannon.x + cannon.bounds.width / 2,
+            cannon.y + cannon.bounds.height / 2,
+          ];
+          for (let burst = 0; burst < 3; burst += 1) {
+            const emitSparks = () => {
+              const densityScale = burst === 0 ? 1 : 0.6;
+              this.sparksEffect.push(
+                new Sparks(
+                  impact,
+                  false,
+                  destroyed ? 4 : 3.2,
+                  Math.round((destroyed ? 22 : 16) * densityScale),
+                  [255, 246, 210],
+                  'burst',
+                  'diamond',
+                  [3, 1.2]
+                ),
+                new Sparks(
+                  impact,
+                  false,
+                  destroyed ? 3 : 2.4,
+                  Math.round((destroyed ? 16 : 12) * densityScale),
+                  [255, 176, 74],
+                  'burst',
+                  'diamond',
+                  [2, 1]
+                )
+              );
+            };
+            if (burst === 0) {
+              emitSparks();
+            } else {
+              this.time.delayedCall(burst * 45, emitSparks);
+            }
+          }
+          this.cameras.main.shake(
+            destroyed ? 120 : 100,
+            destroyed ? 0.005 : 0.0035
+          );
+        }
       }
     }
 

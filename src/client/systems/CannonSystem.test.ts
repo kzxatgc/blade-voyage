@@ -357,4 +357,68 @@ void describe('CannonSystem', () => {
     }
     assert.equal(system.cannonBalls.length, 0);
   });
+
+  void it('jumps and holds the supplied white silhouette frame on impact', () => {
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
+      () => undefined
+    );
+    const cannon = system.cannons[0];
+    assert.ok(cannon);
+
+    system.render(scene);
+    system.damageFromAttack(cannon.bounds, new Set());
+    system.render(scene);
+
+    const cannonImage = images[0];
+    assert.ok(cannonImage);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/0');
+    assert.equal(cannonImage.y, cannon.y);
+    assert.equal(cannonImage.tint, undefined);
+    assert.equal(images.length, 1);
+
+    system.update();
+    system.render(scene);
+    assert.ok(cannonImage.y < cannon.y);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/0');
+
+    for (let tick = 0; tick < 6; tick += 1) {
+      system.update();
+    }
+    system.render(scene);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/0');
+
+    system.update();
+    system.render(scene);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/1');
+
+    for (let tick = 0; tick < 3; tick += 1) {
+      system.update();
+    }
+    system.render(scene);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/2');
+
+    for (let tick = 0; tick < 4; tick += 1) {
+      system.update();
+    }
+    system.render(scene);
+    assert.equal(cannonImage.texture.key, 'cannon/hit/3');
+
+    for (let tick = 0; tick < 5; tick += 1) {
+      system.update();
+    }
+    system.render(scene);
+    assert.equal(cannonImage.y, cannon.y);
+    assert.equal(cannonImage.texture.key, 'cannon/idle/0');
+  });
 });
