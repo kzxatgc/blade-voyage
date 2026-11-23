@@ -368,6 +368,26 @@ export class Preloader extends Scene {
       this.load.image(`spawner/${variant}`, `img/map/spawner/${variant}.png`);
     }
 
+    const cannonFrameCounts: Record<string, number> = {
+      idle: 1,
+      fire: 6,
+      muzzle: 6,
+      hit: 4,
+      destroyed: 4,
+      'ball/idle': 1,
+      'ball/destroyed': 3,
+      'ball/explosion': 7,
+    };
+
+    for (const [animation, frameCount] of Object.entries(cannonFrameCounts)) {
+      for (let frame = 0; frame < frameCount; frame++) {
+        this.load.image(
+          `cannon/${animation}/${frame}`,
+          `img/map/cannon/${animation}/${frame}.png`
+        );
+      }
+    }
+
     for (const def of Object.values(SFX_DEFINITIONS)) {
       for (const file of def.files) {
         this.load.audio(file, file);

@@ -86,6 +86,10 @@ export class EditorScene extends Phaser.Scene {
     for (let variant = 0; variant < 4; variant++) {
       this.load.image(`spawner/${variant}`, `img/map/spawner/${variant}.png`);
     }
+
+    for (let variant = 0; variant < 2; variant++) {
+      this.load.image(`cannon/${variant}`, 'img/map/cannon/idle/0.png');
+    }
   }
 
   create() {

@@ -4,7 +4,7 @@ This document records credits for assets used in this project.
 
 ## 1. Treasure Hunters Sprite Pack
 
-- **Asset Type**: Backgrounds, clouds, grass tiles, dialogue effects, UI, and mobile controls
+- **Asset Type**: Backgrounds, clouds, grass tiles, dialogue effects, UI, mobile controls, and shooter traps
 - **Asset Name**: Treasure Hunters
 - **Author / Creator**: Pixel Frog
 - **Source Link**: https://pixelfrog-assets.itch.io/treasure-hunters
@@ -17,6 +17,7 @@ This document records credits for assets used in this project.
 - The green shield potion uses seven `Green Bottle` animation frames.
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
 - The Frenzy pickup effect uses gold recolors of those four `Potion Effect (4 items)` frames.
+- The cannon trap uses the Shooter Traps collection's Cannon Idle, Cannon Fire, Cannon Fire Effect, Cannon Hit, Cannon Destroyed, Cannon Ball Idle, Cannon Ball Destroyed, and Cannon Ball Explosion animations.
 - **Files**:
   - `public/assets/img/background/background.png`
   - `public/assets/img/background/water/base.png`
@@ -376,6 +377,38 @@ This document records credits for assets used in this project.
   - `public/assets/img/map/spawner/1.png`
   - `public/assets/img/map/spawner/2.png`
   - `public/assets/img/map/spawner/3.png`
+  - `public/assets/img/map/cannon/idle/0.png`
+  - `public/assets/img/map/cannon/fire/0.png`
+  - `public/assets/img/map/cannon/fire/1.png`
+  - `public/assets/img/map/cannon/fire/2.png`
+  - `public/assets/img/map/cannon/fire/3.png`
+  - `public/assets/img/map/cannon/fire/4.png`
+  - `public/assets/img/map/cannon/fire/5.png`
+  - `public/assets/img/map/cannon/muzzle/0.png`
+  - `public/assets/img/map/cannon/muzzle/1.png`
+  - `public/assets/img/map/cannon/muzzle/2.png`
+  - `public/assets/img/map/cannon/muzzle/3.png`
+  - `public/assets/img/map/cannon/muzzle/4.png`
+  - `public/assets/img/map/cannon/muzzle/5.png`
+  - `public/assets/img/map/cannon/hit/0.png`
+  - `public/assets/img/map/cannon/hit/1.png`
+  - `public/assets/img/map/cannon/hit/2.png`
+  - `public/assets/img/map/cannon/hit/3.png`
+  - `public/assets/img/map/cannon/destroyed/0.png`
+  - `public/assets/img/map/cannon/destroyed/1.png`
+  - `public/assets/img/map/cannon/destroyed/2.png`
+  - `public/assets/img/map/cannon/destroyed/3.png`
+  - `public/assets/img/map/cannon/ball/idle/0.png`
+  - `public/assets/img/map/cannon/ball/destroyed/0.png`
+  - `public/assets/img/map/cannon/ball/destroyed/1.png`
+  - `public/assets/img/map/cannon/ball/destroyed/2.png`
+  - `public/assets/img/map/cannon/ball/explosion/0.png`
+  - `public/assets/img/map/cannon/ball/explosion/1.png`
+  - `public/assets/img/map/cannon/ball/explosion/2.png`
+  - `public/assets/img/map/cannon/ball/explosion/3.png`
+  - `public/assets/img/map/cannon/ball/explosion/4.png`
+  - `public/assets/img/map/cannon/ball/explosion/5.png`
+  - `public/assets/img/map/cannon/ball/explosion/6.png`
 
 ## 2. PixelLab Pixel-Art UI and Effects
 
