@@ -18,7 +18,6 @@ const CANNON_KNOCKBACK_REFERENCE_DURATION = 16;
 const CANNON_FIRE_FRAME_COUNT = 6;
 const CANNON_HIT_FRAME_TICKS = [8, 3, 4, 5] as const;
 const CANNON_HIT_FRAME_COUNT = CANNON_HIT_FRAME_TICKS.length;
-const CANNON_DESTROYED_FRAME_COUNT = 4;
 const CANNON_MUZZLE_FRAME_COUNT = 6;
 const CANNON_BALL_SIZE = 16;
 const CANNON_BALL_DESTROYED_FRAME_COUNT = 3;
@@ -26,6 +25,12 @@ const CANNON_BALL_EXPLOSION_FRAME_COUNT = 7;
 const CANNON_BALL_MAX_FLIGHT_TICKS = TICK_RATE * 4;
 const CANNON_DEBRIS_GRAVITY = 0.24;
 const CANNON_DEBRIS_MAX_TICKS = TICK_RATE * 2;
+const CANNON_WRECK_FLASH_TICKS = 3;
+const CANNON_WRECK_GRAVITY = 0.24;
+const CANNON_WRECK_BOUNCE_THRESHOLD = 0.65;
+const CANNON_WRECK_HORIZONTAL_IMPULSE = 4.8;
+const CANNON_WRECK_VERTICAL_IMPULSE = 9.6;
+const CANNON_WRECK_SIDE_IMPULSE = 1.2;
 const CANNON_DEBRIS_GROUNDED_HOLD_TICKS = Math.round(TICK_RATE * 0.5);
 const CANNON_DEBRIS_FADE_TICKS = Math.round(TICK_RATE * 0.2);
 const CANNON_DEBRIS_SETTLE_TICKS =
@@ -50,6 +55,38 @@ const CANNON_DEBRIS_BURST = [
   { offsetX: -3, offsetY: 0, speedX: 1, speedY: -1.1 },
   { offsetX: 1, offsetY: -4, speedX: 2, speedY: -2.9 },
 ] as const;
+const CANNON_WRECK_PART_SPECS = [
+  {
+    frame: 1,
+    kind: 'body',
+    mass: 3.8,
+    side: 0,
+    bounds: { x: 0, y: 1, width: 30, height: 19 },
+    angularVelocity: 0.035,
+    restitution: 0.08,
+    groundFriction: 0.62,
+  },
+  {
+    frame: 2,
+    kind: 'holder',
+    mass: 2,
+    side: -1,
+    bounds: { x: 8, y: 4, width: 14, height: 13 },
+    angularVelocity: -0.13,
+    restitution: 0.32,
+    groundFriction: 0.48,
+  },
+  {
+    frame: 3,
+    kind: 'holder',
+    mass: 2,
+    side: 1,
+    bounds: { x: 8, y: 6, width: 14, height: 11 },
+    angularVelocity: 0.13,
+    restitution: 0.32,
+    groundFriction: 0.48,
+  },
+] as const;
 const CANNON_HIT_JUMP_HEIGHT = 14;
 const CANNON_BALL_EXPLOSION_TICKS =
   CANNON_BALL_EXPLOSION_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
@@ -59,14 +96,13 @@ const CANNON_LAUNCH_DELAY_TICKS =
   CANNON_LAUNCH_FRAME * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_HIT_ANIMATION_TICKS =
   CANNON_HIT_FRAME_TICKS.reduce((total, ticks) => total + ticks, 0);
-const CANNON_DESTROYED_ANIMATION_TICKS =
-  CANNON_DESTROYED_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_MUZZLE_ANIMATION_TICKS =
   CANNON_MUZZLE_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 
 export type CannonDirection = -1 | 1;
 export type CannonAnimation = 'idle' | 'fire' | 'hit' | 'destroyed';
 export type CannonBallState = 'flying' | 'exploding';
+type CannonWreckPartSpec = (typeof CANNON_WRECK_PART_SPECS)[number];
 
 type CannonTilemap = Pick<Tilemap, 'tiles' | 'tileSize' | 'physicalRectsAround'>;
 type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
@@ -77,6 +113,7 @@ type CannonRenderImage = {
   setAlpha(alpha: number): CannonRenderImage;
   setPosition(x: number, y: number): CannonRenderImage;
   setFlipX(flip: boolean): CannonRenderImage;
+  setRotation(rotation: number): CannonRenderImage;
   setDepth(depth: number): CannonRenderImage;
   setTint(color: number): CannonRenderImage;
   clearTint(): CannonRenderImage;
@@ -103,7 +140,7 @@ export class Cannon {
   fireTicksRemaining = 0;
   muzzleTicksRemaining = 0;
   hitTicksRemaining = 0;
-  destructionTicksRemaining = 0;
+  destructionFlashTicksRemaining = 0;
   destroyed = false;
 
   constructor(tile: TileData, tileSize: number) {
@@ -135,11 +172,7 @@ export class Cannon {
 
   get animationFrame(): number {
     if (this.destroyed) {
-      return getFrameIndex(
-        CANNON_DESTROYED_ANIMATION_TICKS,
-        this.destructionTicksRemaining,
-        CANNON_DESTROYED_FRAME_COUNT
-      );
+      return 0;
     }
     if (this.hitTicksRemaining > 0) {
       return getCannonHitFrame(this.hitTicksRemaining);
@@ -182,18 +215,14 @@ export class Cannon {
   }
 
   get hitJumpOffset(): number {
-    const ticksRemaining = this.destroyed
-      ? this.destructionTicksRemaining
-      : this.hitTicksRemaining;
+    const ticksRemaining = this.hitTicksRemaining;
     if (ticksRemaining <= 0) {
       return 0;
     }
 
-    const animationTicks = this.destroyed
-      ? CANNON_DESTROYED_ANIMATION_TICKS
-      : CANNON_HIT_ANIMATION_TICKS;
     const progress =
-      (animationTicks - ticksRemaining) / animationTicks;
+      (CANNON_HIT_ANIMATION_TICKS - ticksRemaining) /
+      CANNON_HIT_ANIMATION_TICKS;
     return -Math.sin(progress * Math.PI) * CANNON_HIT_JUMP_HEIGHT;
   }
 
@@ -383,6 +412,65 @@ export class CannonDebris {
   }
 }
 
+export class CannonWreckPart {
+  readonly frame: CannonWreckPartSpec['frame'];
+  readonly kind: CannonWreckPartSpec['kind'];
+  readonly mass: number;
+  readonly direction: CannonDirection;
+  readonly flipX: boolean;
+  readonly boundsOffset: CannonWreckPartSpec['bounds'];
+  readonly restitution: number;
+  readonly groundFriction: number;
+  x: number;
+  y: number;
+  velocityX: number;
+  velocityY: number;
+  rotation = 0;
+  angularVelocity: number;
+  ageTicks = 0;
+  grounded = false;
+
+  constructor(
+    cannon: Cannon,
+    spec: CannonWreckPartSpec,
+    direction: CannonDirection,
+    random: () => number
+  ) {
+    const mirror = cannon.direction > 0 ? -1 : 1;
+    const worldSide = spec.side * mirror;
+    this.frame = spec.frame;
+    this.kind = spec.kind;
+    this.mass = spec.mass;
+    this.direction = direction;
+    this.flipX = cannon.direction > 0;
+    this.boundsOffset = spec.bounds;
+    this.restitution = spec.restitution;
+    this.groundFriction = spec.groundFriction;
+    this.x = cannon.x + CANNON_WIDTH / 2 + spec.side * 8 * mirror;
+    this.y = cannon.y + CANNON_HEIGHT / 2;
+    this.velocityX =
+      (direction * CANNON_WRECK_HORIZONTAL_IMPULSE +
+        worldSide * CANNON_WRECK_SIDE_IMPULSE) /
+        spec.mass +
+      (random() - 0.5) * 0.24;
+    this.velocityY =
+      -CANNON_WRECK_VERTICAL_IMPULSE / spec.mass +
+      (random() - 0.5) * 0.2;
+    this.angularVelocity =
+      spec.angularVelocity * direction * (0.8 + random() * 0.4);
+  }
+
+  get bounds(): EntityRect {
+    return {
+      x: this.x - 15 + this.boundsOffset.x,
+      y: this.y - 10 + this.boundsOffset.y,
+      width: this.boundsOffset.width,
+      height: this.boundsOffset.height,
+    };
+  }
+
+}
+
 export type CannonHitResult = {
   cannon: Cannon;
   health: number;
@@ -393,11 +481,16 @@ export class CannonSystem {
   readonly cannons: Cannon[];
   readonly cannonBalls: CannonBall[] = [];
   readonly cannonDebris: CannonDebris[] = [];
+  readonly cannonWreckParts: CannonWreckPart[] = [];
   private readonly tilemap: CannonTilemap;
   private readonly onPlayerHit: PlayerHitHandler;
   private readonly onWallImpact: WallImpactHandler | undefined;
   private readonly random: () => number;
   private readonly cannonImages = new Map<Cannon, CannonRenderImage>();
+  private readonly cannonWreckPartImages = new Map<
+    CannonWreckPart,
+    CannonRenderImage
+  >();
   private readonly muzzleImages = new Map<Cannon, CannonRenderImage>();
   private readonly cannonBallImages = new Map<CannonBall, CannonRenderImage>();
   private readonly cannonDebrisImages = new Map<CannonDebris, CannonRenderImage>();
@@ -419,6 +512,7 @@ export class CannonSystem {
 
   update(playerRect?: EntityRect): void {
     this.updateTerrainDebris();
+    this.updateCannonWreckParts();
     this.updateCannonBalls(playerRect);
 
     for (const cannon of this.cannons) {
@@ -449,9 +543,15 @@ export class CannonSystem {
       cannon.health = Math.max(0, cannon.health - 1);
       cannon.destroyed = cannon.health === 0;
       if (cannon.destroyed) {
-        cannon.destructionTicksRemaining = CANNON_DESTROYED_ANIMATION_TICKS;
+        cannon.destructionFlashTicksRemaining = CANNON_WRECK_FLASH_TICKS;
         cannon.fireTicksRemaining = 0;
         cannon.muzzleTicksRemaining = 0;
+        cannon.stopKnockback();
+        for (const spec of CANNON_WRECK_PART_SPECS) {
+          this.cannonWreckParts.push(
+            new CannonWreckPart(cannon, spec, knockbackDirection, this.random)
+          );
+        }
       } else {
         cannon.hitTicksRemaining = CANNON_HIT_ANIMATION_TICKS;
         cannon.fireTicksRemaining = 0;
@@ -469,7 +569,9 @@ export class CannonSystem {
 
   render(scene: CannonRenderScene): void {
     for (const cannon of this.cannons) {
-      const cannonTexture = `cannon/${cannon.animation}/${cannon.animationFrame}`;
+      const cannonTexture = cannon.destroyed
+        ? 'cannon/destroyed/0'
+        : `cannon/${cannon.animation}/${cannon.animationFrame}`;
       const cannonImage = this.cannonImages.get(cannon) ??
         scene.add
           .image(cannon.x, cannon.y, cannonTexture)
@@ -482,6 +584,9 @@ export class CannonSystem {
       cannonImage
         .setPosition(cannon.x, cannon.y + cannon.hitJumpOffset)
         .setFlipX(cannon.direction > 0);
+      cannonImage.setVisible(
+        !cannon.destroyed || cannon.destructionFlashTicksRemaining > 0
+      );
       if (cannon.warningFlash) {
         cannonImage.setTint(0xffb347);
       } else {
@@ -570,6 +675,33 @@ export class CannonSystem {
         .setDepth(RENDER_DEPTH.EFFECTS)
         .setVisible(true);
     }
+
+    const activeCannonWreckParts = new Set(this.cannonWreckParts);
+    for (const [part, image] of this.cannonWreckPartImages) {
+      if (!activeCannonWreckParts.has(part)) {
+        image.destroy();
+        this.cannonWreckPartImages.delete(part);
+      }
+    }
+
+    for (const part of this.cannonWreckParts) {
+      const texture = `cannon/destroyed/${part.frame}`;
+      const image = this.cannonWreckPartImages.get(part) ??
+        scene.add
+          .image(part.x, part.y, texture)
+          .setOrigin(0.5, 0.5)
+          .setDepth(RENDER_DEPTH.EFFECTS);
+      this.cannonWreckPartImages.set(part, image);
+      if (image.texture.key !== texture) {
+        image.setTexture(texture);
+      }
+      image
+        .setPosition(part.x, part.y)
+        .setFlipX(part.flipX)
+        .setRotation(part.rotation)
+        .setDepth(RENDER_DEPTH.EFFECTS)
+        .setVisible(true);
+    }
   }
 
   destroy(): void {
@@ -578,6 +710,7 @@ export class CannonSystem {
       this.muzzleImages,
       this.cannonBallImages,
       this.cannonDebrisImages,
+      this.cannonWreckPartImages,
     ]) {
       for (const image of images.values()) {
         image.destroy();
@@ -598,9 +731,9 @@ export class CannonSystem {
     }
 
     if (cannon.destroyed) {
-      cannon.destructionTicksRemaining = Math.max(
+      cannon.destructionFlashTicksRemaining = Math.max(
         0,
-        cannon.destructionTicksRemaining - 1
+        cannon.destructionFlashTicksRemaining - 1
       );
       return;
     }
@@ -754,6 +887,85 @@ export class CannonSystem {
           debris.velocityY = 0;
         }
       }
+    }
+  }
+
+  private updateCannonWreckParts(): void {
+    for (
+      let index = this.cannonWreckParts.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      const part = this.cannonWreckParts[index];
+      if (!part) {
+        continue;
+      }
+
+      if (part.grounded) {
+        continue;
+      }
+
+      part.ageTicks += 1;
+
+      const previousX = part.x;
+      part.x += part.velocityX;
+      if (this.intersectsTerrain(part.bounds)) {
+        part.x = previousX;
+        part.velocityX *= -part.restitution;
+        part.angularVelocity *= -0.5;
+      }
+
+      const previousY = part.y;
+      part.velocityY += CANNON_WRECK_GRAVITY;
+      part.y += part.velocityY;
+      const bounds = part.bounds;
+      const verticalCollisions = this.tilemap
+        .physicalRectsAround([bounds.x, bounds.y])
+        .filter((terrain) => intersects(bounds, terrain));
+
+      if (verticalCollisions.length > 0) {
+        if (part.velocityY > 0) {
+          const previousBottom =
+            previousY -
+            10 +
+            part.boundsOffset.y +
+            part.boundsOffset.height;
+          const landingSurface = verticalCollisions
+            .filter(
+              (terrain) =>
+                previousBottom <= terrain.y &&
+                bounds.y + bounds.height >= terrain.y &&
+                bounds.x < terrain.x + terrain.width &&
+                bounds.x + bounds.width > terrain.x
+            )
+            .sort((a, b) => a.y - b.y)[0];
+
+          if (landingSurface) {
+            part.y -= bounds.y + bounds.height - landingSurface.y;
+            const bounceSpeed = Math.abs(part.velocityY) * part.restitution;
+            part.velocityX *= part.groundFriction;
+            part.angularVelocity *= 0.72;
+            if (bounceSpeed > CANNON_WRECK_BOUNCE_THRESHOLD) {
+              part.velocityY = -bounceSpeed;
+            } else {
+              part.velocityY = 0;
+              part.velocityX = 0;
+              part.angularVelocity = 0;
+              part.grounded = true;
+            }
+          } else {
+            part.y = previousY;
+            part.velocityY = 0;
+          }
+        } else {
+          part.y = previousY;
+          part.velocityY = Math.abs(part.velocityY) * part.restitution;
+        }
+      }
+
+      part.rotation += part.angularVelocity;
+      part.angularVelocity *= part.grounded ? 0.72 : 0.995;
+      part.velocityX *= 0.998;
     }
   }
 

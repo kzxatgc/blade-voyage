@@ -40,6 +40,7 @@ class MockCannonImage {
   depth = 0;
   alpha = 1;
   flipX = false;
+  rotation = 0;
   tint: number | undefined;
   visible = true;
   destroyed = false;
@@ -68,6 +69,11 @@ class MockCannonImage {
 
   setFlipX(flip: boolean) {
     this.flipX = flip;
+    return this;
+  }
+
+  setRotation(rotation: number) {
+    this.rotation = rotation;
     return this;
   }
 
@@ -632,6 +638,121 @@ void describe('CannonSystem', () => {
       system.update();
     }
     assert.equal(system.cannonBalls.length, 0);
+  });
+
+  void it('bursts the heavy cannon body and two lighter holders independently', () => {
+    const tiles: Record<string, TileData> = {
+      '2;3': cannonTile(2, 3),
+    };
+    for (let x = -10; x <= 10; x += 1) {
+      tiles[`${x};4`] = { type: 'grass', variant: 0, loc: [x, 4] };
+    }
+
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
+    const system = new CannonSystem(
+      makeTilemap(tiles),
+      () => undefined,
+      () => 0.5
+    );
+    const cannon = system.cannons[0];
+    assert.ok(cannon);
+
+    for (let hit = 0; hit < 3; hit += 1) {
+      system.damageFromAttack(cannon.bounds, new Set(), cannon.x - 20);
+    }
+
+    assert.deepEqual(
+      system.cannonWreckParts.map((part) => part.frame),
+      [1, 2, 3]
+    );
+    const body = system.cannonWreckParts[0];
+    const firstHolder = system.cannonWreckParts[1];
+    const secondHolder = system.cannonWreckParts[2];
+    assert.ok(body);
+    assert.ok(firstHolder);
+    assert.ok(secondHolder);
+    assert.equal(body.kind, 'body');
+    assert.equal(firstHolder.kind, 'holder');
+    assert.equal(secondHolder.kind, 'holder');
+    assert.ok(body.mass > firstHolder.mass);
+    assert.equal(firstHolder.mass, secondHolder.mass);
+    assert.ok(
+      Math.hypot(body.velocityX, body.velocityY) <
+        Math.hypot(firstHolder.velocityX, firstHolder.velocityY)
+    );
+    assert.ok(
+      Math.hypot(body.velocityX, body.velocityY) <
+        Math.hypot(secondHolder.velocityX, secondHolder.velocityY)
+    );
+    assert.notEqual(firstHolder.x, secondHolder.x);
+
+    system.render(scene);
+    assert.ok(images.some((image) => image.texture.key === 'cannon/destroyed/0'));
+    assert.deepEqual(
+      new Set(
+        images
+          .filter((image) => image.texture.key.startsWith('cannon/destroyed/'))
+          .map((image) => image.texture.key)
+      ),
+      new Set([
+        'cannon/destroyed/0',
+        'cannon/destroyed/1',
+        'cannon/destroyed/2',
+        'cannon/destroyed/3',
+      ])
+    );
+
+    const holderParts = [firstHolder, secondHolder];
+    let sawHolderDescending = false;
+    let sawHolderBounce = false;
+    for (let tick = 0; tick < 90; tick += 1) {
+      system.update();
+      if (holderParts.some((part) => part.velocityY > 0)) {
+        sawHolderDescending = true;
+      } else if (
+        sawHolderDescending &&
+        holderParts.some((part) => part.velocityY < 0)
+      ) {
+        sawHolderBounce = true;
+      }
+      if (system.cannonWreckParts.every((part) => part.grounded)) {
+        break;
+      }
+    }
+
+    assert.equal(sawHolderBounce, true);
+    assert.ok(system.cannonWreckParts.every((part) => part.grounded));
+    for (const part of system.cannonWreckParts) {
+      assert.ok(
+        Math.abs(part.bounds.y + part.bounds.height - 4 * 32) < 0.000001
+      );
+    }
+
+    for (let tick = 0; tick < 60; tick += 1) {
+      system.update();
+    }
+    assert.equal(system.cannonWreckParts.length, 3);
+    assert.ok(system.cannonWreckParts.every((part) => part.grounded));
+
+    for (let tick = 0; tick < 300; tick += 1) {
+      system.update();
+    }
+    assert.equal(system.cannonWreckParts.length, 3);
+
+    system.render(scene);
+    assert.equal(
+      images.find((image) => image.texture.key === 'cannon/destroyed/0')?.visible,
+      false
+    );
   });
 
   void it('knocks the cannon away from the attacking side for 30 ticks', () => {

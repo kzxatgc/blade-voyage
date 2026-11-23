@@ -3,7 +3,11 @@ import type { EntityPosition, EntityRect, EntitySize } from '../../shared/types.
 import { Animation } from '../utils/Animation.ts';
 import type { Tilemap } from '../systems/Tilemap.ts';
 import type { Particles } from '../systems/Particles.ts';
-import { GRASS_COLORS, RECT_POS_ADJUSTMENT, RENDER_DEPTH } from '../../shared/constants.ts';
+import {
+  GRASS_COLORS,
+  RECT_POS_ADJUSTMENT,
+  RENDER_DEPTH,
+} from '../../shared/constants.ts';
 import { Sparks } from '../systems/Sparks.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
@@ -567,7 +571,6 @@ export class Enemy extends PhysicsEntity {
     }
 
     super.update(tilemap, [moveX, moveY]);
-
     if (!this.dead) {
       this.animation?.update();
 
@@ -686,7 +689,6 @@ export class Enemy extends PhysicsEntity {
       this.image.setFlipX?.(flipX);
       this.image.setDepth?.(RENDER_DEPTH.ENTITIES);
     }
-
     // Hit flash: white on the first frame of invincibility, then blink every 4 frames
     if (this.invincibleTimer > 0) {
       const t = this.invincibleTimer;
