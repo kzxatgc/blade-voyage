@@ -629,9 +629,47 @@ export class Game extends Phaser.Scene {
     this.potionSystem = new PotionSystem(Math.random, this.sparksEffect);
     this.playerEntity = new Player([0, 0], this.particles, this.sparksEffect);
     this.playerEntity.swordsSystem = this.swords;
-    this.cannonSystem = new CannonSystem(this.tilemap, (direction) => {
-      this.handlePlayerDamage(direction);
-    });
+    this.cannonSystem = new CannonSystem(
+      this.tilemap,
+      (direction) => {
+        this.handlePlayerDamage(direction);
+      },
+      Math.random,
+      (impact) => {
+        this.sparksEffect.push(
+          new Sparks(
+            impact,
+            false,
+            2.94,
+            6,
+            [255, 226, 145],
+            'burst',
+            'diamond',
+            [2.4, 1.1]
+          ),
+          new Sparks(
+            impact,
+            false,
+            2.52,
+            6,
+            [255, 125, 40],
+            'burst',
+            'diamond',
+            [2.2, 0.8]
+          ),
+          new Sparks(
+            impact,
+            false,
+            2.1,
+            6,
+            [0, 0, 0],
+            'burst',
+            'diamond',
+            [1.8, 0.7]
+          )
+        );
+      }
+    );
     this.touchControls = new TouchControls(this, {
       down: () => this.playerEntity?.dropThroughPlatform(),
       jump: () => this.playerEntity?.jump(),

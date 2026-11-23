@@ -376,13 +376,17 @@ void describe('CannonSystem', () => {
       [8, 1, -1],
     ] as const) {
       const wallX = 5 * 32;
+      const wallImpacts: [number, number][] = [];
       const system = new CannonSystem(
         makeTilemap({
           [`${cannonX};3`]: cannonTile(cannonX, 3, variant),
           '5;3': { type: 'grass', variant: 0, loc: [5, 3] },
         }),
         () => undefined,
-        () => 0
+        () => 0,
+        (position) => {
+          wallImpacts.push([position[0], position[1]]);
+        }
       );
 
       for (
@@ -396,6 +400,13 @@ void describe('CannonSystem', () => {
 
       assert.equal(system.cannonDebris.length, 6);
       const wallRight = wallX + 32;
+      assert.equal(wallImpacts.length, 1);
+      assert.equal(
+        wallImpacts[0]?.[0],
+        direction > 0 ? wallX : wallRight
+      );
+      assert.ok(wallImpacts[0]?.[1] >= 3 * 32);
+      assert.ok(wallImpacts[0]?.[1] < 4 * 32);
       if (direction > 0) {
         assert.ok(
           system.cannonDebris.every(

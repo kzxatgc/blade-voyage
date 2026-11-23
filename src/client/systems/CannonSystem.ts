@@ -70,6 +70,7 @@ export type CannonBallState = 'flying' | 'exploding';
 
 type CannonTilemap = Pick<Tilemap, 'tiles' | 'tileSize' | 'physicalRectsAround'>;
 type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
+type WallImpactHandler = (position: readonly [number, number]) => void;
 type CannonRenderImage = {
   texture: { key: string };
   setOrigin(x: number, y: number): CannonRenderImage;
@@ -394,6 +395,7 @@ export class CannonSystem {
   readonly cannonDebris: CannonDebris[] = [];
   private readonly tilemap: CannonTilemap;
   private readonly onPlayerHit: PlayerHitHandler;
+  private readonly onWallImpact: WallImpactHandler | undefined;
   private readonly random: () => number;
   private readonly cannonImages = new Map<Cannon, CannonRenderImage>();
   private readonly muzzleImages = new Map<Cannon, CannonRenderImage>();
@@ -403,11 +405,13 @@ export class CannonSystem {
   constructor(
     tilemap: CannonTilemap,
     onPlayerHit: PlayerHitHandler,
-    random: () => number = Math.random
+    random: () => number = Math.random,
+    onWallImpact?: WallImpactHandler
   ) {
     this.tilemap = tilemap;
     this.onPlayerHit = onPlayerHit;
     this.random = random;
+    this.onWallImpact = onWallImpact;
     this.cannons = Object.values(tilemap.tiles)
       .filter((tile) => tile.type === 'cannon')
       .map((tile) => new Cannon(tile, tilemap.tileSize));
@@ -649,6 +653,14 @@ export class CannonSystem {
 
       if (terrainHit) {
         this.cannonBalls.splice(index, 1);
+        const wallFaceX =
+          cannonBall.direction > 0
+            ? terrainHit.x
+            : terrainHit.x + terrainHit.width;
+        this.onWallImpact?.([
+          wallFaceX,
+          ballBounds.y + ballBounds.height / 2,
+        ]);
         const debrisCount =
           CANNON_DEBRIS_MIN_COUNT +
           Math.min(
