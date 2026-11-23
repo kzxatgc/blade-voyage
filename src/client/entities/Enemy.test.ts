@@ -494,13 +494,17 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.action, 'hit');
   });
 
-  void it('adds vertical lift on fatal knockback only', () => {
+  void it('uses the regular hit knockback on fatal hits', () => {
+    const regularEnemy = new Enemy('pink_star', [160, 195], [26, 23]);
+    regularEnemy.applyKnockback(1);
+
     const enemy = new Enemy('pink_star', [160, 195], [26, 23]);
     enemy.takeDamage(enemy.health);
-    enemy.applyKnockback(1, 1.5, enemy.dead ? 3 : 0);
+    enemy.applyKnockback(1);
 
     assert.equal(enemy.dead, true);
-    assert.equal(enemy.velocity[1], -3);
+    assert.equal(enemy.velocity[1], regularEnemy.velocity[1]);
+    assert.equal(enemy.knockbackVelocity[0], regularEnemy.knockbackVelocity[0]);
   });
 
   void it('clears the attack wind effect when the enemy dies mid-attack', () => {

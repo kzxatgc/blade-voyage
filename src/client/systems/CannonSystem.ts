@@ -11,6 +11,10 @@ export const CANNON_LAUNCH_FRAME = 3;
 
 const CANNON_WIDTH = 40;
 const CANNON_HEIGHT = 26;
+const CANNON_KNOCKBACK_POWER = 0.5;
+const CANNON_KNOCKBACK_HORIZONTAL_SCALE = 2.3;
+const CANNON_KNOCKBACK_DURATION = 30;
+const CANNON_KNOCKBACK_REFERENCE_DURATION = 16;
 const CANNON_FIRE_FRAME_COUNT = 6;
 const CANNON_HIT_FRAME_TICKS = [8, 3, 4, 5] as const;
 const CANNON_HIT_FRAME_COUNT = CANNON_HIT_FRAME_TICKS.length;
@@ -87,9 +91,12 @@ type CannonRenderScene = {
 
 export class Cannon {
   readonly id: string;
-  readonly x: number;
+  x: number;
   readonly y: number;
   readonly direction: CannonDirection;
+  knockbackVelocityX = 0;
+  knockbackTicksRemaining = 0;
+  readonly knockbackDuration = CANNON_KNOCKBACK_DURATION;
   health = CANNON_MAX_HEALTH;
   cycleTick = 0;
   fireTicksRemaining = 0;
@@ -194,6 +201,40 @@ export class Cannon {
       this.direction > 0 ? this.x + CANNON_WIDTH : this.x,
       this.y + CANNON_HEIGHT / 2,
     ];
+  }
+
+  applyKnockback(direction: CannonDirection): void {
+    this.knockbackVelocityX =
+      direction * CANNON_KNOCKBACK_POWER * CANNON_KNOCKBACK_HORIZONTAL_SCALE;
+    this.knockbackTicksRemaining = this.knockbackDuration;
+  }
+
+  advanceKnockback(): number {
+    if (this.knockbackTicksRemaining <= 0) {
+      return 0;
+    }
+
+    const progress = this.knockbackTicksRemaining / this.knockbackDuration;
+    const distanceCorrection =
+      (3 *
+        this.knockbackDuration *
+        (CANNON_KNOCKBACK_REFERENCE_DURATION + 1)) /
+      ((2 * this.knockbackDuration + 1) * (this.knockbackDuration + 1));
+    const displacement =
+      this.knockbackVelocityX *
+      progress *
+      progress *
+      distanceCorrection;
+    this.knockbackTicksRemaining -= 1;
+    if (this.knockbackTicksRemaining === 0) {
+      this.knockbackVelocityX = 0;
+    }
+    return displacement;
+  }
+
+  stopKnockback(): void {
+    this.knockbackTicksRemaining = 0;
+    this.knockbackVelocityX = 0;
   }
 }
 
@@ -383,7 +424,8 @@ export class CannonSystem {
 
   damageFromAttack(
     attackRect: EntityRect,
-    hitEntities: Set<unknown>
+    hitEntities: Set<unknown>,
+    attackerX: number
   ): CannonHitResult[] {
     const results: CannonHitResult[] = [];
 
@@ -397,6 +439,9 @@ export class CannonSystem {
       }
 
       hitEntities.add(cannon);
+      const knockbackDirection: CannonDirection =
+        cannon.x + CANNON_WIDTH / 2 >= attackerX ? 1 : -1;
+      cannon.applyKnockback(knockbackDirection);
       cannon.health = Math.max(0, cannon.health - 1);
       cannon.destroyed = cannon.health === 0;
       if (cannon.destroyed) {
@@ -538,6 +583,16 @@ export class CannonSystem {
   }
 
   private updateCannon(cannon: Cannon): void {
+    const knockbackDisplacement = cannon.advanceKnockback();
+    if (knockbackDisplacement !== 0) {
+      const nextX = cannon.x + knockbackDisplacement;
+      if (this.intersectsTerrain({ ...cannon.bounds, x: nextX })) {
+        cannon.stopKnockback();
+      } else {
+        cannon.x = nextX;
+      }
+    }
+
     if (cannon.destroyed) {
       cannon.destructionTicksRemaining = Math.max(
         0,

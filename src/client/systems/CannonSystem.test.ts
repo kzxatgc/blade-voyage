@@ -594,15 +594,25 @@ void describe('CannonSystem', () => {
 
     assert.deepEqual(
       system
-        .damageFromAttack(bounds, firstSwing)
+        .damageFromAttack(bounds, firstSwing, cannon.x - 20)
         .map((result) => result.health),
       [2]
     );
-    assert.deepEqual(system.damageFromAttack(bounds, firstSwing), []);
+    assert.deepEqual(
+      system.damageFromAttack(bounds, firstSwing, cannon.x - 20),
+      []
+    );
     assert.equal(cannon.health, 2);
 
-    assert.equal(system.damageFromAttack(bounds, new Set())[0]?.health, 1);
-    const finalHit = system.damageFromAttack(bounds, new Set())[0];
+    assert.equal(
+      system.damageFromAttack(bounds, new Set(), cannon.x - 20)[0]?.health,
+      1
+    );
+    const finalHit = system.damageFromAttack(
+      bounds,
+      new Set(),
+      cannon.x - 20
+    )[0];
     assert.equal(finalHit?.health, 0);
     assert.equal(finalHit?.destroyed, true);
     assert.equal(cannon.animation, 'destroyed');
@@ -611,6 +621,36 @@ void describe('CannonSystem', () => {
       system.update();
     }
     assert.equal(system.cannonBalls.length, 0);
+  });
+
+  void it('knocks the cannon away from the attacking side for 30 ticks', () => {
+    for (const [attackerX, direction] of [
+      [40, 1],
+      [120, -1],
+    ] as const) {
+      const system = new CannonSystem(
+        makeTilemap({ '2;3': cannonTile(2, 3) }),
+        () => undefined
+      );
+      const cannon = system.cannons[0];
+      assert.ok(cannon);
+      const startX = cannon.x;
+
+      system.damageFromAttack(cannon.bounds, new Set(), attackerX);
+      assert.ok(
+        Math.abs(cannon.knockbackVelocityX - direction * 1.15) < 0.000001
+      );
+      assert.equal(cannon.knockbackTicksRemaining, 30);
+
+      for (let tick = 0; tick < 30; tick += 1) {
+        system.update();
+      }
+
+      assert.ok((cannon.x - startX) * direction > 9.7);
+      assert.ok((cannon.x - startX) * direction < 9.8);
+      assert.equal(cannon.knockbackTicksRemaining, 0);
+      assert.equal(cannon.knockbackVelocityX, 0);
+    }
   });
 
   void it('jumps and holds the supplied white silhouette frame on impact', () => {
@@ -632,7 +672,7 @@ void describe('CannonSystem', () => {
     assert.ok(cannon);
 
     system.render(scene);
-    system.damageFromAttack(cannon.bounds, new Set());
+    system.damageFromAttack(cannon.bounds, new Set(), cannon.x - 20);
     system.render(scene);
 
     const cannonImage = images[0];
