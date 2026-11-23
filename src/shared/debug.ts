@@ -19,7 +19,7 @@ export interface DebugConfig {
   showEntityBodyRects: boolean;
   /** Show player melee attack range rect (orange) */
   showPlayerAttackRange: boolean;
-  /** Show sword spawn boundary box (lime green) around player */
+  /** Show sword spawn range (lime green) and blocked drop areas (red) */
   showSwordSpawnRange: boolean;
   /** Show potion spawn boundary box (cyan) around player */
   showPotionSpawnRange: boolean;
@@ -38,10 +38,10 @@ export const DEBUG_CONFIG: DebugConfig = {
   startDirectlyAtMap0: true,
   showTouchControlsOnDesktop: false,
   showEntityBodyRects: false,
-  boostPotionSpawnRates: true,
   showPlayerAttackRange: false,
-  showSwordSpawnRange: false,
+  showSwordSpawnRange: true,
   showPotionSpawnRange: true,
+  boostPotionSpawnRates: true,
   showEnemyDetectionRange: false,
   showEnemyAttackRange: false,
   showCameraBounds: false,

@@ -46,6 +46,7 @@ import { Tilemap } from '../systems/Tilemap';
 import { Enemy, spawnEntities } from '../systems/Spawner';
 import { Animation } from '../utils/Animation';
 import { DEBUG_CONFIG } from '../../shared/debug';
+import type { EntityRect } from '../../shared/types';
 import { SoundSystem } from '../systems/Audio';
 import { TouchControls } from '../systems/TouchControls';
 import {
@@ -989,19 +990,7 @@ export class Game extends Phaser.Scene {
         this.playerEntity.pos,
         this.enemies,
         this.selectedLevelNumber !== ENDING_LEVEL.number,
-        () => {
-          const cannonSystem = this.cannonSystem;
-          if (!cannonSystem) {
-            return [];
-          }
-
-          return [
-            ...cannonSystem.cannons
-              .filter((cannon) => !cannon.destroyed)
-              .map((cannon) => cannon.bounds),
-            ...cannonSystem.cannonWreckParts.map((part) => part.bounds),
-          ];
-        }
+        () => this.getSwordSpawnObstacleRects()
       ) ?? [];
     for (const enemy of this.enemies) {
       enemy.update(this.tilemap, [0, 0], this.playerEntity);
@@ -1533,6 +1522,34 @@ export class Game extends Phaser.Scene {
           const spawnBoxW = hRangeLeft + hRangeRight + 32;
           const spawnBoxH = vTop + vBottom + 32;
           this.sparksGraphics.strokeRect(spawnBoxX, spawnBoxY, spawnBoxW, spawnBoxH);
+
+          const swords = this.swords;
+          const tilemap = this.tilemap;
+          const blockedSpawnAreas =
+            swords && tilemap
+              ? swords.getBlockedSpawnAreas(
+                  tilemap,
+                  this.playerEntity.pos,
+                  this.enemies,
+                  () => this.getSwordSpawnObstacleRects()
+                )
+              : [];
+          this.sparksGraphics.fillStyle(0xff3355, 0.22);
+          this.sparksGraphics.lineStyle(2, 0xff3355, 0.95);
+          for (const area of blockedSpawnAreas) {
+            this.sparksGraphics.fillRect(
+              area.x,
+              area.y,
+              area.width,
+              area.height
+            );
+            this.sparksGraphics.strokeRect(
+              area.x,
+              area.y,
+              area.width,
+              area.height
+            );
+          }
         }
 
         if (DEBUG_CONFIG.showPotionSpawnRange) {
@@ -1634,6 +1651,20 @@ export class Game extends Phaser.Scene {
         sparks.render(this.sparksGraphics);
       }
     }
+  }
+
+  private getSwordSpawnObstacleRects(): EntityRect[] {
+    const cannonSystem = this.cannonSystem;
+    if (!cannonSystem) {
+      return [];
+    }
+
+    return [
+      ...cannonSystem.cannons
+        .filter((cannon) => !cannon.destroyed)
+        .map((cannon) => cannon.bounds),
+      ...cannonSystem.cannonWreckParts.map((part) => part.bounds),
+    ];
   }
 
   private triggerAttackOrPickup() {

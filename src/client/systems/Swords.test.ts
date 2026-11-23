@@ -340,6 +340,14 @@ void describe('Swords manager', () => {
     const manager = new Swords([0, 0], () => 0.005);
 
     const enemies = [enemy, livingEnemy];
+    const blockedAreas = manager.getBlockedSpawnAreas(
+      tm,
+      undefined,
+      enemies,
+      () => cannonParts
+    );
+    assert.equal(blockedAreas.length, 4);
+
     const spawned = manager.spawnSword(tm, undefined, enemies, () => cannonParts);
 
     assert.ok(spawned !== null);
@@ -353,6 +361,31 @@ void describe('Swords manager', () => {
     );
     assert.equal(noAvailablePosition, null);
     assert.equal(manager.swords.length, 1);
+  });
+
+  void it('allows a sword drop when an obstacle is only between its start and landing positions', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '2;5': { type: 'grass', variant: 0, loc: [2, 5] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const obstacleBetweenPositions = {
+      x: 64,
+      y: 122,
+      width: 32,
+      height: 18,
+    };
+    const manager = new Swords([0, 0], () => 0.005);
+    const getObstacles = () => [obstacleBetweenPositions];
+
+    assert.equal(
+      manager.getBlockedSpawnAreas(tm, undefined, [], getObstacles).length,
+      0
+    );
+    assert.ok(manager.spawnSword(tm, undefined, [], getObstacles));
   });
 
   void it('does not spawn if probability check fails or max cap of 5 is reached', () => {

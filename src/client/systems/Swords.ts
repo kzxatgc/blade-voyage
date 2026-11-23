@@ -25,6 +25,18 @@ const intersectsRect = (first: EntityRect, second: EntityRect): boolean =>
   first.y < second.y + second.height &&
   first.y + first.height > second.y;
 
+const getPossibleSpawnBounds = (
+  pos: readonly [number, number],
+  tileSize: number
+): EntityRect[] => {
+  const x = pos[0] + tileSize * 0.1;
+  const width = tileSize * 0.2 + 20;
+  return [
+    { x, y: pos[1] - 60, width, height: 20 },
+    { x, y: pos[1] - 20, width, height: 20 },
+  ];
+};
+
 export type SwordHitResult =
   | {
       type: 'hit';
@@ -385,14 +397,27 @@ export class Swords {
     return this.validSpawnPos;
   }
 
+  getBlockedSpawnAreas(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number],
+    enemies: readonly SwordEnemyTarget[] = [],
+    additionalObstacles?: SwordSpawnObstacleProvider
+  ): readonly EntityRect[] {
+    return this.getSpawnPositionData(
+      tilemap,
+      playerPos,
+      enemies,
+      additionalObstacles
+    ).blockedAreas;
+  }
+
   spawnSword(
     tilemap: Tilemap,
     playerPos?: readonly [number, number],
     enemies: readonly SwordEnemyTarget[] = [],
     additionalObstacles?: SwordSpawnObstacleProvider
   ): Sword | null {
-    const validPositions = this.getValidSpawnPositions(tilemap);
-    if (validPositions.length === 0) {
+    if (this.getValidSpawnPositions(tilemap).length === 0) {
       return null;
     }
 
@@ -400,60 +425,18 @@ export class Swords {
       return null;
     }
 
-    const tileSize = tilemap.tileSize;
-    let filteredPositions = validPositions;
-
-    if (playerPos) {
-      const playerX = playerPos[0];
-      const playerY = playerPos[1];
-      const playerCx = playerX + 32;
-      const maxHDistLeft = this.horizontalTileRangeLeft * tileSize;
-      const maxHDistRight = this.horizontalTileRangeRight * tileSize;
-      const maxVTop = this.verticalTileRangeTop * tileSize;
-      const maxVBottom = this.verticalTileRangeBottom * tileSize;
-
-      filteredPositions = validPositions.filter((pos) => {
-        const hDist = pos[0] - playerCx;
-        const hValid = hDist >= -maxHDistLeft && hDist <= maxHDistRight;
-        const vValid =
-          playerY - maxVTop <= pos[1] && pos[1] <= playerY + maxVBottom;
-        return hValid && vValid;
-      });
-    }
-
-    const occupiedRects = [
-      ...enemies.map((enemy) => enemy.rect()),
-      ...(additionalObstacles?.() ?? []),
-    ];
-    const possibleDropBounds = (
-      pos: readonly [number, number]
-    ): EntityRect => ({
-      x: pos[0] + tileSize * 0.1,
-      y: pos[1] - 60,
-      width: tileSize * 0.2 + 20,
-      height: 60,
-    });
-    const availablePos = filteredPositions.filter((pos) => {
-      if (
-        occupiedRects.some((obstacle) =>
-          intersectsRect(possibleDropBounds(pos), obstacle)
-        )
-      ) {
-        return false;
-      }
-
-      return !this.swords.some(
-        (s) =>
-          Math.abs(s.pos[0] - pos[0]) < tileSize &&
-          s.pos[1] - pos[1] > -80 &&
-          s.pos[1] - pos[1] < tileSize
-      );
-    });
+    const { availablePos } = this.getSpawnPositionData(
+      tilemap,
+      playerPos,
+      enemies,
+      additionalObstacles
+    );
 
     if (availablePos.length === 0) {
       return null;
     }
 
+    const tileSize = tilemap.tileSize;
     const selectedIndex = Math.floor(this.random() * availablePos.length);
     const posSelected = availablePos[selectedIndex];
     if (!posSelected) {
@@ -503,6 +486,56 @@ export class Swords {
     );
 
     return sword;
+  }
+
+  private getSpawnPositionData(
+    tilemap: Tilemap,
+    playerPos?: readonly [number, number],
+    enemies: readonly SwordEnemyTarget[] = [],
+    additionalObstacles?: SwordSpawnObstacleProvider
+  ): { availablePos: readonly (readonly [number, number])[]; blockedAreas: EntityRect[] } {
+    const tileSize = tilemap.tileSize;
+    const validPositions = this.getValidSpawnPositions(tilemap);
+    let filteredPositions = validPositions;
+
+    if (playerPos) {
+      const playerX = playerPos[0];
+      const playerY = playerPos[1];
+      const playerCx = playerX + 32;
+      const maxHDistLeft = this.horizontalTileRangeLeft * tileSize;
+      const maxHDistRight = this.horizontalTileRangeRight * tileSize;
+      const maxVTop = this.verticalTileRangeTop * tileSize;
+      const maxVBottom = this.verticalTileRangeBottom * tileSize;
+
+      filteredPositions = validPositions.filter((pos) => {
+        const hDist = pos[0] - playerCx;
+        const hValid = hDist >= -maxHDistLeft && hDist <= maxHDistRight;
+        const vValid =
+          playerY - maxVTop <= pos[1] && pos[1] <= playerY + maxVBottom;
+        return hValid && vValid;
+      });
+    }
+
+    const occupiedRects = [
+      ...enemies.map((enemy) => enemy.rect()),
+      ...(additionalObstacles?.() ?? []),
+      ...this.swords.map((sword) => sword.rect()),
+    ];
+    const blockedAreas: EntityRect[] = [];
+    const availablePos = filteredPositions.filter((pos) => {
+      const spawnBounds = getPossibleSpawnBounds(pos, tileSize);
+      const blockedBounds = spawnBounds.filter((bounds) =>
+        occupiedRects.some((obstacle) => intersectsRect(bounds, obstacle))
+      );
+      if (blockedBounds.length > 0) {
+        blockedAreas.push(...blockedBounds);
+        return false;
+      }
+
+      return true;
+    });
+
+    return { availablePos, blockedAreas };
   }
 
   throwSword(pos: EntityPosition, flip: boolean): SpinningSword {
