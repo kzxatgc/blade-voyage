@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Sword, SpinningSword, Swords } from './Swords.ts';
+import type { SwordEnemyTarget } from './Swords.ts';
 import { Tilemap } from './Tilemap.ts';
 import type { Sparks } from './Sparks.ts';
 import { RENDER_DEPTH } from '../../shared/constants.ts';
@@ -304,6 +305,54 @@ void describe('Swords manager', () => {
     // 64 + 32 * 0.101 = 67.232, 100
     assert.equal(spawned.pos[1], 100);
     assert.ok(Math.abs(spawned.pos[0] - 67.232) < 0.001);
+  });
+
+  void it('skips positions occupied by living or defeated enemies and multi-tile cannon parts', () => {
+    const tm = new Tilemap(32);
+    tm.loadFromData({
+      tiles: {
+        '2;5': { type: 'grass', variant: 0, loc: [2, 5] },
+        '4;5': { type: 'grass', variant: 0, loc: [4, 5] },
+        '5;5': { type: 'grass', variant: 0, loc: [5, 5] },
+        '6;5': { type: 'grass', variant: 0, loc: [6, 5] },
+        '8;5': { type: 'grass', variant: 0, loc: [8, 5] },
+      },
+      off_grid_tiles: [],
+    });
+
+    const enemy: SwordEnemyTarget = {
+      enemyType: 'crabby',
+      dead: true,
+      attackTimer: 0,
+      pos: [64, 140],
+      rect: () => ({ x: 64, y: 140, width: 32, height: 20 }),
+      takeDamage: () => false,
+    };
+    const livingEnemy: SwordEnemyTarget = {
+      ...enemy,
+      dead: false,
+      pos: [256, 110],
+      rect: () => ({ x: 256, y: 110, width: 32, height: 20 }),
+    };
+    const cannonParts = [
+      { x: 128, y: 140, width: 64, height: 20 },
+    ];
+    const manager = new Swords([0, 0], () => 0.005);
+
+    const enemies = [enemy, livingEnemy];
+    const spawned = manager.spawnSword(tm, undefined, enemies, () => cannonParts);
+
+    assert.ok(spawned !== null);
+    assert.ok(spawned.pos[0] >= 192 && spawned.pos[0] < 224);
+
+    const noAvailablePosition = manager.spawnSword(
+      tm,
+      undefined,
+      enemies,
+      () => [...cannonParts, { x: 192, y: 140, width: 32, height: 20 }]
+    );
+    assert.equal(noAvailablePosition, null);
+    assert.equal(manager.swords.length, 1);
   });
 
   void it('does not spawn if probability check fails or max cap of 5 is reached', () => {

@@ -988,7 +988,20 @@ export class Game extends Phaser.Scene {
         [0, 0],
         this.playerEntity.pos,
         this.enemies,
-        this.selectedLevelNumber !== ENDING_LEVEL.number
+        this.selectedLevelNumber !== ENDING_LEVEL.number,
+        () => {
+          const cannonSystem = this.cannonSystem;
+          if (!cannonSystem) {
+            return [];
+          }
+
+          return [
+            ...cannonSystem.cannons
+              .filter((cannon) => !cannon.destroyed)
+              .map((cannon) => cannon.bounds),
+            ...cannonSystem.cannonWreckParts.map((part) => part.bounds),
+          ];
+        }
       ) ?? [];
     for (const enemy of this.enemies) {
       enemy.update(this.tilemap, [0, 0], this.playerEntity);

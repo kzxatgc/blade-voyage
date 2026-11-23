@@ -17,6 +17,14 @@ export interface SwordEnemyTarget {
   takeDamage(amount: number): boolean;
 }
 
+export type SwordSpawnObstacleProvider = () => readonly EntityRect[];
+
+const intersectsRect = (first: EntityRect, second: EntityRect): boolean =>
+  first.x < second.x + second.width &&
+  first.x + first.width > second.x &&
+  first.y < second.y + second.height &&
+  first.y + first.height > second.y;
+
 export type SwordHitResult =
   | {
       type: 'hit';
@@ -379,7 +387,9 @@ export class Swords {
 
   spawnSword(
     tilemap: Tilemap,
-    playerPos?: readonly [number, number]
+    playerPos?: readonly [number, number],
+    enemies: readonly SwordEnemyTarget[] = [],
+    additionalObstacles?: SwordSpawnObstacleProvider
   ): Sword | null {
     const validPositions = this.getValidSpawnPositions(tilemap);
     if (validPositions.length === 0) {
@@ -411,15 +421,34 @@ export class Swords {
       });
     }
 
-    const availablePos = filteredPositions.filter(
-      (pos) =>
-        !this.swords.some(
-          (s) =>
-            Math.abs(s.pos[0] - pos[0]) < tileSize &&
-            s.pos[1] - pos[1] > -80 &&
-            s.pos[1] - pos[1] < tileSize
+    const occupiedRects = [
+      ...enemies.map((enemy) => enemy.rect()),
+      ...(additionalObstacles?.() ?? []),
+    ];
+    const possibleDropBounds = (
+      pos: readonly [number, number]
+    ): EntityRect => ({
+      x: pos[0] + tileSize * 0.1,
+      y: pos[1] - 60,
+      width: tileSize * 0.2 + 20,
+      height: 60,
+    });
+    const availablePos = filteredPositions.filter((pos) => {
+      if (
+        occupiedRects.some((obstacle) =>
+          intersectsRect(possibleDropBounds(pos), obstacle)
         )
-    );
+      ) {
+        return false;
+      }
+
+      return !this.swords.some(
+        (s) =>
+          Math.abs(s.pos[0] - pos[0]) < tileSize &&
+          s.pos[1] - pos[1] > -80 &&
+          s.pos[1] - pos[1] < tileSize
+      );
+    });
 
     if (availablePos.length === 0) {
       return null;
@@ -495,10 +524,11 @@ export class Swords {
     movement: EntityPosition = [0, 0],
     playerPos?: readonly [number, number],
     enemies?: readonly SwordEnemyTarget[],
-    allowRandomSpawn = true
+    allowRandomSpawn = true,
+    additionalSpawnObstacles?: SwordSpawnObstacleProvider
   ): SwordHitResult[] {
     if (allowRandomSpawn) {
-      this.spawnSword(tilemap, playerPos);
+      this.spawnSword(tilemap, playerPos, enemies, additionalSpawnObstacles);
     }
 
     this.swords = this.swords.filter((sword) => {
