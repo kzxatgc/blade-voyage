@@ -452,8 +452,8 @@ void describe('Enemy entity', () => {
     assert.equal(crabbyFar.anticipationState, false);
   });
 
-  void it('uses 1 tile for Pink Star rear awareness', () => {
-    assert.equal(ENEMY_BEHIND_TOUCH_DIST.pink_star, 32);
+  void it('uses 40px for Pink Star rear awareness', () => {
+    assert.equal(ENEMY_BEHIND_TOUCH_DIST.pink_star, 40);
 
     const tm = new Tilemap(32);
     tm.loadFromData({ tiles: {}, off_grid_tiles: [] });
@@ -462,7 +462,7 @@ void describe('Enemy entity', () => {
     withinRange.flip = false;
     const detectedWithinRange = withinRange.checkPlayerDetection(
       tm,
-      [160 - 32, 195]
+      [160 - 40, 195]
     );
     assert.equal(detectedWithinRange, true);
     assert.equal(withinRange.flip, true);
@@ -472,7 +472,7 @@ void describe('Enemy entity', () => {
     outsideRange.flip = false;
     const detectedOutsideRange = outsideRange.checkPlayerDetection(
       tm,
-      [160 - 33, 195]
+      [160 - 41, 195]
     );
     assert.equal(detectedOutsideRange, false);
     assert.equal(outsideRange.flip, false);
