@@ -21,6 +21,7 @@ import {
   FRENZY_SWORD_EFFECT_FRAME_SIZE,
   FRENZY_SWORD_EFFECT_SPRITE_KEY,
 } from '../systems/FrenzySwordEffect';
+import { getLoadingRunnerCenterX } from '../systems/LoadingHud';
 import { DEBUG_CONFIG } from '../../shared/debug';
 
 export const PRELOADER_KEY = 'Preloader';
@@ -420,12 +421,13 @@ export class Preloader extends Scene {
       (canvasUnitScale.x / canvasUnitScale.y);
     this.loadingRunner.setDisplaySize(runnerWidth, runnerHeight);
 
-    const minX = this.loadingBar.x + runnerWidth / 2;
-    const maxX =
-      this.loadingBar.x +
-      LOADING_BAR_MAX_WIDTH * LOADING_RUNNER_END_CAP_RATIO;
-    const fillEdgeX = this.loadingBar.x + this.loadingBar.width;
-    const x = Math.max(minX, Math.min(fillEdgeX, maxX));
+    const x = getLoadingRunnerCenterX(
+      this.loadingBar.x,
+      this.loadingBar.width,
+      runnerWidth,
+      LOADING_BAR_MAX_WIDTH,
+      LOADING_RUNNER_END_CAP_RATIO
+    );
     const barTopY = this.loadingBar.y - this.loadingBar.height / 2;
     this.loadingRunner.setPosition(x, barTopY);
   }
