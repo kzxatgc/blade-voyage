@@ -55,6 +55,10 @@ import {
   HEALTH_SPRITE_KEY,
 } from '../systems/HealthHud';
 import {
+  getBuffIndicatorOrder,
+  type BuffIndicatorId,
+} from '../systems/BuffHud';
+import {
   FRENZY_HUD_ICON_GAP_CSS,
   FRENZY_HUD_ICON_SIZE_CSS,
   FRENZY_HUD_SPRITE_KEY,
@@ -121,6 +125,7 @@ const WATER_REFLECTION_MAX_WIDTH_RATIO = 0.4;
 const PLAYER_MOVE_SPEED = 2.0;
 const PLAYER_HIT_SHAKE_DURATION_MS = 100;
 const PLAYER_HIT_SHAKE_INTENSITY = 0.003;
+const BUFF_INDICATOR_SHIFT_DURATION_MS = 180;
 const ATTACK_COOLDOWN_INDICATOR_SQUARES = 4;
 const ATTACK_COOLDOWN_INDICATOR_SIZE = 2;
 const ATTACK_COOLDOWN_INDICATOR_GAP = 1;
@@ -145,6 +150,7 @@ export class Game extends Phaser.Scene {
   private frenzyIndicatorFrame = -1;
   private shieldIndicator: Phaser.GameObjects.Image | undefined;
   private shieldIndicatorFrame = -1;
+  private buffIndicatorOrder: BuffIndicatorId[] = [];
   private shieldEffectSprite: Phaser.GameObjects.Image | undefined;
   private shieldBreakElapsedTicks = -1;
   private shieldBreakPosition: [number, number] | undefined;
@@ -202,7 +208,9 @@ export class Game extends Phaser.Scene {
     super('Game');
   }
 
-  private layoutHealthIndicator(): void {
+  private layoutHealthIndicator(
+    previousBuffOrder?: readonly BuffIndicatorId[]
+  ): void {
     if (!this.healthIndicator || !this.healthIndicatorRoot) {
       return;
     }
@@ -234,37 +242,66 @@ export class Game extends Phaser.Scene {
         -height / 2 + margin + iconSize / 2
       )
       .setDisplaySize(iconSize, iconSize);
-    this.frenzyIndicator
-      ?.setPosition(
-        -width / 2 +
-          margin +
-          iconSize +
-          frenzyIconGap +
-          frenzyIconSize / 2,
-        getFrenzyHudTopAlignedCenterY(
-          -height / 2 + margin,
-          iconSize,
-          frenzyIconSize
-        )
-      )
-      .setDisplaySize(frenzyIconSize, frenzyIconSize);
-    this.shieldIndicator
-      ?.setPosition(
-        -width / 2 +
-          margin +
-          iconSize +
-          frenzyIconGap +
-          frenzyIconSize +
-          shieldIconGap +
-          shieldIconSize / 2,
-        getShieldHudTopAlignedCenterY(
-          -height / 2 + margin,
-          iconSize,
-          shieldIconSize
-        )
-      )
-      .setDisplaySize(shieldIconSize, shieldIconSize);
+    let previousIconRight = -width / 2 + margin + iconSize;
+    for (const buff of this.buffIndicatorOrder) {
+      const indicator =
+        buff === 'frenzy' ? this.frenzyIndicator : this.shieldIndicator;
+      if (!indicator) {
+        continue;
+      }
+
+      const buffSize = buff === 'frenzy' ? frenzyIconSize : shieldIconSize;
+      const buffGap = buff === 'frenzy' ? frenzyIconGap : shieldIconGap;
+      const buffY =
+        buff === 'frenzy'
+          ? getFrenzyHudTopAlignedCenterY(
+              -height / 2 + margin,
+              iconSize,
+              frenzyIconSize
+            )
+          : getShieldHudTopAlignedCenterY(
+              -height / 2 + margin,
+              iconSize,
+              shieldIconSize
+            );
+      const buffX = previousIconRight + buffGap + buffSize / 2;
+      const shouldAnimate =
+        previousBuffOrder?.includes(buff) === true &&
+        indicator.visible &&
+        Math.abs(indicator.x - buffX) > 0.5;
+
+      indicator.setDisplaySize(buffSize, buffSize);
+      this.tweens.killTweensOf(indicator);
+      if (shouldAnimate) {
+        this.tweens.add({
+          targets: indicator,
+          x: buffX,
+          y: buffY,
+          duration: BUFF_INDICATOR_SHIFT_DURATION_MS,
+          ease: 'Sine.Out',
+        });
+      } else {
+        indicator.setPosition(buffX, buffY);
+      }
+      previousIconRight = buffX + buffSize / 2;
+    }
     this.healthIndicatorZoom = zoom;
+  }
+
+  private updateBuffIndicatorOrder(
+    activeBuffs: readonly BuffIndicatorId[]
+  ): void {
+    const previousOrder = this.buffIndicatorOrder;
+    const nextOrder = getBuffIndicatorOrder(previousOrder, activeBuffs);
+    if (
+      nextOrder.length === previousOrder.length &&
+      nextOrder.every((buff, index) => buff === previousOrder[index])
+    ) {
+      return;
+    }
+
+    this.buffIndicatorOrder = nextOrder;
+    this.layoutHealthIndicator(previousOrder);
   }
 
   private renderShieldEffect(
@@ -432,6 +469,7 @@ export class Game extends Phaser.Scene {
     this.frenzyIndicatorFrame = -1;
     this.shieldIndicator = undefined;
     this.shieldIndicatorFrame = -1;
+    this.buffIndicatorOrder = [];
     this.shieldEffectSprite = undefined;
     this.shieldBreakElapsedTicks = -1;
     this.shieldBreakPosition = undefined;
@@ -1239,6 +1277,14 @@ export class Game extends Phaser.Scene {
       this.playerEntity.dead
     );
     this.shieldIndicator?.setVisible(showShieldIndicator);
+    const activeBuffs: BuffIndicatorId[] = [];
+    if (showFrenzyIndicator) {
+      activeBuffs.push('frenzy');
+    }
+    if (showShieldIndicator) {
+      activeBuffs.push('shield');
+    }
+    this.updateBuffIndicatorOrder(activeBuffs);
     if (showShieldIndicator) {
       const shieldElapsedTicks =
         SHIELD_DURATION_TICKS - this.playerEntity.shieldTicksRemaining;
