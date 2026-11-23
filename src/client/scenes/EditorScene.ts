@@ -21,6 +21,7 @@ export class EditorScene extends Phaser.Scene {
       ],
     },
     { name: 'spawner', types: ['spawner'] },
+    { name: 'cannon', types: ['cannon'] },
   ] as const;
   private readonly spawnerIconBounds = [
     { x: 20, y: 4, width: 24, height: 28 },
@@ -391,11 +392,18 @@ export class EditorScene extends Phaser.Scene {
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);
     const previewFrame = this.textures.getFrame(this.getSelectedTextureKey());
+    const gridOnly = this.selectedTileType === 'cannon';
+    const snapToGrid = this.onGrid || gridOnly;
+    const groundOffset = gridOnly
+      ? Math.max(0, TILE_SIZE - previewFrame.height)
+      : 0;
 
     this.tilePreview
       ?.setPosition(
-        this.onGrid ? tileX * TILE_SIZE : worldX - previewFrame.width,
-        this.onGrid ? tileY * TILE_SIZE : worldY - previewFrame.height
+        snapToGrid ? tileX * TILE_SIZE : worldX - previewFrame.width,
+        snapToGrid
+          ? tileY * TILE_SIZE + groundOffset
+          : worldY - previewFrame.height
       )
       .setAlpha(this.getSelectedDepth() === 'back' ? 0.3 : 0.55);
     this.tileIcon?.setAlpha(this.getSelectedDepth() === 'back' ? 0.35 : 1);
@@ -441,15 +449,22 @@ export class EditorScene extends Phaser.Scene {
     this.renderOffGridTiles('back', 0.35);
 
     for (const tile of Object.values(this.tilemap.tiles)) {
-      tileObjects.add(
-        this.add
-          .image(
-            tile.loc[0] * TILE_SIZE,
-            tile.loc[1] * TILE_SIZE,
-            `${tile.type}/${tile.variant}`
-          )
-          .setOrigin(0, 0)
-      );
+      const textureKey = `${tile.type}/${tile.variant}`;
+      const groundOffset =
+        tile.type === 'cannon'
+          ? Math.max(0, TILE_SIZE - this.textures.getFrame(textureKey).height)
+          : 0;
+      const image = this.add
+        .image(
+          tile.loc[0] * TILE_SIZE,
+          tile.loc[1] * TILE_SIZE + groundOffset,
+          textureKey
+        )
+        .setOrigin(0, 0);
+      if (tile.type === 'cannon') {
+        image.setFlipX(tile.variant === 1);
+      }
+      tileObjects.add(image);
     }
 
     this.renderOffGridTiles('front', 1);
@@ -533,7 +548,8 @@ export class EditorScene extends Phaser.Scene {
     const tileY = Math.floor(worldY / TILE_SIZE);
     const location: TileLocation = [tileX, tileY];
 
-    if (this.onGrid && this.selectedTileStatus === 'static') {
+    const gridOnly = this.selectedTileType === 'cannon';
+    if ((this.onGrid || gridOnly) && this.selectedTileStatus === 'static') {
       const key = `${tileX};${tileY}`;
       const existing = this.tilemap.tiles[key];
       if (
@@ -665,7 +681,12 @@ export class EditorScene extends Phaser.Scene {
           category.types.length;
         this.tileVariant = 0;
       } else {
-        const variantCount = category.name === 'grass' ? 16 : 4;
+        const variantCount =
+          category.name === 'cannon'
+            ? 2
+            : category.name === 'grass'
+              ? 16
+              : 4;
         this.tileVariant =
           (this.tileVariant + direction + variantCount) % variantCount;
       }
@@ -694,7 +715,9 @@ export class EditorScene extends Phaser.Scene {
     this.selectedTileStatus =
       category.name === 'palm_tree' ? 'animated' : 'static';
     const textureKey = this.getSelectedTextureKey();
-    this.tilePreview?.setTexture(textureKey);
+    this.tilePreview
+      ?.setTexture(textureKey)
+      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 1);
     this.updateTileIcon();
     this.updateStatusText();
   }
@@ -725,7 +748,8 @@ export class EditorScene extends Phaser.Scene {
     tileIcon
       .setTexture(iconTextureKey)
       .setDisplaySize(width, height)
-      .setPosition(8 + (areaWidth - width) / 2, 6 + (areaHeight - height) / 2);
+      .setPosition(8 + (areaWidth - width) / 2, 6 + (areaHeight - height) / 2)
+      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 1);
   }
 
   private updateZoom() {
@@ -944,9 +968,15 @@ export class EditorScene extends Phaser.Scene {
     const selection =
       category.name === 'palm_tree'
         ? `Palm ${this.selectedTileType.slice('palm_tree/'.length).replace(/\//g, ' ')}`
-        : `${category.name === 'grass' ? 'Grass' : 'Spawner'} ${this.tileVariant}`;
+        : category.name === 'cannon'
+          ? `Cannon ${this.tileVariant === 0 ? 'right' : 'left'}`
+          : `${category.name === 'grass' ? 'Grass' : 'Spawner'} ${this.tileVariant}`;
+    const gridStatus =
+      category.name === 'cannon'
+        ? 'grid-only'
+        : `G: grid ${this.onGrid ? 'on' : 'off'}`;
     this.statusText?.setText(
-      `${selection}\nG: grid ${this.onGrid ? 'on' : 'off'} | B: ${this.getSelectedDepth()}`
+      `${selection}\n${gridStatus} | B: ${this.getSelectedDepth()}`
     );
   }
 }
