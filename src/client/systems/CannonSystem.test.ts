@@ -3,8 +3,17 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { MapData, TileData } from '../../shared/types.ts';
-import { CannonSystem, CANNON_WARNING_TICKS } from './CannonSystem.ts';
+import {
+  CannonSystem,
+  CANNON_ANIMATION_FRAME_TICKS,
+  CANNON_BALL_SPEED,
+  CANNON_LAUNCH_FRAME,
+  CANNON_WARNING_TICKS,
+} from './CannonSystem.ts';
 import { Tilemap } from './Tilemap.ts';
+
+const CANNON_LAUNCH_DELAY_TICKS =
+  CANNON_LAUNCH_FRAME * CANNON_ANIMATION_FRAME_TICKS;
 
 const makeTilemap = (tiles: Record<string, TileData>): Tilemap => {
   const tilemap = new Tilemap();
@@ -118,9 +127,22 @@ void describe('CannonSystem', () => {
     assert.equal(system.cannonBalls.length, 0);
 
     system.update();
+    assert.equal(system.cannonBalls.length, 0);
+    assert.equal(cannon.animation, 'fire');
+    assert.equal(cannon.animationFrame, 0);
+    assert.equal(cannon.muzzleFrame, undefined);
+
+    for (let tick = 0; tick < CANNON_LAUNCH_DELAY_TICKS - 1; tick += 1) {
+      system.update();
+    }
+    assert.equal(cannon.animationFrame, CANNON_LAUNCH_FRAME - 1);
+    assert.equal(cannon.muzzleFrame, undefined);
+    assert.equal(system.cannonBalls.length, 0);
+
+    system.update();
     assert.equal(system.cannonBalls.length, 1);
     assert.equal(system.cannonBalls[0]?.direction, 1);
-    assert.equal(cannon.animation, 'fire');
+    assert.equal(cannon.animationFrame, CANNON_LAUNCH_FRAME);
     assert.equal(cannon.muzzleFrame, 0);
 
     for (let tick = 0; tick < 179; tick += 1) {
@@ -144,7 +166,7 @@ void describe('CannonSystem', () => {
       },
     };
     const system = new CannonSystem(
-      makeTilemap({ '2;3': cannonTile(2, 3, 1) }),
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
       () => undefined
     );
 
@@ -155,12 +177,19 @@ void describe('CannonSystem', () => {
     assert.equal(cannonImage.flipX, true);
     assert.equal(cannonImage.tint, 0xffb347);
 
-    for (let tick = 0; tick < CANNON_WARNING_TICKS; tick += 1) {
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS;
+      tick += 1
+    ) {
       system.update();
     }
     system.render(scene);
 
-    assert.equal(cannonImage.texture.key, 'cannon/fire/0');
+    assert.equal(
+      cannonImage.texture.key,
+      `cannon/fire/${CANNON_LAUNCH_FRAME}`
+    );
     const muzzleImage = images.find((image) =>
       image.texture.key.startsWith('cannon/muzzle/')
     );
@@ -171,6 +200,77 @@ void describe('CannonSystem', () => {
       (image) => image.texture.key === 'cannon/ball/idle/0'
     );
     assert.ok(cannonBallImage);
+  });
+
+  void it('keeps left-facing cannons and muzzle effects unflipped', () => {
+    const images: MockCannonImage[] = [];
+    const scene = {
+      add: {
+        image(x: number, y: number, texture: string) {
+          const image = new MockCannonImage(x, y, texture);
+          images.push(image);
+          return image;
+        },
+      },
+    };
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3, 1) }),
+      () => undefined
+    );
+
+    system.render(scene);
+    const cannonImage = images[0];
+    assert.ok(cannonImage);
+    assert.equal(cannonImage.flipX, false);
+
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS;
+      tick += 1
+    ) {
+      system.update();
+    }
+    system.render(scene);
+
+    const muzzleImage = images.find((image) =>
+      image.texture.key.startsWith('cannon/muzzle/')
+    );
+    assert.ok(muzzleImage);
+    assert.equal(muzzleImage.flipX, false);
+  });
+
+  void it('launches from the muzzle and travels outward in both directions', () => {
+    for (const [variant, direction] of [
+      [0, 1],
+      [1, -1],
+    ] as const) {
+      const system = new CannonSystem(
+        makeTilemap({ '2;3': cannonTile(2, 3, variant) }),
+        () => undefined
+      );
+
+      for (
+        let tick = 0;
+        tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS;
+        tick += 1
+      ) {
+        system.update();
+      }
+
+      const cannon = system.cannons[0];
+      const ball = system.cannonBalls[0];
+      assert.ok(cannon);
+      assert.ok(ball);
+      assert.equal(ball.direction, direction);
+      assert.equal(
+        ball.x + ball.bounds.width / 2,
+        cannon.muzzleCenter[0]
+      );
+
+      const launchX = ball.x;
+      system.update();
+      assert.equal(ball.x, launchX + direction * CANNON_BALL_SPEED);
+    }
   });
 
   void it('explodes on terrain without damaging the player', () => {
@@ -185,7 +285,11 @@ void describe('CannonSystem', () => {
       }
     );
 
-    for (let tick = 0; tick < CANNON_WARNING_TICKS + 10; tick += 1) {
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS + 10;
+      tick += 1
+    ) {
       system.update();
     }
 
@@ -202,7 +306,11 @@ void describe('CannonSystem', () => {
       }
     );
 
-    for (let tick = 0; tick < CANNON_WARNING_TICKS; tick += 1) {
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS;
+      tick += 1
+    ) {
       system.update();
     }
 

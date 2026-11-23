@@ -7,6 +7,7 @@ export const CANNON_FIRE_INTERVAL_TICKS = TICK_RATE * 3;
 export const CANNON_MAX_HEALTH = 3;
 export const CANNON_ANIMATION_FRAME_TICKS = 3;
 export const CANNON_BALL_SPEED = 5;
+export const CANNON_LAUNCH_FRAME = 3;
 
 const CANNON_WIDTH = 40;
 const CANNON_HEIGHT = 26;
@@ -21,6 +22,8 @@ const CANNON_BALL_EXPLOSION_TICKS =
   CANNON_BALL_EXPLOSION_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_FIRE_ANIMATION_TICKS =
   CANNON_FIRE_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
+const CANNON_LAUNCH_DELAY_TICKS =
+  CANNON_LAUNCH_FRAME * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_HIT_ANIMATION_TICKS =
   CANNON_HIT_FRAME_COUNT * CANNON_ANIMATION_FRAME_TICKS;
 const CANNON_DESTROYED_ANIMATION_TICKS =
@@ -286,7 +289,7 @@ export class CannonSystem {
       }
       cannonImage
         .setPosition(cannon.x, cannon.y)
-        .setFlipX(cannon.direction < 0);
+        .setFlipX(cannon.direction > 0);
       if (cannon.warningFlash) {
         cannonImage.setTint(0xffb347);
       } else {
@@ -311,7 +314,7 @@ export class CannonSystem {
       }
       muzzleImage
         .setPosition(cannon.muzzleCenter[0], cannon.muzzleCenter[1])
-        .setFlipX(cannon.direction < 0)
+        .setFlipX(cannon.direction > 0)
         .setVisible(true);
     }
 
@@ -378,11 +381,17 @@ export class CannonSystem {
     cannon.fireTicksRemaining = Math.max(0, cannon.fireTicksRemaining - 1);
     cannon.muzzleTicksRemaining = Math.max(0, cannon.muzzleTicksRemaining - 1);
     cannon.cycleTick = (cannon.cycleTick + 1) % CANNON_FIRE_INTERVAL_TICKS;
-    if (cannon.cycleTick !== CANNON_WARNING_TICKS) {
+    if (cannon.cycleTick === CANNON_WARNING_TICKS) {
+      cannon.fireTicksRemaining = CANNON_FIRE_ANIMATION_TICKS;
+    }
+
+    if (
+      cannon.fireTicksRemaining !==
+      CANNON_FIRE_ANIMATION_TICKS - CANNON_LAUNCH_DELAY_TICKS
+    ) {
       return;
     }
 
-    cannon.fireTicksRemaining = CANNON_FIRE_ANIMATION_TICKS;
     cannon.muzzleTicksRemaining = CANNON_MUZZLE_ANIMATION_TICKS;
     this.cannonBalls.push(new CannonBall(cannon));
   }

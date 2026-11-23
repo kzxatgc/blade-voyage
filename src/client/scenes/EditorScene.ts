@@ -462,7 +462,7 @@ export class EditorScene extends Phaser.Scene {
         )
         .setOrigin(0, 0);
       if (tile.type === 'cannon') {
-        image.setFlipX(tile.variant === 1);
+        image.setFlipX(tile.variant === 0);
       }
       tileObjects.add(image);
     }
@@ -717,7 +717,7 @@ export class EditorScene extends Phaser.Scene {
     const textureKey = this.getSelectedTextureKey();
     this.tilePreview
       ?.setTexture(textureKey)
-      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 1);
+      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 0);
     this.updateTileIcon();
     this.updateStatusText();
   }
@@ -749,7 +749,7 @@ export class EditorScene extends Phaser.Scene {
       .setTexture(iconTextureKey)
       .setDisplaySize(width, height)
       .setPosition(8 + (areaWidth - width) / 2, 6 + (areaHeight - height) / 2)
-      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 1);
+      .setFlipX(this.selectedTileType === 'cannon' && this.tileVariant === 0);
   }
 
   private updateZoom() {
