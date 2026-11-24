@@ -735,6 +735,48 @@ void describe('Enemy entity', () => {
     assert.equal(enemy.attackTimer, 30);
   });
 
+  void it('uses the facing direction for directional enemy attacks', () => {
+    const enemy = new Enemy('fierce_tooth', [100, 100], [24, 20]);
+    const targetRect = { x: 80, y: 108, width: 20, height: 28 };
+
+    enemy.flip = false;
+    assert.equal(enemy.getAttackKnockbackDirection(targetRect), 1);
+    enemy.flip = true;
+    assert.equal(enemy.getAttackKnockbackDirection(targetRect), -1);
+  });
+
+  void it("uses the target side for Crabby's bidirectional attack", () => {
+    const enemy = new Enemy('crabby', [100, 100], [32, 26]);
+    enemy.flip = true;
+    assert.equal(
+      enemy.getAttackKnockbackDirection({
+        x: 140,
+        y: 103,
+        width: 20,
+        height: 28,
+      }),
+      1
+    );
+    assert.equal(
+      enemy.getAttackKnockbackDirection({
+        x: 100,
+        y: 103,
+        width: 20,
+        height: 28,
+      }),
+      -1
+    );
+    assert.equal(
+      enemy.getAttackKnockbackDirection({
+        x: 126,
+        y: 103,
+        width: 20,
+        height: 28,
+      }),
+      -1
+    );
+  });
+
   void it('crabby melee attack detects hits during active frames (>= 12) with range 40', () => {
     const enemy = new Enemy('crabby', [100, 100], [32, 26]);
     enemy.flip = false; // facing right

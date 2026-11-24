@@ -529,7 +529,7 @@ export class CannonSystem {
   damageFromAttack(
     attackRect: EntityRect,
     hitEntities: Set<unknown>,
-    attackerX: number
+    attackDirection: CannonDirection
   ): CannonHitResult[] {
     const results: CannonHitResult[] = [];
 
@@ -543,9 +543,7 @@ export class CannonSystem {
       }
 
       hitEntities.add(cannon);
-      const knockbackDirection: CannonDirection =
-        cannon.x + CANNON_WIDTH / 2 >= attackerX ? 1 : -1;
-      cannon.applyKnockback(knockbackDirection);
+      cannon.applyKnockback(attackDirection);
       cannon.health = Math.max(0, cannon.health - 1);
       cannon.destroyed = cannon.health === 0;
       if (cannon.destroyed) {
@@ -555,7 +553,7 @@ export class CannonSystem {
         cannon.stopKnockback();
         for (const spec of CANNON_WRECK_PART_SPECS) {
           this.cannonWreckParts.push(
-            new CannonWreckPart(cannon, spec, knockbackDirection, this.random)
+            new CannonWreckPart(cannon, spec, attackDirection, this.random)
           );
         }
       } else {

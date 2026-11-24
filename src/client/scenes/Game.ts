@@ -1005,8 +1005,9 @@ export class Game extends Phaser.Scene {
         const attackLanded =
           enemy.attackHitDetected && !enemy.attackHasHitPlayer;
         if (attackLanded) {
-          const knockDirection: CannonDirection =
-            this.playerEntity.pos[0] < enemy.pos[0] ? -1 : 1;
+          const knockDirection = enemy.getAttackKnockbackDirection(
+            this.playerEntity.rect()
+          );
           if (this.handlePlayerDamage(knockDirection)) {
             enemy.attackHasHitPlayer = true;
           }
@@ -1040,8 +1041,7 @@ export class Game extends Phaser.Scene {
             enemy.takeDamage(damage);
             // Cancel any in-progress attack (clears effect particle)
             enemy.clearAttack();
-            // Knockback: push enemy away from player
-            const knockDir = enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+            const knockDir = this.playerEntity.flip ? -1 : 1;
             enemy.applyKnockback(knockDir);
             this.sparksEffect.push(
               ...createHeartSparkParticles(
@@ -1057,7 +1057,7 @@ export class Game extends Phaser.Scene {
           this.cannonSystem?.damageFromAttack(
             playerAtkRect,
             this.playerEntity.attackHandler.hitEntities,
-            this.playerEntity.pos[0]
+            this.playerEntity.flip ? -1 : 1
           ) ?? [];
         for (const { cannon, destroyed } of cannonHits) {
           const impact: [number, number] = [
@@ -1107,7 +1107,11 @@ export class Game extends Phaser.Scene {
     // Thrown sword hit results
     for (const result of swordHits) {
       if (result.type === 'hit') {
-        const knockDir = result.enemy.pos[0] >= this.playerEntity.pos[0] ? 1 : -1;
+        const knockDir =
+          result.sword.velocity[0] < 0 ||
+          (result.sword.velocity[0] === 0 && result.sword.flip)
+            ? -1
+            : 1;
         // Clear attack velocity before applying the hit response.
         if ('clearAttack' in result.enemy) {
           (result.enemy as Enemy).clearAttack();

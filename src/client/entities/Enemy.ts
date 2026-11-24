@@ -9,6 +9,10 @@ import {
   RENDER_DEPTH,
 } from '../../shared/constants.ts';
 import { Sparks } from '../systems/Sparks.ts';
+import {
+  getHorizontalKnockbackDirection,
+  type KnockbackDirection,
+} from '../utils/Knockback.ts';
 
 export type EnemyName = 'pink_star' | 'crabby' | 'fierce_tooth';
 export type EnemyParticleSystem = Pick<Particles, 'addParticle'>;
@@ -442,6 +446,19 @@ export class Enemy extends PhysicsEntity {
       return this.attackRangeRect(this.flip, [31, 0]);
     }
     return null;
+  }
+
+  getAttackKnockbackDirection(targetRect: EntityRect): KnockbackDirection {
+    const facingDirection = this.flip ? -1 : 1;
+    if (this.enemyType !== 'crabby') {
+      return facingDirection;
+    }
+
+    return getHorizontalKnockbackDirection(
+      this.rect(),
+      targetRect,
+      facingDirection
+    );
   }
 
   isPlayerInMeleeRange(
