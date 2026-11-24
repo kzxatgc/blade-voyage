@@ -443,7 +443,7 @@ export class Preloader extends Scene {
 
     const x = getLoadingRunnerCenterX(
       this.loadingBar.x,
-      this.loadingBar.width,
+      this.loadingProgress,
       runnerWidth,
       LOADING_BAR_MAX_WIDTH,
       LOADING_RUNNER_END_CAP_RATIO

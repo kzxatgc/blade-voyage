@@ -1,14 +1,15 @@
 export function getLoadingRunnerCenterX(
   barLeftX: number,
-  barFillWidth: number,
+  progress: number,
   runnerWidth: number,
   barWidth: number,
   endCapRatio: number
 ): number {
   if (
     !Number.isFinite(barLeftX) ||
-    !Number.isFinite(barFillWidth) ||
-    barFillWidth < 0 ||
+    !Number.isFinite(progress) ||
+    progress < 0 ||
+    progress > 1 ||
     !Number.isFinite(runnerWidth) ||
     runnerWidth <= 0 ||
     !Number.isFinite(barWidth) ||
@@ -20,9 +21,7 @@ export function getLoadingRunnerCenterX(
     throw new RangeError('Loading runner layout values are invalid.');
   }
 
-  const runnerHalfWidth = runnerWidth / 2;
-  const minimumCenterX = barLeftX + runnerHalfWidth;
+  const minimumCenterX = barLeftX + runnerWidth / 2;
   const maximumCenterX = barLeftX + barWidth * endCapRatio;
-  const fillEndX = barLeftX + barFillWidth;
-  return Math.max(minimumCenterX, Math.min(fillEndX, maximumCenterX));
+  return minimumCenterX + (maximumCenterX - minimumCenterX) * progress;
 }
