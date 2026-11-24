@@ -39,6 +39,9 @@ const LEVEL_PICKER_SOUND = 'settings-click';
 const LEVEL_CARD_PRESSED_SCALE_FACTOR = 0.74;
 const LEVEL_CARD_PRESS_DURATION_MS = 90;
 const LEVEL_CARD_RELEASE_DURATION_MS = 130;
+const FAST_CLICK_THRESHOLD_MS = 100;
+const FAST_CLICK_BOUNCE_PRESS_DURATION_MS = 50;
+const FAST_CLICK_BOUNCE_RELEASE_DURATION_MS = 100;
 const LEVEL_CARD_HOVER_SCALE_FACTOR = 1.04;
 const LEVEL_CARD_HOVER_DURATION_MS = 100;
 const LEVEL_CARD_POINTER_OUT_DURATION_MS = 120;
@@ -62,6 +65,7 @@ export class LevelSelectScene extends Phaser.Scene {
   private soundIcon?: Phaser.GameObjects.Image;
   private soundEnabled = true;
   private isStartingLevel = false;
+  private isAwaitingFastClickBounce = false;
   private readonly levelCardCenters = new Map<number, IrisFocus>();
   private irisTransition!: IrisTransition;
 
@@ -75,6 +79,7 @@ export class LevelSelectScene extends Phaser.Scene {
     this.input.enabled = true;
     this.pageIndex = 0;
     this.isStartingLevel = false;
+    this.isAwaitingFastClickBounce = false;
     this.irisTransition = new IrisTransition(this);
     this.levelCardCenters.clear();
 
@@ -209,6 +214,8 @@ export class LevelSelectScene extends Phaser.Scene {
     };
     let isHovered = false;
     let pressedPointerId: number | undefined;
+    let pressedAt = 0;
+    let fastClickBounceActive = false;
     const getReleaseScale = () =>
       isHovered ? LEVEL_CARD_HOVER_SCALE_FACTOR : 1;
     const releaseArrow = () => {
@@ -235,11 +242,17 @@ export class LevelSelectScene extends Phaser.Scene {
       });
     });
     background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (!isAvailable() || pressedPointerId !== undefined) {
+      if (
+        !isAvailable() ||
+        pressedPointerId !== undefined ||
+        this.isAwaitingFastClickBounce ||
+        this.isStartingLevel
+      ) {
         return;
       }
 
       pressedPointerId = pointer.id;
+      pressedAt = this.time.now;
       this.tweens.killTweensOf(container);
       const pressedScale = getReleaseScale() * LEVEL_CARD_PRESSED_SCALE_FACTOR;
       this.tweens.add({
@@ -256,6 +269,10 @@ export class LevelSelectScene extends Phaser.Scene {
       }
 
       isHovered = false;
+      if (fastClickBounceActive) {
+        return;
+      }
+
       this.tweens.killTweensOf(container);
       this.tweens.add({
         targets: container,
@@ -277,6 +294,7 @@ export class LevelSelectScene extends Phaser.Scene {
         return;
       }
       pressedPointerId = undefined;
+      const clickDuration = this.time.now - pressedAt;
 
       const nextPage = getNextPage();
       if (nextPage < 0 || nextPage >= LEVEL_PAGE_COUNT) {
@@ -284,8 +302,20 @@ export class LevelSelectScene extends Phaser.Scene {
         return;
       }
 
-      releaseArrow();
       this.playUiClick();
+      if (clickDuration < FAST_CLICK_THRESHOLD_MS) {
+        this.isAwaitingFastClickBounce = true;
+        fastClickBounceActive = true;
+        this.playFastClickBounce(container, getReleaseScale(), () => {
+          fastClickBounceActive = false;
+          this.isAwaitingFastClickBounce = false;
+          this.pageIndex = nextPage;
+          this.renderPage();
+        });
+        return;
+      }
+
+      releaseArrow();
       this.pageIndex = nextPage;
       this.renderPage();
     });
@@ -494,6 +524,8 @@ export class LevelSelectScene extends Phaser.Scene {
     card.add([levelBox, ...digitSprites]);
     levelBox.setInteractive({ useHandCursor: true });
     let pressedPointerId: number | undefined;
+    let pressedAt = 0;
+    let fastClickBounceActive = false;
     let isHovered = false;
     const getReleaseScale = () =>
       isHovered ? LEVEL_CARD_HOVER_SCALE_FACTOR : 1;
@@ -514,6 +546,10 @@ export class LevelSelectScene extends Phaser.Scene {
       }
 
       isHovered = false;
+      if (fastClickBounceActive) {
+        return;
+      }
+
       this.tweens.killTweensOf(card);
       this.tweens.add({
         targets: card,
@@ -524,11 +560,16 @@ export class LevelSelectScene extends Phaser.Scene {
       });
     });
     levelBox.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pressedPointerId !== undefined) {
+      if (
+        pressedPointerId !== undefined ||
+        this.isAwaitingFastClickBounce ||
+        this.isStartingLevel
+      ) {
         return;
       }
 
       pressedPointerId = pointer.id;
+      pressedAt = this.time.now;
       this.tweens.killTweensOf(card);
       const pressedScale = getReleaseScale() * LEVEL_CARD_PRESSED_SCALE_FACTOR;
       this.tweens.add({
@@ -545,7 +586,20 @@ export class LevelSelectScene extends Phaser.Scene {
       }
 
       pressedPointerId = undefined;
+      const clickDuration = this.time.now - pressedAt;
       const releaseScale = getReleaseScale();
+      this.playUiClick();
+      if (clickDuration < FAST_CLICK_THRESHOLD_MS) {
+        this.isAwaitingFastClickBounce = true;
+        fastClickBounceActive = true;
+        this.playFastClickBounce(card, releaseScale, () => {
+          fastClickBounceActive = false;
+          this.isAwaitingFastClickBounce = false;
+          this.startLevel(levelNumber);
+        });
+        return;
+      }
+
       this.tweens.killTweensOf(card);
       this.tweens.add({
         targets: card,
@@ -574,6 +628,32 @@ export class LevelSelectScene extends Phaser.Scene {
     return card;
   }
 
+  private playFastClickBounce(
+    target: Phaser.GameObjects.Container,
+    releaseScale: number,
+    onComplete: () => void
+  ): void {
+    this.tweens.killTweensOf(target);
+    const pressedScale = releaseScale * LEVEL_CARD_PRESSED_SCALE_FACTOR;
+    this.tweens.add({
+      targets: target,
+      scaleX: pressedScale,
+      scaleY: pressedScale,
+      duration: FAST_CLICK_BOUNCE_PRESS_DURATION_MS,
+      ease: 'Sine.Out',
+      onComplete: () => {
+        this.tweens.add({
+          targets: target,
+          scaleX: releaseScale,
+          scaleY: releaseScale,
+          duration: FAST_CLICK_BOUNCE_RELEASE_DURATION_MS,
+          ease: 'Back.Out',
+          onComplete,
+        });
+      },
+    });
+  }
+
   private startLevel(levelNumber: number): void {
     if (
       !PLAYABLE_LEVELS.some((level) => level.number === levelNumber) ||
@@ -589,7 +669,6 @@ export class LevelSelectScene extends Phaser.Scene {
     }
 
     this.isStartingLevel = true;
-    this.playUiClick();
     const transitionStarted = this.irisTransition.startClosing(focus, () => {
       this.scene.start('Game', { levelNumber, openIris: true });
     });
