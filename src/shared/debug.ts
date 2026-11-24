@@ -36,8 +36,8 @@ export interface DebugConfig {
 export const DEBUG_CONFIG: DebugConfig = {
   enabled: true,
   playerInfiniteHealth: false,
-  startAtLevelPicker: false,
-  startDirectlyAtMap0: true,
+  startAtLevelPicker: true,
+  startDirectlyAtMap0: false,
   boostPotionSpawnRates: true,
   showPotionSpawnRange: false,
   showTouchControlsOnDesktop: false,

@@ -16,7 +16,7 @@ This document records credits for assets used in this project.
 - The blue Frenzy Potion uses seven `Blue Potion` animation frames.
 - The green shield potion uses seven `Green Bottle` animation frames.
 - The Level Select cards use frame 1 of the Wood and Paper UI Yellow Button sprites, with numerals recolored to match its `#33323D` border and thickened with one-pixel dilation.
-- The Level Select navigation controls use the same button sprite with custom transparent arrow glyphs colored to match its border.
+- The Level Select navigation controls use the same button sprite with the Vecteezy Pixel Art Red Arrow, background removed, rotated rightward, and recolored to match its `#33323D` border; the previous-page arrow is mirrored. The supplied Vecteezy Free License notice requires credit to [Vecteezy.com](https://www.vecteezy.com/).
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
 - The Frenzy pickup effect uses gold recolors of those four `Potion Effect (4 items)` frames.
 - The cannon trap uses the Shooter Traps collection's Cannon Idle, Cannon Fire, Cannon Fire Effect, Cannon Hit, Cannon Destroyed, Cannon Ball Idle, Cannon Ball Destroyed, and Cannon Ball Explosion animations.
@@ -411,6 +411,7 @@ This document records credits for assets used in this project.
   - `public/assets/img/map/cannon/ball/explosion/4.png`
   - `public/assets/img/map/cannon/ball/explosion/5.png`
   - `public/assets/img/map/cannon/ball/explosion/6.png`
+  - `public/assets/img/ui/level-select/level-nav-arrow.png`
 
 ## 2. PixelLab Pixel-Art UI and Effects
 
@@ -437,7 +438,6 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/title/next-button-pressed.png`
   - `public/assets/img/ui/level-select/level-box.png`
   - `public/assets/img/ui/level-select/level-digits.png`
-  - `public/assets/img/ui/level-select/level-nav-arrow.png`
   - `public/assets/img/ui/health/player-health.png`
   - `public/assets/img/ui/frenzy/frenzy-bolt.png`
   - `public/assets/img/ui/shield/shield-hud.png`

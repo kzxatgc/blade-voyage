@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  getLevelNavArrowOffset,
   getLevelBoxDisplaySize,
   getLevelBoxFaceCenterOffsetY,
 } from './LevelSelectLayout.ts';
@@ -18,5 +19,14 @@ void describe('Level Select layout', () => {
     assert.ok(
       Math.abs(getLevelBoxFaceCenterOffsetY(102) + 102 / 14) < 0.0001
     );
+  });
+
+  void it('centers the trimmed arrow on the button face', () => {
+    const glyphWidth = 102 * 0.4464;
+    const glyphHeight = glyphWidth;
+    const offset = getLevelNavArrowOffset(102, glyphWidth, glyphHeight);
+
+    assert.ok(Math.abs(offset.x) < 0.0001);
+    assert.ok(Math.abs(offset.y + 102 / 14 + 1) < 0.0001);
   });
 });

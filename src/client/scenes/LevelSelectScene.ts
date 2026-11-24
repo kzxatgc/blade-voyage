@@ -14,6 +14,7 @@ import {
 } from '../systems/SettingsUI';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
 import {
+  getLevelNavArrowOffset,
   getLevelBoxFaceCenterOffsetY,
   getLevelBoxDisplaySize,
   LEVEL_BOX_DESIGN_SIZE,
@@ -25,10 +26,7 @@ const LEVEL_BOX_KEY = 'level-box';
 const LEVEL_DIGITS_KEY = 'level-digits';
 const LEVEL_NAV_ARROW_KEY = 'level-nav-arrow';
 const LEVEL_NAV_DISABLED_TINT = 0x555555;
-const LEVEL_NAV_GLYPH_SIZE_FACTOR = 0.62;
-const NAV_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
-const NAV_BUTTON_PRESS_DURATION_MS = 70;
-const NAV_BUTTON_RELEASE_DURATION_MS = 140;
+const LEVEL_NAV_GLYPH_WIDTH_FACTOR = 0.4464;
 const MIN_TOUCH_TARGET_CSS = 44;
 const MIN_CARD_GAP_CSS = 6;
 const NAV_BUTTON_BASE_SIZE = Math.round(84 * 1.2);
@@ -41,6 +39,9 @@ const LEVEL_PICKER_SOUND = 'settings-click';
 const LEVEL_CARD_PRESSED_SCALE_FACTOR = 0.74;
 const LEVEL_CARD_PRESS_DURATION_MS = 90;
 const LEVEL_CARD_RELEASE_DURATION_MS = 130;
+const LEVEL_CARD_HOVER_SCALE_FACTOR = 1.04;
+const LEVEL_CARD_HOVER_DURATION_MS = 100;
+const LEVEL_CARD_POINTER_OUT_DURATION_MS = 120;
 const LEVEL_PICKER_ENTRANCE_DURATION_MS = 800;
 const SOUND_BUTTON_ENTRANCE_LEAD_MS = 500;
 const SOUND_BUTTON_ENTRANCE_DURATION_MS = 600;
@@ -181,15 +182,20 @@ export class LevelSelectScene extends Phaser.Scene {
     flipped: boolean,
     displaySize: number
   ): PageArrow {
+    const glyphDisplayWidth = displaySize * LEVEL_NAV_GLYPH_WIDTH_FACTOR;
+    const glyphDisplayHeight = glyphDisplayWidth;
+    const glyphOffset = getLevelNavArrowOffset(
+      displaySize,
+      glyphDisplayWidth,
+      glyphDisplayHeight
+    );
     const background = this.add
       .image(0, 0, LEVEL_BOX_KEY)
       .setDisplaySize(displaySize, displaySize);
     const glyph = this.add
       .image(0, 0, LEVEL_NAV_ARROW_KEY)
-      .setDisplaySize(
-        displaySize * LEVEL_NAV_GLYPH_SIZE_FACTOR,
-        displaySize * LEVEL_NAV_GLYPH_SIZE_FACTOR
-      )
+      .setPosition(glyphOffset.x, glyphOffset.y)
+      .setDisplaySize(glyphDisplayWidth, glyphDisplayHeight)
       .setFlipX(flipped);
     const container = this.add
       .container(x, y, [background, glyph])
@@ -201,35 +207,57 @@ export class LevelSelectScene extends Phaser.Scene {
       const nextPage = getNextPage();
       return nextPage >= 0 && nextPage < LEVEL_PAGE_COUNT;
     };
-    const baseScaleX = container.scaleX;
-    const baseScaleY = container.scaleY;
+    let isHovered = false;
+    const getReleaseScale = () =>
+      isHovered ? LEVEL_CARD_HOVER_SCALE_FACTOR : 1;
     const releaseArrow = () => {
       this.tweens.killTweensOf(container);
+      const releaseScale = getReleaseScale();
       this.tweens.add({
         targets: container,
-        scaleX: baseScaleX,
-        scaleY: baseScaleY,
-        duration: NAV_BUTTON_RELEASE_DURATION_MS,
-        ease: 'Sine.Out',
+        scaleX: releaseScale,
+        scaleY: releaseScale,
+        duration: LEVEL_CARD_RELEASE_DURATION_MS,
+        ease: 'Back.Out',
       });
     };
 
+    background.on('pointerover', () => {
+      isHovered = true;
+      this.tweens.killTweensOf(container);
+      this.tweens.add({
+        targets: container,
+        scaleX: LEVEL_CARD_HOVER_SCALE_FACTOR,
+        scaleY: LEVEL_CARD_HOVER_SCALE_FACTOR,
+        duration: LEVEL_CARD_HOVER_DURATION_MS,
+        ease: 'Sine.Out',
+      });
+    });
     background.on('pointerdown', () => {
       if (!isAvailable()) {
         return;
       }
 
       this.tweens.killTweensOf(container);
+      const pressedScale = getReleaseScale() * LEVEL_CARD_PRESSED_SCALE_FACTOR;
       this.tweens.add({
         targets: container,
-        scaleX: baseScaleX * NAV_BUTTON_PRESSED_SCALE_FACTOR,
-        scaleY: baseScaleY * NAV_BUTTON_PRESSED_SCALE_FACTOR,
-        duration: NAV_BUTTON_PRESS_DURATION_MS,
+        scaleX: pressedScale,
+        scaleY: pressedScale,
+        duration: LEVEL_CARD_PRESS_DURATION_MS,
         ease: 'Sine.Out',
       });
     });
     background.on('pointerout', () => {
-      releaseArrow();
+      isHovered = false;
+      this.tweens.killTweensOf(container);
+      this.tweens.add({
+        targets: container,
+        scaleX: 1,
+        scaleY: 1,
+        duration: LEVEL_CARD_POINTER_OUT_DURATION_MS,
+        ease: 'Sine.Out',
+      });
       if (isAvailable()) {
         background.clearTint();
         glyph.clearTint();
@@ -450,9 +478,9 @@ export class LevelSelectScene extends Phaser.Scene {
       this.tweens.killTweensOf(card);
       this.tweens.add({
         targets: card,
-        scaleX: 1.04,
-        scaleY: 1.04,
-        duration: 100,
+        scaleX: LEVEL_CARD_HOVER_SCALE_FACTOR,
+        scaleY: LEVEL_CARD_HOVER_SCALE_FACTOR,
+        duration: LEVEL_CARD_HOVER_DURATION_MS,
         ease: 'Sine.Out',
       });
     });
@@ -462,7 +490,7 @@ export class LevelSelectScene extends Phaser.Scene {
         targets: card,
         scaleX: 1,
         scaleY: 1,
-        duration: 120,
+        duration: LEVEL_CARD_POINTER_OUT_DURATION_MS,
         ease: 'Sine.Out',
       });
     });
