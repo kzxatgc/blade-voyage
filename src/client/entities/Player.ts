@@ -161,7 +161,6 @@ export class Player extends PhysicsEntity {
     }
 
     this.shieldTicksRemaining = 0;
-    this.invincibleTimer = this.invincibleDuration;
     this.lastHitWasShielded = true;
     return true;
   }

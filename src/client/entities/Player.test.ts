@@ -462,7 +462,7 @@ void describe('Player', () => {
     assert.equal(player.shieldTicksRemaining, 0);
   });
 
-  void it('absorbs one eligible hit without losing health and starts invulnerability', async () => {
+  void it('absorbs one eligible hit without health damage or invulnerability', async () => {
     const Player = await getPlayer();
     const player = new Player([100, 200]);
     player.activateShield();
@@ -471,7 +471,7 @@ void describe('Player', () => {
     assert.equal(player.health, player.maxHealth);
     assert.equal(player.dead, false);
     assert.equal(player.shieldTicksRemaining, 0);
-    assert.equal(player.invincibleTimer, player.invincibleDuration);
+    assert.equal(player.invincibleTimer, 0);
     assert.equal(player.lastHitWasShielded, true);
 
     player.applyKnockback(1);
