@@ -110,6 +110,7 @@ type CannonTilemap = Pick<
 >;
 type PlayerHitHandler = (knockbackDirection: CannonDirection) => void;
 type WallImpactHandler = (position: readonly [number, number]) => void;
+type CannonFireHandler = () => void;
 type CannonRenderImage = {
   texture: { key: string };
   setOrigin(x: number, y: number): CannonRenderImage;
@@ -491,6 +492,7 @@ export class CannonSystem {
   private readonly tilemap: CannonTilemap;
   private readonly onPlayerHit: PlayerHitHandler;
   private readonly onWallImpact: WallImpactHandler | undefined;
+  private readonly onCannonFire: CannonFireHandler | undefined;
   private readonly random: () => number;
   private readonly cannonImages = new Map<Cannon, CannonRenderImage>();
   private readonly cannonWreckPartImages = new Map<
@@ -505,12 +507,14 @@ export class CannonSystem {
     tilemap: CannonTilemap,
     onPlayerHit: PlayerHitHandler,
     random: () => number = Math.random,
-    onWallImpact?: WallImpactHandler
+    onWallImpact?: WallImpactHandler,
+    onCannonFire?: CannonFireHandler
   ) {
     this.tilemap = tilemap;
     this.onPlayerHit = onPlayerHit;
     this.random = random;
     this.onWallImpact = onWallImpact;
+    this.onCannonFire = onCannonFire;
     this.cannons = Object.values(tilemap.tiles)
       .filter((tile) => tile.type === 'cannon')
       .map((tile) => new Cannon(tile, tilemap.tileSize));
@@ -783,6 +787,7 @@ export class CannonSystem {
     }
 
     cannon.muzzleTicksRemaining = CANNON_MUZZLE_ANIMATION_TICKS;
+    this.onCannonFire?.();
     this.cannonBalls.push(new CannonBall(cannon));
     cannon.activated = false;
     cannon.cycleTick = 0;

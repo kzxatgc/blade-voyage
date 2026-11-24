@@ -104,6 +104,10 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     volume: 0.5,
     files: ['sfx/dialogue/exclamation.wav'],
   },
+  'cannon/fire': {
+    volume: 0.5,
+    files: ['sfx/cannon/fire.wav'],
+  },
 };
 
 export interface SoundPlayer {

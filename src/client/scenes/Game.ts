@@ -669,7 +669,8 @@ export class Game extends Phaser.Scene {
             [1.8, 0.7]
           )
         );
-      }
+      },
+      () => this.soundSystem?.play('cannon/fire')
     );
     this.touchControls = new TouchControls(this, {
       down: () => this.playerEntity?.dropThroughPlatform(),

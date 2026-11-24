@@ -673,3 +673,16 @@ This document records credits for assets used in this project.
 - **Author / Creator**: loganzsound / Freesound
 - **Source Link**: https://freesound.org/people/loganzsound/sounds/872793/
 - **License**: CC0 1.0 Universal (Public Domain)
+
+---
+
+## 21. Cannon Fire (`cannon/fire`)
+
+- **SFX Key**: `'cannon/fire'`
+- **Files**:
+  - `public/assets/sfx/cannon/fire.wav`
+- **Asset Name**: Pulse Cannon
+- **Author / Creator**: lewis100011 / Freesound
+- **Source Link**: https://freesound.org/people/lewis100011/sounds/241827/
+- **License**: Creative Commons Attribution 3.0 Unported (CC BY 3.0) — https://creativecommons.org/licenses/by/3.0/
+- **Changes**: Excerpted to approximately 0.597 seconds and renamed for use as the cannon-fire cue.

@@ -21,18 +21,19 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
       'sword/spinning',
       'sword/kicked',
       'dialogue/exclamation',
+      'cannon/fire',
     ];
     for (const key of expectedKeys) {
       assert.ok(SFX_DEFINITIONS[key], `Missing sound definition for ${key}`);
     }
   });
 
-  void it('contains exactly 39 total audio files across all definitions', () => {
+  void it('contains exactly 40 total audio files across all definitions', () => {
     let totalFiles = 0;
     for (const def of Object.values(SFX_DEFINITIONS)) {
       totalFiles += def.files.length;
     }
-    assert.equal(totalFiles, 39);
+    assert.equal(totalFiles, 40);
   });
 
   void it('defines the health-potion pickup sound', () => {

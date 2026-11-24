@@ -174,6 +174,33 @@ void describe('CannonSystem', () => {
     assert.equal(cannon.warning, false);
   });
 
+  void it('plays the fire callback exactly when the ball launches on frame 3', () => {
+    let fireCount = 0;
+    const system = new CannonSystem(
+      makeTilemap({ '2;3': cannonTile(2, 3) }),
+      () => undefined,
+      Math.random,
+      undefined,
+      () => {
+        fireCount += 1;
+      }
+    );
+
+    for (
+      let tick = 0;
+      tick < CANNON_WARNING_TICKS + CANNON_LAUNCH_DELAY_TICKS - 1;
+      tick += 1
+    ) {
+      system.update();
+    }
+
+    assert.equal(fireCount, 0);
+    assert.equal(system.cannonBalls.length, 0);
+    system.update();
+    assert.equal(fireCount, 1);
+    assert.equal(system.cannonBalls.length, 1);
+  });
+
   void it('enforces a cooldown before rearming while the cannon stays visible', () => {
     const system = new CannonSystem(
       makeTilemap({ '2;3': cannonTile(2, 3) }),
