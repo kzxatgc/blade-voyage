@@ -23,9 +23,9 @@ export const LEVEL_SELECT_SCENE_KEY = 'LevelSelectScene';
 
 const LEVEL_BOX_KEY = 'level-box';
 const LEVEL_DIGITS_KEY = 'level-digits';
-const LEVEL_NAV_KEY = 'level-nav-arrows';
-const LEVEL_NAV_FRAME = 53;
+const LEVEL_NAV_ARROW_KEY = 'level-nav-arrow';
 const LEVEL_NAV_DISABLED_TINT = 0x555555;
+const LEVEL_NAV_GLYPH_SIZE_FACTOR = 0.62;
 const NAV_BUTTON_PRESSED_SCALE_FACTOR = 0.85;
 const NAV_BUTTON_PRESS_DURATION_MS = 70;
 const NAV_BUTTON_RELEASE_DURATION_MS = 140;
@@ -45,11 +45,17 @@ const LEVEL_PICKER_ENTRANCE_DURATION_MS = 800;
 const SOUND_BUTTON_ENTRANCE_LEAD_MS = 500;
 const SOUND_BUTTON_ENTRANCE_DURATION_MS = 600;
 
+type PageArrow = {
+  container: Phaser.GameObjects.Container;
+  background: Phaser.GameObjects.Image;
+  glyph: Phaser.GameObjects.Image;
+};
+
 export class LevelSelectScene extends Phaser.Scene {
   private pageIndex = 0;
   private cardGroup?: Phaser.GameObjects.Container;
-  private previousArrow?: Phaser.GameObjects.Image;
-  private nextArrow?: Phaser.GameObjects.Image;
+  private previousArrow?: PageArrow;
+  private nextArrow?: PageArrow;
   private levelPickerGroup!: Phaser.GameObjects.Container;
   private soundHitTarget?: Phaser.GameObjects.Rectangle;
   private soundIcon?: Phaser.GameObjects.Image;
@@ -174,25 +180,33 @@ export class LevelSelectScene extends Phaser.Scene {
     y: number,
     flipped: boolean,
     displaySize: number
-  ): Phaser.GameObjects.Image {
-    const arrow = this.add
-      .image(x, y, LEVEL_NAV_KEY, LEVEL_NAV_FRAME)
-      .setDisplaySize(displaySize, displaySize)
-      .setFlipX(flipped)
-      .setDepth(6)
-      .setInteractive({ useHandCursor: true });
+  ): PageArrow {
+    const background = this.add
+      .image(0, 0, LEVEL_BOX_KEY)
+      .setDisplaySize(displaySize, displaySize);
+    const glyph = this.add
+      .image(0, 0, LEVEL_NAV_ARROW_KEY)
+      .setDisplaySize(
+        displaySize * LEVEL_NAV_GLYPH_SIZE_FACTOR,
+        displaySize * LEVEL_NAV_GLYPH_SIZE_FACTOR
+      )
+      .setFlipX(flipped);
+    const container = this.add
+      .container(x, y, [background, glyph])
+      .setDepth(6);
+    background.setInteractive({ useHandCursor: true });
 
     const getNextPage = () => this.pageIndex + (flipped ? -1 : 1);
     const isAvailable = () => {
       const nextPage = getNextPage();
       return nextPage >= 0 && nextPage < LEVEL_PAGE_COUNT;
     };
-    const baseScaleX = arrow.scaleX;
-    const baseScaleY = arrow.scaleY;
+    const baseScaleX = container.scaleX;
+    const baseScaleY = container.scaleY;
     const releaseArrow = () => {
-      this.tweens.killTweensOf(arrow);
+      this.tweens.killTweensOf(container);
       this.tweens.add({
-        targets: arrow,
+        targets: container,
         scaleX: baseScaleX,
         scaleY: baseScaleY,
         duration: NAV_BUTTON_RELEASE_DURATION_MS,
@@ -200,29 +214,31 @@ export class LevelSelectScene extends Phaser.Scene {
       });
     };
 
-    arrow.on('pointerdown', () => {
+    background.on('pointerdown', () => {
       if (!isAvailable()) {
         return;
       }
 
-      this.tweens.killTweensOf(arrow);
+      this.tweens.killTweensOf(container);
       this.tweens.add({
-        targets: arrow,
+        targets: container,
         scaleX: baseScaleX * NAV_BUTTON_PRESSED_SCALE_FACTOR,
         scaleY: baseScaleY * NAV_BUTTON_PRESSED_SCALE_FACTOR,
         duration: NAV_BUTTON_PRESS_DURATION_MS,
         ease: 'Sine.Out',
       });
     });
-    arrow.on('pointerout', () => {
+    background.on('pointerout', () => {
       releaseArrow();
       if (isAvailable()) {
-        arrow.clearTint();
+        background.clearTint();
+        glyph.clearTint();
       } else {
-        arrow.setTint(LEVEL_NAV_DISABLED_TINT);
+        background.setTint(LEVEL_NAV_DISABLED_TINT);
+        glyph.setTint(LEVEL_NAV_DISABLED_TINT);
       }
     });
-    arrow.on('pointerup', () => {
+    background.on('pointerup', () => {
       const nextPage = getNextPage();
       if (nextPage < 0 || nextPage >= LEVEL_PAGE_COUNT) {
         releaseArrow();
@@ -234,27 +250,19 @@ export class LevelSelectScene extends Phaser.Scene {
       this.pageIndex = nextPage;
       this.renderPage();
     });
-    arrow.on('pointerupoutside', releaseArrow);
+    background.on('pointerupoutside', releaseArrow);
 
-    return arrow;
+    return { container, background, glyph };
   }
 
   private renderPage(): void {
     const { width, height } = this.scale;
     const canGoPrevious = this.pageIndex > 0;
     const canGoNext = this.pageIndex < LEVEL_PAGE_COUNT - 1;
-    this.previousArrow?.setAlpha(1);
-    this.nextArrow?.setAlpha(1);
-    if (canGoPrevious) {
-      this.previousArrow?.clearTint();
-    } else {
-      this.previousArrow?.setTint(LEVEL_NAV_DISABLED_TINT);
-    }
-    if (canGoNext) {
-      this.nextArrow?.clearTint();
-    } else {
-      this.nextArrow?.setTint(LEVEL_NAV_DISABLED_TINT);
-    }
+    this.previousArrow?.container.setAlpha(1);
+    this.nextArrow?.container.setAlpha(1);
+    this.setPageArrowDisabled(this.previousArrow, !canGoPrevious);
+    this.setPageArrowDisabled(this.nextArrow, !canGoNext);
     this.cardGroup?.destroy(true);
     this.levelCardCenters.clear();
 
@@ -330,8 +338,8 @@ export class LevelSelectScene extends Phaser.Scene {
         PANEL_ARROW_INSET
     );
 
-    this.previousArrow?.destroy();
-    this.nextArrow?.destroy();
+    this.previousArrow?.container.destroy(true);
+    this.nextArrow?.container.destroy(true);
     this.previousArrow = this.createPageArrow(
       panelSide + PANEL_ARROW_INSET + arrowOffset,
       height / 2,
@@ -344,7 +352,10 @@ export class LevelSelectScene extends Phaser.Scene {
       false,
       navButtonSize
     );
-    this.levelPickerGroup.add([this.previousArrow, this.nextArrow]);
+    this.levelPickerGroup.add([
+      this.previousArrow.container,
+      this.nextArrow.container,
+    ]);
 
     this.layoutSoundControl();
     this.renderPage();
@@ -362,6 +373,24 @@ export class LevelSelectScene extends Phaser.Scene {
       duration: LEVEL_PICKER_ENTRANCE_DURATION_MS,
       ease: 'Back.Out',
     });
+  }
+
+  private setPageArrowDisabled(
+    arrow: PageArrow | undefined,
+    disabled: boolean
+  ): void {
+    if (!arrow) {
+      return;
+    }
+
+    if (disabled) {
+      arrow.background.setTint(LEVEL_NAV_DISABLED_TINT);
+      arrow.glyph.setTint(LEVEL_NAV_DISABLED_TINT);
+      return;
+    }
+
+    arrow.background.clearTint();
+    arrow.glyph.clearTint();
   }
 
   private playSoundButtonEntrance(): void {

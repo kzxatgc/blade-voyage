@@ -97,10 +97,9 @@ export class Preloader extends Scene {
       'img/ui/level-select/level-digits.png',
       { frameWidth: 32, frameHeight: 32 }
     );
-    this.load.spritesheet(
-      'level-nav-arrows',
-      'img/ui/level-select/level-nav-arrows.png',
-      { frameWidth: 32, frameHeight: 32 }
+    this.load.image(
+      'level-nav-arrow',
+      'img/ui/level-select/level-nav-arrow.png'
     );
     this.load.spritesheet(
       HEALTH_SPRITE_KEY,
