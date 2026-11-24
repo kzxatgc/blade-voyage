@@ -688,3 +688,17 @@ This document records credits for assets used in this project.
 - **Source Link**: https://freesound.org/people/lewis100011/sounds/241827/
 - **License**: Creative Commons Attribution 3.0 Unported (CC BY 3.0) — https://creativecommons.org/licenses/by/3.0/
 - **Changes**: Excerpted to approximately 0.597 seconds and renamed for use as the cannon-fire cue.
+
+---
+
+## 22. Cannon Hit and Destruction (`cannon/hit`, `cannon/destroyed`)
+
+- **SFX Keys**: `'cannon/hit'`, `'cannon/destroyed'`
+- **Files**:
+  - `public/assets/sfx/cannon/hit/0.mp3`
+  - `public/assets/sfx/cannon/hit/1.mp3`
+- **Asset Name**: QUICK_SMASH_DEBRIS_001.wav
+- **Author / Creator**: JoelAudio / Freesound
+- **Source Link**: https://freesound.org/people/JoelAudio/sounds/135459/
+- **License**: Creative Commons Attribution 4.0 International (CC BY 4.0) — https://creativecommons.org/licenses/by/4.0/
+- **Changes**: Excerpted into two MP3 cues. The first is used for cannon hits and the second for cannon destruction.

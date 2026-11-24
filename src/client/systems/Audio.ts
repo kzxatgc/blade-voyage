@@ -104,6 +104,14 @@ export const SFX_DEFINITIONS: Record<string, SfxDefinition> = {
     volume: 0.5,
     files: ['sfx/dialogue/exclamation.wav'],
   },
+  'cannon/hit': {
+    volume: 0.2,
+    files: ['sfx/cannon/hit/0.mp3'],
+  },
+  'cannon/destroyed': {
+    volume: 0.85,
+    files: ['sfx/cannon/hit/1.mp3'],
+  },
   'cannon/fire': {
     volume: 0.5,
     files: ['sfx/cannon/fire.wav'],

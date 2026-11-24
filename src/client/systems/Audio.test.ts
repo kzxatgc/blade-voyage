@@ -21,6 +21,8 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
       'sword/spinning',
       'sword/kicked',
       'dialogue/exclamation',
+      'cannon/hit',
+      'cannon/destroyed',
       'cannon/fire',
     ];
     for (const key of expectedKeys) {
@@ -28,12 +30,12 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
     }
   });
 
-  void it('contains exactly 40 total audio files across all definitions', () => {
+  void it('contains exactly 42 total audio files across all definitions', () => {
     let totalFiles = 0;
     for (const def of Object.values(SFX_DEFINITIONS)) {
       totalFiles += def.files.length;
     }
-    assert.equal(totalFiles, 40);
+    assert.equal(totalFiles, 42);
   });
 
   void it('defines the health-potion pickup sound', () => {
@@ -74,6 +76,26 @@ void describe('SoundSystem and SFX_DEFINITIONS', () => {
     assert.equal(soundSystem.play('sword/spinning', { sequenceIndex: 1 }), 'sfx/sword/spinning/1.wav');
     assert.equal(soundSystem.play('sword/spinning', { sequenceIndex: 2 }), 'sfx/sword/spinning/2.wav');
     assert.equal(soundSystem.play('sword/spinning', { sequenceIndex: 3 }), 'sfx/sword/spinning/0.wav');
+  });
+
+  void it('plays cannon hit and destruction cues at their tuned volumes', () => {
+    const played: { key: string; volume?: number | undefined }[] = [];
+    const soundSystem = new SoundSystem({
+      play(key: string, extra?: { volume?: number }) {
+        played.push({ key, volume: extra?.volume });
+        return true;
+      },
+    });
+
+    assert.equal(soundSystem.play('cannon/hit'), 'sfx/cannon/hit/0.mp3');
+    assert.equal(
+      soundSystem.play('cannon/destroyed'),
+      'sfx/cannon/hit/1.mp3'
+    );
+    assert.deepEqual(played, [
+      { key: 'sfx/cannon/hit/0.mp3', volume: 0.4 },
+      { key: 'sfx/cannon/hit/1.mp3', volume: 0.6 },
+    ]);
   });
 
   void it('selects random jump sound variant', () => {

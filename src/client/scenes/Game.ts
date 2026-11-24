@@ -1061,6 +1061,9 @@ export class Game extends Phaser.Scene {
             this.playerEntity.flip ? -1 : 1
           ) ?? [];
         for (const { cannon, destroyed } of cannonHits) {
+          this.soundSystem?.play(
+            destroyed ? 'cannon/destroyed' : 'cannon/hit'
+          );
           const impact: [number, number] = [
             cannon.x + cannon.bounds.width / 2,
             cannon.y + cannon.bounds.height / 2,
