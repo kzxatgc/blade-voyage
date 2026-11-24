@@ -91,11 +91,7 @@ export class Preloader extends Scene {
       'title-next-pressed',
       'img/ui/title/next-button-pressed.png'
     );
-    this.load.spritesheet(
-      'level-boxes',
-      'img/ui/level-select/level-boxes.png',
-      { frameWidth: 32, frameHeight: 32 }
-    );
+    this.load.image('level-box', 'img/ui/level-select/level-box.png');
     this.load.spritesheet(
       'level-digits',
       'img/ui/level-select/level-digits.png',

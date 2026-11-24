@@ -15,6 +15,7 @@ This document records credits for assets used in this project.
 - The red potion drop uses seven `Red Potion (7 items)` animation frames.
 - The blue Frenzy Potion uses seven `Blue Potion` animation frames.
 - The green shield potion uses seven `Green Bottle` animation frames.
+- The Level Select cards use frame 1 of the Wood and Paper UI Yellow Button sprites.
 - The health-potion pickup effect uses four `Potion Effect (4 items)` animation frames.
 - The Frenzy pickup effect uses gold recolors of those four `Potion Effect (4 items)` frames.
 - The cannon trap uses the Shooter Traps collection's Cannon Idle, Cannon Fire, Cannon Fire Effect, Cannon Hit, Cannon Destroyed, Cannon Ball Idle, Cannon Ball Destroyed, and Cannon Ball Explosion animations.
@@ -433,7 +434,7 @@ This document records credits for assets used in this project.
   - `public/assets/img/ui/settings/hint-off.png`
   - `public/assets/img/ui/title/next-button.png`
   - `public/assets/img/ui/title/next-button-pressed.png`
-  - `public/assets/img/ui/level-select/level-boxes.png`
+  - `public/assets/img/ui/level-select/level-box.png`
   - `public/assets/img/ui/level-select/level-digits.png`
   - `public/assets/img/ui/level-select/level-nav-arrows.png`
   - `public/assets/img/ui/health/player-health.png`

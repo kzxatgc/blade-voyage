@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { RENDER_DEPTH } from '../../shared/constants';
 import { SETTINGS_UI_SCALE_BREAKPOINT_CSS } from './SettingsUI';
+import { getActionPromptUnitScale } from './ActionPromptLayout';
 
 const ACTION_PROMPT_MIN_EDGE_PADDING_CSS = 11;
 const ACTION_PROMPT_EDGE_PADDING_RANGE_CSS = 3;
@@ -93,6 +94,8 @@ export class ActionPromptHUD {
   private holdProgress = 0;
   private isShown = false;
   private destroyed = false;
+  private initialLayoutFrame: number | undefined;
+  private initialLayoutFrameSecond: number | undefined;
 
   constructor(private readonly scene: Phaser.Scene) {
     const host = scene.game.canvas.parentElement;
@@ -132,6 +135,17 @@ export class ActionPromptHUD {
     this.scene.input.on('pointerupoutside', this.handlePointerUp);
     host.ownerDocument.defaultView?.addEventListener('blur', this.handleBlur);
     this.layout();
+    const animationWindow = host.ownerDocument.defaultView;
+    if (animationWindow) {
+      this.initialLayoutFrame = animationWindow.requestAnimationFrame(() => {
+        this.initialLayoutFrame = undefined;
+        this.layout();
+        this.initialLayoutFrameSecond = animationWindow.requestAnimationFrame(() => {
+          this.initialLayoutFrameSecond = undefined;
+          this.layout();
+        });
+      });
+    }
   }
 
   show(options: ActionPromptOptions): void {
@@ -172,6 +186,18 @@ export class ActionPromptHUD {
         alpha: 1,
         duration: ACTION_PROMPT_TRANSITION_DURATION_MS,
         ease: 'Sine.Out',
+      });
+    }
+
+    const animationWindow = this.scene.game.canvas.ownerDocument.defaultView;
+    if (animationWindow) {
+      animationWindow.requestAnimationFrame(() => {
+        this.layout();
+        this.positionRows();
+        if (this.currentOptions) {
+          this.buildRows(this.currentOptions);
+          this.positionRows();
+        }
       });
     }
   }
@@ -236,6 +262,18 @@ export class ActionPromptHUD {
       this.handleBlur
     );
     this.scene.tweens.killTweensOf(this.root);
+    if (this.initialLayoutFrame !== undefined) {
+      this.scene.game.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
+        this.initialLayoutFrame
+      );
+      this.initialLayoutFrame = undefined;
+    }
+    if (this.initialLayoutFrameSecond !== undefined) {
+      this.scene.game.canvas.ownerDocument.defaultView?.cancelAnimationFrame(
+        this.initialLayoutFrameSecond
+      );
+      this.initialLayoutFrameSecond = undefined;
+    }
     this.root.destroy(true);
     this.announcer.remove();
   }
@@ -246,8 +284,13 @@ export class ActionPromptHUD {
     const canvasBounds = this.scene.game.canvas.getBoundingClientRect();
     const canvasWidth = canvasBounds.width > 0 ? canvasBounds.width : width;
     const canvasHeight = canvasBounds.height > 0 ? canvasBounds.height : height;
-    const unitScale = Math.min(width / canvasWidth, height / canvasHeight);
     const zoom = this.scene.cameras.main.zoom;
+    const unitScale = getActionPromptUnitScale(
+      width,
+      height,
+      canvasWidth,
+      canvasHeight
+    );
     const changed =
       width !== this.lastWidth ||
       height !== this.lastHeight ||

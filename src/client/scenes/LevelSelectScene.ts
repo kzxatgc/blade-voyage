@@ -13,12 +13,16 @@ import {
   SOUND_STORAGE_KEY,
 } from '../systems/SettingsUI';
 import { IrisTransition, type IrisFocus } from '../systems/IrisTransition';
+import {
+  getLevelBoxFaceCenterOffsetY,
+  getLevelBoxDisplaySize,
+  LEVEL_BOX_DESIGN_SIZE,
+} from './LevelSelectLayout';
 
 export const LEVEL_SELECT_SCENE_KEY = 'LevelSelectScene';
 
-const LEVEL_BOX_KEY = 'level-boxes';
+const LEVEL_BOX_KEY = 'level-box';
 const LEVEL_DIGITS_KEY = 'level-digits';
-const LEVEL_BOX_FRAME = 24;
 const LEVEL_NAV_KEY = 'level-nav-arrows';
 const LEVEL_NAV_FRAME = 53;
 const LEVEL_NAV_DISABLED_TINT = 0x555555;
@@ -28,7 +32,6 @@ const NAV_BUTTON_RELEASE_DURATION_MS = 140;
 const MIN_TOUCH_TARGET_CSS = 44;
 const MIN_CARD_GAP_CSS = 6;
 const NAV_BUTTON_BASE_SIZE = Math.round(84 * 1.2);
-const LEVEL_BOX_BASE_SIZE = 120;
 const LEVEL_DIGIT_BASE_SIZE = 40;
 const PANEL_WIDTH = 896;
 const PANEL_HEIGHT = 480;
@@ -263,13 +266,13 @@ export class LevelSelectScene extends Phaser.Scene {
     const panelTop = (height - panelHeight) / 2;
     const columns = 4;
     const rows = LEVELS_PER_PAGE / columns;
-    const boxDisplaySize = Math.max(
-      LEVEL_BOX_BASE_SIZE,
-      MIN_TOUCH_TARGET_CSS * this.getCanvasUnitScale()
+    const boxDisplaySize = getLevelBoxDisplaySize(
+      this.getCanvasUnitScale(),
+      MIN_TOUCH_TARGET_CSS
     );
+    const boxScale = boxDisplaySize / LEVEL_BOX_DESIGN_SIZE;
     const digitDisplaySize =
-      LEVEL_DIGIT_BASE_SIZE * (boxDisplaySize / LEVEL_BOX_BASE_SIZE);
-    const digitOffset = 13 * (digitDisplaySize / LEVEL_DIGIT_BASE_SIZE);
+      LEVEL_DIGIT_BASE_SIZE * boxScale;
     const outerMarginX =
       ((panelWidth - columns * boxDisplaySize) / (columns + 1)) *
       LEVEL_CARD_OUTER_MARGIN_FACTOR;
@@ -296,8 +299,7 @@ export class LevelSelectScene extends Phaser.Scene {
           x,
           y,
           boxDisplaySize,
-          digitDisplaySize,
-          digitOffset
+          digitDisplaySize
         )
       );
     });
@@ -315,9 +317,9 @@ export class LevelSelectScene extends Phaser.Scene {
       NAV_BUTTON_BASE_SIZE,
       MIN_TOUCH_TARGET_CSS * unitScale
     );
-    const boxDisplaySize = Math.max(
-      LEVEL_BOX_BASE_SIZE,
-      MIN_TOUCH_TARGET_CSS * unitScale
+    const boxDisplaySize = getLevelBoxDisplaySize(
+      unitScale,
+      MIN_TOUCH_TARGET_CSS
     );
     const boxGapX = (panelWidth - 4 * boxDisplaySize) / 5;
     const arrowOffset = Math.min(
@@ -389,13 +391,15 @@ export class LevelSelectScene extends Phaser.Scene {
     x: number,
     y: number,
     boxDisplaySize: number,
-    digitDisplaySize: number,
-    digitOffset: number
+    digitDisplaySize: number
   ): Phaser.GameObjects.Container {
     const card = this.add.container(x, y);
     const levelBox = this.add
-      .image(0, 0, LEVEL_BOX_KEY, LEVEL_BOX_FRAME)
+      .image(0, 0, LEVEL_BOX_KEY)
       .setDisplaySize(boxDisplaySize, boxDisplaySize);
+    const digitScale = digitDisplaySize / LEVEL_DIGIT_BASE_SIZE;
+    const digitOffsetX = 13 * digitScale;
+    const digitOffsetY = getLevelBoxFaceCenterOffsetY(boxDisplaySize);
     const digits = String(levelNumber)
       .padStart(2, '0')
       .split('')
@@ -403,8 +407,8 @@ export class LevelSelectScene extends Phaser.Scene {
     const digitSprites = digits.map((digit, index) =>
       this.add
         .image(
-          index === 0 ? -digitOffset : digitOffset,
-          0,
+          index === 0 ? -digitOffsetX : digitOffsetX,
+          digitOffsetY,
           LEVEL_DIGITS_KEY,
           digit
         )
