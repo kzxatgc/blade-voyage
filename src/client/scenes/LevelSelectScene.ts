@@ -208,6 +208,7 @@ export class LevelSelectScene extends Phaser.Scene {
       return nextPage >= 0 && nextPage < LEVEL_PAGE_COUNT;
     };
     let isHovered = false;
+    let pressedPointerId: number | undefined;
     const getReleaseScale = () =>
       isHovered ? LEVEL_CARD_HOVER_SCALE_FACTOR : 1;
     const releaseArrow = () => {
@@ -233,11 +234,12 @@ export class LevelSelectScene extends Phaser.Scene {
         ease: 'Sine.Out',
       });
     });
-    background.on('pointerdown', () => {
-      if (!isAvailable()) {
+    background.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (!isAvailable() || pressedPointerId !== undefined) {
         return;
       }
 
+      pressedPointerId = pointer.id;
       this.tweens.killTweensOf(container);
       const pressedScale = getReleaseScale() * LEVEL_CARD_PRESSED_SCALE_FACTOR;
       this.tweens.add({
@@ -248,7 +250,11 @@ export class LevelSelectScene extends Phaser.Scene {
         ease: 'Sine.Out',
       });
     });
-    background.on('pointerout', () => {
+    background.on('pointerout', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId === pointer.id) {
+        pressedPointerId = undefined;
+      }
+
       isHovered = false;
       this.tweens.killTweensOf(container);
       this.tweens.add({
@@ -266,7 +272,12 @@ export class LevelSelectScene extends Phaser.Scene {
         glyph.setTint(LEVEL_NAV_DISABLED_TINT);
       }
     });
-    background.on('pointerup', () => {
+    background.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId !== pointer.id) {
+        return;
+      }
+      pressedPointerId = undefined;
+
       const nextPage = getNextPage();
       if (nextPage < 0 || nextPage >= LEVEL_PAGE_COUNT) {
         releaseArrow();
@@ -278,7 +289,15 @@ export class LevelSelectScene extends Phaser.Scene {
       this.pageIndex = nextPage;
       this.renderPage();
     });
-    background.on('pointerupoutside', releaseArrow);
+    background.on(
+      'pointerupoutside',
+      (pointer: Phaser.Input.Pointer) => {
+        if (pressedPointerId === pointer.id) {
+          pressedPointerId = undefined;
+        }
+        releaseArrow();
+      }
+    );
 
     return { container, background, glyph };
   }
@@ -474,7 +493,12 @@ export class LevelSelectScene extends Phaser.Scene {
 
     card.add([levelBox, ...digitSprites]);
     levelBox.setInteractive({ useHandCursor: true });
+    let pressedPointerId: number | undefined;
+    let isHovered = false;
+    const getReleaseScale = () =>
+      isHovered ? LEVEL_CARD_HOVER_SCALE_FACTOR : 1;
     levelBox.on('pointerover', () => {
+      isHovered = true;
       this.tweens.killTweensOf(card);
       this.tweens.add({
         targets: card,
@@ -484,7 +508,12 @@ export class LevelSelectScene extends Phaser.Scene {
         ease: 'Sine.Out',
       });
     });
-    levelBox.on('pointerout', () => {
+    levelBox.on('pointerout', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId === pointer.id) {
+        pressedPointerId = undefined;
+      }
+
+      isHovered = false;
       this.tweens.killTweensOf(card);
       this.tweens.add({
         targets: card,
@@ -494,15 +523,58 @@ export class LevelSelectScene extends Phaser.Scene {
         ease: 'Sine.Out',
       });
     });
-    levelBox.on('pointerdown', () => this.startLevel(levelNumber, card));
+    levelBox.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId !== undefined) {
+        return;
+      }
+
+      pressedPointerId = pointer.id;
+      this.tweens.killTweensOf(card);
+      const pressedScale = getReleaseScale() * LEVEL_CARD_PRESSED_SCALE_FACTOR;
+      this.tweens.add({
+        targets: card,
+        scaleX: pressedScale,
+        scaleY: pressedScale,
+        duration: LEVEL_CARD_PRESS_DURATION_MS,
+        ease: 'Sine.Out',
+      });
+    });
+    levelBox.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId !== pointer.id) {
+        return;
+      }
+
+      pressedPointerId = undefined;
+      const releaseScale = getReleaseScale();
+      this.tweens.killTweensOf(card);
+      this.tweens.add({
+        targets: card,
+        scaleX: releaseScale,
+        scaleY: releaseScale,
+        duration: LEVEL_CARD_RELEASE_DURATION_MS,
+        ease: 'Back.Out',
+      });
+      this.startLevel(levelNumber);
+    });
+    levelBox.on('pointerupoutside', (pointer: Phaser.Input.Pointer) => {
+      if (pressedPointerId === pointer.id) {
+        pressedPointerId = undefined;
+        isHovered = false;
+        this.tweens.killTweensOf(card);
+        this.tweens.add({
+          targets: card,
+          scaleX: 1,
+          scaleY: 1,
+          duration: LEVEL_CARD_POINTER_OUT_DURATION_MS,
+          ease: 'Sine.Out',
+        });
+      }
+    });
 
     return card;
   }
 
-  private startLevel(
-    levelNumber: number,
-    card: Phaser.GameObjects.Container
-  ): void {
+  private startLevel(levelNumber: number): void {
     if (
       !PLAYABLE_LEVELS.some((level) => level.number === levelNumber) ||
       this.irisTransition.isActive ||
@@ -518,32 +590,11 @@ export class LevelSelectScene extends Phaser.Scene {
 
     this.isStartingLevel = true;
     this.playUiClick();
-    this.tweens.killTweensOf(card);
-    const releaseScaleX = card.scaleX;
-    const releaseScaleY = card.scaleY;
-    this.tweens.add({
-      targets: card,
-      scaleX: releaseScaleX * LEVEL_CARD_PRESSED_SCALE_FACTOR,
-      scaleY: releaseScaleY * LEVEL_CARD_PRESSED_SCALE_FACTOR,
-      duration: LEVEL_CARD_PRESS_DURATION_MS,
-      ease: 'Sine.Out',
-      onComplete: () => {
-        this.tweens.add({
-          targets: card,
-          scaleX: releaseScaleX,
-          scaleY: releaseScaleY,
-          duration: LEVEL_CARD_RELEASE_DURATION_MS,
-          ease: 'Back.Out',
-        });
-      },
-    });
     const transitionStarted = this.irisTransition.startClosing(focus, () => {
       this.scene.start('Game', { levelNumber, openIris: true });
     });
     if (!transitionStarted) {
       this.isStartingLevel = false;
-      this.tweens.killTweensOf(card);
-      card.setScale(releaseScaleX, releaseScaleY);
     }
   }
 
