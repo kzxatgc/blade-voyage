@@ -941,6 +941,12 @@ export class TouchControls {
       )
     ) {
       this.actions.playUiClick();
+      animateSettingsToggleIcon(
+        this.scene,
+        this.settingsHomeIcon,
+        this.settingsHomeIcon.scaleX,
+        this.settingsHomeIcon.scaleY
+      );
       this.actions.returnToLevelPicker({
         x: this.settingsHomeBounds.left + this.settingsHomeBounds.width / 2,
         y: this.settingsHomeBounds.top + this.settingsHomeBounds.height / 2,
