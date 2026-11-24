@@ -687,7 +687,7 @@ This document records credits for assets used in this project.
 - **Author / Creator**: lewis100011 / Freesound
 - **Source Link**: https://freesound.org/people/lewis100011/sounds/241827/
 - **License**: Creative Commons Attribution 3.0 Unported (CC BY 3.0) — https://creativecommons.org/licenses/by/3.0/
-- **Changes**: Excerpted to approximately 0.597 seconds and renamed for use as the cannon-fire cue.
+- **Changes**: Excerpted to approximately 0.597 seconds, then the final 0.12 seconds were repeated three times with short crossfades. A smooth fade begins at 0.10 seconds and reaches silence at 1.0 second.
 
 ---
 
